@@ -1,0 +1,54 @@
+//全局执行上下文
+GlobalExectionContext = {
+  // this绑定为全局对象
+  ThisBinding: <Global Object>,
+  // 词法环境
+  LexicalEnvironment: {  
+      //环境记录
+    EnvironmentRecord:{  
+      Type: "Object",  // 对象环境记录
+      // 标识符绑定在这里 let const创建的变量a b在这
+      a: < uninitialized >,  
+      b: < uninitialized >,  
+      multiply: < func >  
+    }
+    // 全局环境外部环境引入为null
+    outer: <null>  
+  },
+
+  VariableEnvironment: {  
+    EnvironmentRecord: {  
+      Type: "Object",  // 对象环境记录
+      // 标识符绑定在这里  var创建的c在这
+      c: undefined,  
+    }
+    // 全局环境外部环境引入为null
+    outer: <null>  
+  }  
+}
+
+// 函数执行上下文
+FunctionExectionContext = {
+   //由于函数是默认调用 this绑定同样是全局对象
+  ThisBinding: <Global Object>,
+  // 词法环境
+  LexicalEnvironment: {  
+    EnvironmentRecord: {  
+      Type: "Declarative",  // 声明性环境记录
+      // 标识符绑定在这里  arguments对象在这
+      Arguments: {0: 20, 1: 30, length: 2},  
+    },  
+    // 外部环境引入记录为</Global>
+    outer: <GlobalEnvironment>  
+  },
+
+  VariableEnvironment: {  
+    EnvironmentRecord: {  
+      Type: "Declarative",  // 声明性环境记录
+      // 标识符绑定在这里  var创建的g在这
+      g: undefined  
+    },  
+    // 外部环境引入记录为</Global>
+    outer: <GlobalEnvironment>  
+  }  
+}
