@@ -1,0 +1,73 @@
+/* 基础样式 */
+body {
+    background: #f0f2f5;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+}
+.login-box {
+    background: white;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    width: 350px;
+}
+/* 登录方式切换标签 */
+.login-tabs {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 20px 0;
+}
+.login-tabs li {
+    display: inline-block;
+    margin-right: 20px;
+}
+.login-tabs a {
+    text-decoration: none;
+    font-size: 16px;
+    cursor: pointer;
+    color: #333; /* 默认黑色 */
+}
+.login-tabs a.active {
+    color: #ff4444; /* 选中红色 */
+    font-weight: bold;
+}
+/* 表单内容 */
+.form-group {
+    margin-bottom: 15px;
+}
+input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+button {
+    width: 100%;
+    padding: 12px;
+    background: #1890ff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+/* 返回按钮 */
+.goback{
+    border:0;
+    position: absolute;
+    top: 5vh;
+    left: 85vw;
+    width: 10vw;
+    height: 45px;
+    cursor: pointer;      /* 手型指针 */
+    background-color: #436EEE; /* 按钮颜色 */
+    border-radius: 1vw;
+    box-shadow: 3px 3px 7px #3A5FCD;
+    font-size: medium;
+    font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+    color: #f5f5f5;
+}

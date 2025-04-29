@@ -1,0 +1,973 @@
+/* 顶部栏 */
+#top-module {
+    width: 100vw;
+    background-color: #f5f5f5;
+    position: relative;
+    padding: 12px 0;
+    border-bottom: 1px solid #e3e3e3;
+}
+
+#top-module::after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+#top-left {
+    float: left;
+    padding-left: 20px;
+}
+
+#top-left a:not(:last-child)::after {
+    content: "|";
+    margin: 0 8px;
+    color: #666;
+}
+
+#top-right {
+    float: right;
+    padding-right: 20px;
+}
+
+#top-right a {
+    position: relative;
+    margin: 0 5px;
+}
+
+#top-right a::after {
+    content: "|";
+    position: absolute;
+    right: -10px;
+    color: #ddd;
+}
+
+#top-right a:last-child::after {
+    content: none;
+}
+
+#top-module a {
+    color: #333;
+    text-decoration: none;
+    font-size: 14px;
+    transition: color 0.3s ease;
+    float: left;
+}
+
+#top-module a:hover {
+    color: #e4393c;
+}
+
+/* 清除浮动补充 */
+#top-left::after,
+#top-right::after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+/* 搜索部分 */
+#search-module {
+    width: 1210px;
+    display: flex;
+    margin: 0 auto;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 0;
+    position: relative;
+    box-sizing: border-box;
+}
+
+#search-module::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 1px;
+    background: #dee2e6;
+}
+
+/* 左右侧图片容器 */
+#search-left, #search-right {
+    flex: 0 0 auto;
+    padding: 0 30px;
+}
+
+/* 中间搜索区 */
+#search-center {
+    flex: 1;
+    margin: 0 20px;
+}
+
+/* 搜索框容器 */
+#search-box {
+    display: flex;
+    height: 48px;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 25px; /* 增加下边距 */
+}
+
+/* 输入框 */
+#search-box input {
+    flex: 1;
+    border: 2px solid #e2231a; /* 京东标准红 */
+    border-style: solid !important; /* 强制实线 */
+    padding: 0 20px;
+    font-size: 16px;
+    color: #333;
+}
+
+/* 占位符文字 */
+#search-box input::placeholder {
+    color: #ddd; /* 红色提示文字 */
+    opacity: 1; /* 确保完全显示 */
+}
+
+/* 搜索按钮 */
+#search-btn {
+    width: 100px;
+    background: #ff0000;
+    border: 2px solid #ff0000;
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    transition: filter 0.3s;
+}
+
+/* 按钮悬停效果 */
+#search-btn:hover {
+    filter: brightness(0.9); /* 明度降低10% */
+}
+
+/* 移除所有默认样式 */
+#search-box input:focus,
+#search-btn:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+/* 文字导航 */
+#search-text-nav {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 10px;
+    margin-top: 15px; /* 新增上边距 */
+}
+
+#search-text-nav a {
+    color: #333;
+    font-size: 14px;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+#search-text-nav a:hover {
+    color: #ff0000;
+}
+
+/* 图片尺寸控制 */
+#search-left img, #search-right img {
+    width: 200px;
+    height: 56px;
+    object-fit: contain;
+}
+
+/* 主容器 */
+#top-content-module {
+    position: relative;
+    width: 1210px;
+    height: 430px;
+    margin: 0 auto;
+    background: #fff;
+    display: flex;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+
+/* 底部换行符 */
+#top-content-module::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 1px;
+    background: #e0e0e0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* 左侧导航栏 */
+.top-left-content {
+    width: 17%;
+    height: 400px;
+    background: #f5f5f5;
+    padding: 15px 0;
+    position: relative;
+    overflow: visible !important; /* 允许悬停事件穿透 */
+}
+
+/* 导航项交互逻辑 */
+.top-left-content .nav-item {
+    padding: 6px 0px;
+    transition: background 0.3s ease;
+    border-radius: 8px;
+}
+.top-left-content .nav-item:hover {
+    background: #ddd; /* 整行灰色底图 */
+    pointer-events: auto !important;
+}
+.top-left-content a {
+    color: #333;
+    font-size: 14px;
+    transition: color 0.2s;
+    white-space: nowrap;
+    text-decoration: none; 
+}
+.top-left-content a:hover {
+    color: #e2231a !important; /* 独立元素变红 */
+}
+
+/* 分隔符样式 */
+.top-left-content .slash {
+    color: #999;
+    padding: 0 1px;
+    pointer-events: none; /* 禁用分隔符交互 */
+}
+
+/* 图标对齐 */
+.top-left-content .link-group {
+    display: flex;
+    align-items: center;
+    gap:1px;
+}
+.top-left-content .nav-icon {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+}
+
+/* 父容器定位基准 */
+#top-content-module {
+    position: relative; /* 创建定位上下文 */
+}
+
+/* 中间主容器 */
+.top-mid-content {
+    width: 60%; 
+    height: 100%; /* 继承父容器高度[1,4](@ref) */
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box; /* 防止padding影响尺寸计算[1](@ref) */
+    padding: 0 3%; 
+    gap: 20px;
+}
+
+/* 上层文字栏 */
+.top-mid-up-content {
+    flex: 0 0 auto;
+    background: #f5f5f5;
+    border-radius: 14px;
+    padding: 18px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    
+    /* 边界对齐关键设置 */
+    margin-top: 0; 
+    margin-bottom: 0; 
+}
+
+/* 文字项样式 */
+.top-mid-up-content span {
+    color: #000;
+    font-size: 19px;
+    font-weight: 700;
+    font-family: "Microsoft YaHei", sans-serif;
+    text-decoration: none; /* 去除默认下划线*/
+    transition: color 0.3s ease;
+    white-space: nowrap;
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 8px;
+}
+.top-mid-up-content span:hover {
+    color: #e2231a; /* 京东标准红 */
+}
+
+/* 下层区域占位 */
+.top-mid-down-content {
+    flex: 1;
+    display: flex;
+    justify-content: space-between;
+    gap: 3%;
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+/* 左侧轮播图容器 */
+.left-section {
+    width: 33%;
+    position: relative;
+    background: #fff;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+/* 图片切换动画 */
+.carousel-container {
+    position: relative;
+    height: 400px; /* 根据实际需求调整 */
+}
+
+.carousel-container img {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+    opacity: 0;
+    transition: opacity 0.8s cubic-bezier(0.4,0,0.2,1);
+}
+
+.carousel-container img.active {
+    opacity: 1;
+}
+
+/* 导航点容器 */
+.carousel-dots {
+    position: absolute;
+    bottom: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    z-index: 2;
+}
+
+/* 导航点基础样式 */
+.carousel-dots span {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.8);  /* 修改为黑色半透明 */
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255,255,255,0.3);  /* 增加边框增强对比[7](@ref) */
+}
+
+/* 激活状态样式 */
+.carousel-dots span.active {
+    background: #ff4757;
+    transform: scale(1.2);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    border-color: transparent;  /* 激活状态隐藏边框 */
+}
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .left-section {
+        width: 100%;
+        border-radius: 8px;
+    }
+    
+    .carousel-container {
+        height: 300px;
+    }
+    
+    .carousel-dots span {
+        width: 10px;
+        height: 10px;
+    }
+}
+
+/* 右侧信息图容器 */
+.right-section {
+    width: 66%;
+    background: #fff;
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+/* 通用图片样式 */
+.right-section img {
+  width: 100%;
+  height: 100%;
+  object-fit: fill; /* 允许拉伸变形[1,3](@ref) */
+  object-position: left center; /* 左图左对齐[1,7](@ref) */
+  transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  -webkit-backface-visibility: hidden; /* 修复变形锯齿[5](@ref) */
+}
+
+/* 右图特殊配置 */
+.right-section img {
+  object-position: right center; /* 右图右对齐[1,7](@ref) */
+}
+
+/* 交互增强 */
+.left-section:hover img {
+  transform: scale(1.02) translateX(2%);
+}
+.right-section:hover img {
+  transform: scale(1.02) translateX(-2%);
+}
+
+/* 右侧内容区 */
+.top-right-content{
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 23%; /* 精确匹配父容器1210px的17%即205.7px */
+    height: 430px; /* 严格等于父容器高度 */
+    box-sizing: border-box; /* 关键修复项[8](@ref) */
+    padding: 0; /* 移除内边距 */
+    overflow: hidden;
+    background: #fff;
+    z-index: 10; /* 确保在轮播图之上 */
+}
+
+/* 图片适配优化 */
+.top-right-content img {
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+    object-position: 58% center; /* 根据京东商品图特征优化[5](@ref) */
+    position: relative; /* 替换absolute定位 */
+    transform-origin: right center; /* 悬停缩放基准点 */
+    transition: transform 0.3s cubic-bezier(0.18,0.89,0.32,1.28);
+}
+
+/* 悬停动效优化 */
+.top-right-content:hover img {
+    transform: scale(1.02);
+    box-shadow: inset 0 0 8px rgba(0,0,0,0.05);
+    filter: brightness(1.02); /* 亮度补偿 */
+}
+
+@media (max-width: 1240px) {
+    .top-right-content {
+        width: calc(1210px * 0.17); /* 保持精确比例 */
+        right: 15px; /* 补偿滚动条宽度 */
+    }
+}
+
+/* 在style.css中添加 */
+.smooth-box {
+    position: absolute;
+    left: 17%; /* 与top-left-content宽度一致 */
+    top: 0;
+    right: 17%; /* 与top-right-content宽度一致 */
+    height: calc(100% - 15px); /* 包含顶部间距 */
+    background: #fff;
+    border: 2px solid #e2231a;
+    border-radius: 8px;
+    z-index: 9999;
+    display: none;
+    pointer-events: none; /* 防止遮挡交互 */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transition: opacity 0.3s ease;
+    overflow: hidden;
+}
+.nav-preview {
+    position: absolute;
+    left: 1px;
+    top: 1px;
+    width: calc(100% - 2px);
+    height: calc(100% - 2px);
+    object-fit: contain;
+    border-radius: 6px; /* 比容器小2px */
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+/* 动态位置调整 */
+.top-left-content:hover + .top-mid-content .smooth-box {
+    display: block;
+}
+
+/* 保证覆盖层级 */
+.top-left-content,
+.top-mid-content,
+.top-right-content {
+    position: relative;
+    z-index: 200;
+}
+
+/* 调整现有内容层级 */
+#top-content-module {
+    z-index: 1;
+}
+
+/* 主内容模块样式 */
+.main-content-module {
+    position: relative;
+    width: 100vw;
+    min-height: 600px; /* 根据实际内容高度调整 */
+    background: #fff;
+    box-sizing: border-box;
+    margin: 0 auto;
+    overflow: visible;
+}
+
+/* 底部边界线（带阴影增强立体感） */
+.main-content-module::after {
+    content: "";
+    position: absolute;
+    bottom: -1px; /* 精确贴合容器外边缘 */
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, 
+        rgba(227,227,227,1) 0%, 
+        rgba(227,227,227,0.8) 50%, 
+        rgba(227,227,227,1) 100%);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    z-index: 10;
+}
+
+/* 响应式处理 */
+@media (max-width: 768px) {
+    .main-content-module {
+        width: 100%; /* 小屏改用标准宽度避免横向滚动 */
+        min-height: 400px;
+    }
+    
+    .main-content-module::after {
+        height: 1px; /* 小屏更细的分隔线 */
+    }
+}
+/*<!-- 商品展示区开始 -->*/
+#lifewindow{
+	width: 1210px;
+	height: 514px;
+	margin: 0 auto;
+	/*border:1px solid orange;*/
+	position: relative;
+	z-index: 90;
+}
+#lifewindow .lifetu{
+	width: 1210px;
+	height: 24px;
+	float: left;
+	background: url(/static/images/e1.png) no-repeat;
+}
+#lifewindow .lifemain{
+	width: 1210px;
+	height: 400px;
+	float: left;
+}
+#lifewindow .lifemain .tuarea1{
+	width: 295px;
+	height: 190px;
+	margin-top: 10px;
+	position: relative;
+	overflow: hidden;
+	float: left;
+	margin-right: 7px;
+}
+#lifewindow .lifemain .tuarea2{
+	width: 295px;
+	height: 190px;
+	position: relative;
+	overflow: hidden;
+	float: left;
+	margin-top: 10px;
+	margin-right: 7px;
+}
+#lifewindow .lifemain .tuarea3{
+	width: 295px;
+	height: 190px;
+	position: relative;
+	overflow: hidden;
+	float: left;
+	margin-top: 10px;
+	margin-right: 7px;
+}
+#lifewindow .lifemain .tuarea4{
+	width: 295px;
+	height: 190px;
+	position: relative;
+	overflow: hidden;
+	float: left;
+	margin-top: 10px;
+	margin-right: 7px;
+}
+#lifewindow .lifemain .tuarea5{
+	width: 295px;
+	height: 190px;
+	position: relative;
+	margin-top: 10px;
+	overflow: hidden;
+	float: left;
+	margin-right: 7px;
+}
+#lifewindow .lifemain .tuarea6{
+	width: 295px;
+	height: 190px;
+	position: relative;
+	margin-top: 10px;
+	overflow: hidden;
+	float: left;
+	margin-right: 7px;
+}
+#lifewindow .lifemain .tuarea7{
+	width: 295px;
+	height: 190px;
+	position: relative;
+	margin-top: 10px;
+	overflow: hidden;
+	float: left;
+	margin-right: 7px;
+}
+#lifewindow .lifemain .tuarea8{
+	width: 295px;
+	height: 190px;
+	margin-top: 10px;
+	position: relative;
+	overflow: hidden;
+	float: left;
+	margin-right: 7px;
+}
+#lifewindow .lifemain .tuarea9{
+	width: 396px;
+	height: 70px;
+	margin-top: 10px;
+	position: relative;
+	float: left;
+	cursor: pointer;
+	margin-right: 5px;
+}
+#lifewindow .lifemain .zhe{
+	width: 120px;
+	height: 190px;
+	float: left;
+	background: #ccc;
+	position: absolute;
+	z-index: 2;
+	filter:alpha(opacity=70);
+	opacity: 0.7;
+}
+#lifewindow .lifemain h3{
+	width: 120px;
+	font-size: 20px;
+	display: block;
+	margin-top: 30px;
+	float: left;
+	font-family: "微软雅黑";
+	color: black;
+	cursor: pointer;
+	margin-left: 20px;
+	font-weight: 700;
+}
+#lifewindow .lifemain .life1{
+	float: left;
+	width: 120px;
+	margin-top: 5px;
+	margin-left: 20px;
+}
+#lifewindow .lifemain .life1 a{
+	font-weight: 500;
+	color: #333;
+	font-size: 14px;
+}
+#lifewindow .lifemain .cantuan{
+	width: 72px;
+	height: 32px;
+	float: left;
+	margin-top: 5px;
+	margin-left: 20px;
+	background: url(/static/images/ee1.jpg) no-repeat;
+}
+#lifewindow .lifemain .zhe ul{
+	float: left;
+	filter:alpha(opacity=70);
+	opacity: 0.7;
+	margin-top: 20px;
+	margin-left: 30px;
+}
+#lifewindow .lifemain .zhe ul li{
+	list-style: disc;
+	margin-top: 5px;
+}
+#lifewindow .lifemain .zhe ul li a{
+	color: #333;
+}
+#lifewindow .lifemain .zhe1{
+	width: 120px;
+	height: 190px;
+	float: left;
+	background: white;
+	position: absolute;
+	z-index: 2;
+	filter:alpha(opacity=70);
+	opacity: 0.7;
+}
+#lifewindow .lifemain img{
+	position: absolute;
+	top: 0px;
+	left: 0px;
+}
+/*<!-- 商品展示区结束 -->*/
+.service-table {
+    background: #f5f5f5;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    padding: 30px 20px 20px;
+}
+
+/* 新增底部图集样式 */
+.sprite-container {
+    padding: 15px 0;
+    text-align: center;
+    position: relative;
+    margin-top: -30px; /* 与顶部间距调整 */
+}
+.sprite-wrapper {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 1px;
+    background: #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+    max-width: 100%;
+}
+/* 新增图标容器样式 */
+.icon-container {
+    padding: 20px 0;
+    text-align: center;
+    user-select: none; /* 禁止文本选择 */
+}
+
+.icon-wrapper {
+    display: inline-flex;
+    gap: 40px; /* 图标间距 */
+    padding: 10px 0;
+}
+/* 修正雪碧图样式 */
+.service-icon {
+    display: inline-block;
+    width: 36px;
+    height: 42.75px;
+    background: url(/static/images/ico_service.png) no-repeat;
+    cursor: default; /* 默认光标样式 */
+    pointer-events: none; /* 禁用所有鼠标事件 */
+}
+.sprite-item {
+    width: 103px;
+    height: 33px;
+    background: url(/static/images/new_footer.png) no-repeat;
+    transition: transform 0.2s;
+}
+.sprite-item:hover {
+    transform: translateY(-2px);
+}
+/* 精准雪碧图定位 */
+.service-icon:nth-child(1) { background-position: 0 0; }
+.service-icon:nth-child(2) { background-position: 0 -42.75px; }
+.service-icon:nth-child(3) { background-position: 0 -85.5px; }
+.service-icon:nth-child(4) { background-position: 0 -128.25px; }
+.service-icon:hover {
+    transform: translateY(-5px);
+}
+/* 雪碧图定位计算 */
+.sprite-item:nth-child(1) { background-position: 0 0; }
+.sprite-item:nth-child(2) { background-position: -103px 0; }
+.sprite-item:nth-child(3) { background-position: 0 -33px; }
+.sprite-item:nth-child(4) { background-position: -103px -33px; }
+.sprite-item:nth-child(5) { background-position: 0 -66px; }
+.sprite-item:nth-child(6) { background-position: -103px -66px; }
+/* 原有样式保持不变 */
+.service-module {
+    vertical-align: top;
+    width: 25%;
+    padding: 10px;
+}
+.module-title {
+    font-weight: bold;
+    font-size: 16px;
+    margin-bottom: 15px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #eee;
+}
+.service-list {
+    margin: 0;
+    padding: 0;
+}
+.service-list dd {
+    margin: 0;
+    padding: 8px 0;
+}
+.service-list a {
+    color: #000;
+    text-decoration: none;
+    display: block;
+    transition: all 0.2s;
+}
+.service-list a:hover {
+    color: #e4393c;
+    transform: translateX(5px);
+}
+/* 新增分割线样式 */
+.service-table {
+    position: relative;
+}
+.divider {
+    border-top: 2px solid #e0e0e0;  /* 实线分割线样式 */
+    margin: 25px 0;  /* 上下间距与内容保持比例 */
+}
+/* 新增服务项容器样式 */
+.service-item {
+    display: inline-flex;
+    align-items: center;
+    margin: 0 20px;
+}
+
+/* 文字样式 */
+.service-text {
+    font-weight: bold;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+/* 调整图标对齐方式 */
+.service-icon {
+    vertical-align: middle;
+}
+    /* 底部信息样式 */
+/* 全局居中样式 */
+.footer-info {
+    text-align: center;
+    padding: 30px 0;
+    border-top: 1px solid #eee;
+}
+
+.footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    color: #666;
+    font-size: 12px;
+    line-height: 1.8;
+}
+/* 链接容器 */
+.footer-links {
+    margin-bottom: 15px;
+}
+/* 链接样式 */
+.footer-links a {
+    color: #333;
+    text-decoration: none;
+    margin: 0 8px;
+    white-space: nowrap;
+}
+.footer-links a:hover {
+    color: #e4393c;
+}
+
+/* 分隔线样式 */
+.divider {
+    color: #000;
+    margin: 0 5px;
+}
+
+/* 段落间距 */
+.record-info p,
+.copyright p,
+.additional-info p {
+    margin: 8px 0;
+}
+/* 特殊强调 */
+.copyright p:first-child {
+    color: #e4393c;
+    font-weight: 500;
+}
+/* 响应式处理 */
+@media (max-width: 768px) {
+    .footer-links a {
+        display: block;
+        margin: 5px 0;
+    }
+    .divider {
+        display: none;
+    }
+}
+/* 证书信息 */
+.certificates {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px dashed #ddd;
+}
+
+
+.right-quick-nav {
+    position: fixed;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 9999;
+    background: #000;
+    border-radius: 14px 0 0 14px;
+    padding: 20px 12px;
+    box-shadow: -2px 2px 12px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+
+.right-quick-nav .nav-item {
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+}
+
+.right-quick-nav .nav-item:hover {
+    transform: translateX(-8px);
+}
+
+.right-quick-nav img {
+    width: 36px;
+    height: 36px;
+    margin-bottom: 6px;
+    filter: grayscale(0.2);
+    transition: filter 0.3s;
+}
+
+.right-quick-nav .nav-item:hover img {
+    filter: none;
+}
+
+.right-quick-nav span {
+    font-size: 12px;
+    color: white;
+    font-family: "Microsoft YaHei", sans-serif;
+    white-space: nowrap;
+    letter-spacing: 0.5px;
+    transition: color 0.3s;
+}
+
+.right-quick-nav .nav-item:hover span {
+    color: #e2231a;
+}
+
+/* 响应式适配 */
+@media (max-width: 768px) {
+    .right-quick-nav {
+        padding: 12px 8px;
+        gap: 20px;
+    }
+    
+    .right-quick-nav img {
+        width: 28px;
+        height: 28px;
+    }
+    
+    .right-quick-nav span {
+        font-size: 10px;
+    }
+}
+

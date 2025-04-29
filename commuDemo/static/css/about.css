@@ -1,0 +1,36 @@
+/* 容器布局 */
+.container {
+    display: flex;
+    height: 100vh;
+    border: 1px solid #ddd;
+}
+
+/* 左侧导航样式 */
+.nav-panel {
+    width: 240px;
+    background: #f8f9fa;
+    padding: 20px 0;
+    border-right: 2px solid #e9ecef;
+}
+.nav-item {
+    padding: 15px 20px;
+    margin: 0 10px;
+    cursor: pointer;
+    background: white;
+    border: 2px solid transparent;
+    border-radius: 6px;
+    transition: all 0.3s;
+}
+.nav-item.active {
+    border-color: #ff4444; /* 选中红框 */
+}
+.nav-item:not(:last-child) {
+    border-bottom: 1px solid #e9ecef; /* 横线分隔 */
+    margin-bottom: 10px;
+}
+
+/* 右侧内嵌页面 */
+.content-frame {
+    flex: 1;
+    border: none;
+}
