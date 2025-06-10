@@ -1,18 +1,42 @@
 <view class="container">
-  <t-navbar title="深技大校园服务" />
+  <!-- 顶部导航栏 -->
+  <t-navbar title="深技大校园服务" t-class="custom-navbar" />
   
-  <view class="grid-container">
-    <t-grid>
-      <t-grid-item text="校园公告" image="https://tdesign.gtimg.com/miniprogram/images/grid-icon-1.png" bindtap="navigateToAnnouncements" />
+  <!-- 用户信息卡片 -->
+  <view class="user-card">
+    <t-avatar image="https://tdesign.gtimg.com/miniprogram/images/avatar.png" size="large" />
+    <view class="user-info">
+      <text class="user-name">同学你好</text>
+      <text class="user-id">学号：2024XXXXXX</text>
+    </view>
+  </view>
+
+  <!-- 功能导航区 -->
+  <view class="feature-grid">
+    <t-grid column="2" border="{{false}}">
+      <t-grid-item text="校园公告" image="https://tdesign.gtimg.com/miniprogram/images/grid-icon-1.png" bindtap="navigateToAnnouncements">
+        <t-badge count="2" dot="{{false}}" offset="{{[0, 0]}}" />
+      </t-grid-item>
       <t-grid-item text="课表查询" image="https://tdesign.gtimg.com/miniprogram/images/grid-icon-2.png" bindtap="navigateToSchedule" />
       <t-grid-item text="部门通知" image="https://tdesign.gtimg.com/miniprogram/images/grid-icon-3.png" bindtap="navigateToNotices" />
       <t-grid-item text="活动日历" image="https://tdesign.gtimg.com/miniprogram/images/grid-icon-4.png" bindtap="navigateToEvents" />
     </t-grid>
   </view>
 
+  <!-- 快捷功能区 -->
+  <view class="quick-actions">
+    <t-cell-group title="快捷功能">
+      <t-cell title="成绩查询" hover arrow icon="chart" bindtap="navigateToGrades" />
+      <t-cell title="考试安排" hover arrow icon="calendar" bindtap="navigateToExams" />
+      <t-cell title="校园卡" hover arrow icon="credit-card" bindtap="navigateToCampusCard" />
+      <t-cell title="图书馆" hover arrow icon="book" bindtap="navigateToLibrary" />
+    </t-cell-group>
+  </view>
+
+  <!-- 最新公告区 -->
   <view class="announcement-section">
     <t-cell-group title="最新公告">
-      <t-cell wx:for="{{announcements}}" wx:key="id" title="{{item.title}}" hover note="{{item.date}}" arrow />
+      <t-cell wx:for="{{announcements}}" wx:key="id" title="{{item.title}}" hover note="{{item.date}}" arrow bindtap="viewAnnouncement" data-id="{{item.id}}" />
     </t-cell-group>
   </view>
 </view> 

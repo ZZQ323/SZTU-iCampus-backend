@@ -1,0 +1,26 @@
+<view class="container">
+  <t-navbar title="成绩查询" />
+  <view class="grades-container">
+    <view class="semester-selector">
+      <t-cell-group>
+        <t-cell title="当前学期" note="{{currentSemester}}" arrow />
+      </t-cell-group>
+    </view>
+    <view class="grades-list">
+      <t-cell-group>
+        <t-cell wx:for="{{grades}}" wx:key="id" hover title="{{item.courseName}}" note="{{item.credit}}学分" arrow>
+          <view slot="note" class="grade-note">
+            <text class="grade-score {{item.score >= 60 ? 'pass' : 'fail'}}">{{item.score}}</text>
+            <text class="grade-point">{{item.gradePoint}}</text>
+          </view>
+        </t-cell>
+      </t-cell-group>
+    </view>
+    <view class="summary">
+      <t-cell-group>
+        <t-cell title="平均学分绩点" note="{{gpa}}" />
+        <t-cell title="已修学分" note="{{totalCredits}}" />
+      </t-cell-group>
+    </view>
+  </view>
+</view> 

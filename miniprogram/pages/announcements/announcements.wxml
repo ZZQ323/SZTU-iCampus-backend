@@ -1,0 +1,8 @@
+<view class="container">
+  <t-navbar title="校园公告" />
+  <view class="announcement-list">
+    <t-cell-group>
+      <t-cell wx:for="{{announcements}}" wx:key="id" hover title="{{item.title}}" note="{{item.date}}" arrow />
+    </t-cell-group>
+  </view>
+</view> 

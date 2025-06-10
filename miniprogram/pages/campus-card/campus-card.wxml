@@ -1,0 +1,36 @@
+<view class="container">
+  <t-navbar title="校园卡" />
+  <view class="card-container">
+    <view class="card-info">
+      <view class="card-header">
+        <t-avatar size="large" image="{{userInfo.avatar}}" />
+        <view class="user-info">
+          <text class="user-name">{{userInfo.name}}</text>
+          <text class="student-id">{{userInfo.studentId}}</text>
+        </view>
+      </view>
+      <view class="balance-info">
+        <text class="balance-label">卡内余额</text>
+        <text class="balance-amount">¥{{balance}}</text>
+      </view>
+    </view>
+    <view class="card-functions">
+      <t-grid column="4">
+        <t-grid-item text="充值" image="assets/icons/recharge.png" />
+        <t-grid-item text="消费记录" image="assets/icons/record.png" />
+        <t-grid-item text="挂失" image="assets/icons/lost.png" />
+        <t-grid-item text="解挂" image="assets/icons/unlock.png" />
+      </t-grid>
+    </view>
+    <view class="recent-transactions">
+      <view class="section-title">最近交易</view>
+      <t-cell-group>
+        <t-cell wx:for="{{transactions}}" wx:key="id" hover title="{{item.merchant}}" note="{{item.time}}">
+          <view slot="note" class="transaction-amount {{item.type === 'expense' ? 'expense' : 'income'}}">
+            {{item.type === 'expense' ? '-' : '+'}}¥{{item.amount}}
+          </view>
+        </t-cell>
+      </t-cell-group>
+    </view>
+  </view>
+</view> 

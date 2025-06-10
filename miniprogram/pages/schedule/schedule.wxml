@@ -1,0 +1,13 @@
+<view class="container">
+  <t-navbar title="课表查询" />
+  <view class="schedule-container">
+    <view class="week-selector">
+      <t-cell-group>
+        <t-cell title="当前周次" note="第{{currentWeek}}周" arrow />
+      </t-cell-group>
+    </view>
+    <view class="schedule-grid">
+      <!-- 课表内容将通过JS动态生成 -->
+    </view>
+  </view>
+</view> 

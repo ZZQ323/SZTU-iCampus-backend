@@ -1,0 +1,20 @@
+<view class="container">
+  <t-navbar title="考试安排" />
+  <view class="exams-container">
+    <view class="exam-type-selector">
+      <t-cell-group>
+        <t-cell title="考试类型" note="{{examType}}" arrow />
+      </t-cell-group>
+    </view>
+    <view class="exams-list">
+      <t-cell-group>
+        <t-cell wx:for="{{exams}}" wx:key="id" hover title="{{item.courseName}}" arrow>
+          <view slot="note" class="exam-info">
+            <text class="exam-time">{{item.date}} {{item.time}}</text>
+            <text class="exam-location">{{item.location}}</text>
+          </view>
+        </t-cell>
+      </t-cell-group>
+    </view>
+  </view>
+</view> 
