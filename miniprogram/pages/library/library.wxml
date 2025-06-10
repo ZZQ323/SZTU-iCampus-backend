@@ -1,0 +1,35 @@
+<view class="container">
+  <t-navbar title="图书馆" />
+  <view class="library-container">
+    <view class="search-box">
+      <t-search placeholder="搜索图书" />
+    </view>
+    <view class="quick-functions">
+      <t-grid column="4">
+        <t-grid-item text="借阅查询" image="assets/icons/borrow.png" />
+        <t-grid-item text="续借" image="assets/icons/renew.png" />
+        <t-grid-item text="预约" image="assets/icons/reserve.png" />
+        <t-grid-item text="座位预约" image="assets/icons/seat.png" />
+      </t-grid>
+    </view>
+    <view class="borrowed-books">
+      <view class="section-title">当前借阅</view>
+      <t-cell-group>
+        <t-cell wx:for="{{borrowedBooks}}" wx:key="id" hover title="{{item.title}}" note="应还日期：{{item.dueDate}}" arrow>
+          <view slot="note" class="book-info">
+            <text class="book-author">{{item.author}}</text>
+            <text class="book-due-date">应还日期：{{item.dueDate}}</text>
+          </view>
+        </t-cell>
+      </t-cell-group>
+    </view>
+    <view class="library-info">
+      <view class="section-title">图书馆信息</view>
+      <t-cell-group>
+        <t-cell title="开放时间" note="08:00-22:00" />
+        <t-cell title="联系电话" note="0755-88888888" />
+        <t-cell title="馆藏总量" note="{{totalBooks}}册" />
+      </t-cell-group>
+    </view>
+  </view>
+</view> 
