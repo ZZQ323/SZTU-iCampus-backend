@@ -9,6 +9,8 @@ import uvicorn
 from app.database import get_db, engine
 from app.models import announcement as models
 from app.schemas import announcement as schemas
+from app.api.v1.endpoints import auth
+from app.core.security import verify_token
 
 # 创建数据库表
 models.Base.metadata.create_all(bind=engine)
@@ -31,6 +33,9 @@ app.add_middleware(
 # 安全配置
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
+# 包含认证路由
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+
 @app.get("/")
 async def root():
     return {"message": "欢迎使用深圳技术大学校园服务API"}
@@ -39,23 +44,31 @@ async def root():
 async def get_announcements(
     skip: int = 0,
     limit: int = 10,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme)
 ):
     """
     获取校园公告列表
     - **skip**: 跳过的记录数
     - **limit**: 返回的最大记录数
     """
+    # 验证token
+    verify_token(token)
+    
     announcements = db.query(models.Announcement).offset(skip).limit(limit).all()
     return announcements
 
 @app.get("/api/announcements/stream")
 async def get_announcements_stream(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme)
 ):
     """
     使用流式响应获取校园公告
     """
+    # 验证token
+    verify_token(token)
+    
     async def generate():
         announcements = db.query(models.Announcement).all()
         for announcement in announcements:
@@ -69,11 +82,15 @@ async def get_announcements_stream(
 @app.post("/api/announcements", response_model=schemas.Announcement)
 async def create_announcement(
     announcement: schemas.AnnouncementCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    token: str = Depends(oauth2_scheme)
 ):
     """
     创建新的校园公告
     """
+    # 验证token
+    verify_token(token)
+    
     db_announcement = models.Announcement(**announcement.dict())
     db.add(db_announcement)
     db.commit()

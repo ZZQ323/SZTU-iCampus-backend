@@ -4,12 +4,28 @@ from datetime import datetime
 
 class UserBase(BaseModel):
     student_id: str
-    email: Optional[EmailStr] = None
-    full_name: Optional[str] = None
-    is_active: Optional[bool] = True
+    name: str
+    avatar_url: Optional[str] = None
 
 class UserCreate(UserBase):
-    password: str
+    openid: str
+
+class User(UserBase):
+    id: int
+    openid: str
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+class TokenData(BaseModel):
+    openid: Optional[str] = None
 
 class UserUpdate(UserBase):
     password: Optional[str] = None
@@ -21,9 +37,6 @@ class UserInDBBase(UserBase):
 
     class Config:
         from_attributes = True
-
-class User(UserInDBBase):
-    pass
 
 class UserInDB(UserInDBBase):
     hashed_password: str 

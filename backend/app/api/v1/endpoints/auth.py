@@ -1,20 +1,25 @@
 from datetime import timedelta
 from typing import Any
-from fastapi import APIRouter, Body, Depends, HTTPException
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi import APIRouter, Body, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from sqlalchemy.orm import Session
+import requests
 
 from app import crud, models, schemas
 from app.api import deps
 from app.core import security
 from app.core.config import settings
-from app.core.security import get_password_hash
+from app.core.security import get_password_hash, create_access_token, verify_token
 from app.utils import (
     generate_password_reset_token,
     verify_password_reset_token,
 )
+from app.schemas.user import Token, UserCreate, User
+from app.models.user import User as UserModel
+from app.database import get_db
 
 router = APIRouter()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 @router.post("/login/access-token", response_model=schemas.Token)
 def login_access_token(
@@ -85,4 +90,103 @@ def reset_password(
     user.hashed_password = hashed_password
     db.add(user)
     db.commit()
-    return {"msg": "Password updated successfully"} 
+    return {"msg": "Password updated successfully"}
+
+@router.post("/test-login", response_model=Token)
+async def test_login(
+    student_id: str,
+    name: str,
+    db: Session = Depends(get_db)
+):
+    """
+    测试用登录接口
+    """
+    # 查找或创建测试用户
+    user = db.query(UserModel).filter(UserModel.student_id == student_id).first()
+    if not user:
+        user = UserModel(
+            openid=f"test_{student_id}",
+            student_id=student_id,
+            name=name
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    
+    # 创建访问令牌
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.openid},
+        expires_delta=access_token_expires
+    )
+    
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@router.post("/wx-login", response_model=Token)
+async def wx_login(code: str, db: Session = Depends(get_db)):
+    """
+    微信小程序登录
+    """
+    # 获取微信openid
+    url = f"https://api.weixin.qq.com/sns/jscode2session"
+    params = {
+        "appid": settings.WECHAT_APP_ID,
+        "secret": settings.WECHAT_APP_SECRET,
+        "js_code": code,
+        "grant_type": "authorization_code"
+    }
+    response = requests.get(url, params=params)
+    result = response.json()
+    
+    if "errcode" in result:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid code"
+        )
+    
+    openid = result["openid"]
+    
+    # 查找或创建用户
+    user = db.query(UserModel).filter(UserModel.openid == openid).first()
+    if not user:
+        # 这里应该调用微信用户信息接口获取用户信息
+        # 为了演示，我们创建一个临时用户
+        user = UserModel(
+            openid=openid,
+            student_id="temp_" + openid[:8],
+            name="临时用户"
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    
+    # 创建访问令牌
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.openid},
+        expires_delta=access_token_expires
+    )
+    
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@router.get("/me", response_model=User)
+async def read_users_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    """
+    获取当前用户信息
+    """
+    payload = verify_token(token)
+    openid = payload.get("sub")
+    if openid is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials"
+        )
+    
+    user = db.query(UserModel).filter(UserModel.openid == openid).first()
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    return user 

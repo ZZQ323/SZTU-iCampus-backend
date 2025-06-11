@@ -6,13 +6,18 @@ from pathlib import Path
 
 class Settings(BaseSettings):
     # 基础配置
-    PROJECT_NAME: str = "SZTU iCampus API"
+    PROJECT_NAME: str = "SZTU iCampus"
     VERSION: str = "1.0.0"
-    API_V1_STR: str = "/api/v1"
+    API_V1_STR: str = "/api"
     
-    # 安全配置
-    SECRET_KEY: str = "your-secret-key-here"  # 在生产环境中应该使用环境变量
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 days
+    # JWT设置
+    SECRET_KEY: str = "test-secret-key-for-development-only"  # 仅用于开发测试
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+    
+    # 微信小程序设置（测试用）
+    WECHAT_APP_ID: str = "test_app_id"
+    WECHAT_APP_SECRET: str = "test_app_secret"
     
     # 数据库配置
     POSTGRES_SERVER: str = "localhost"
