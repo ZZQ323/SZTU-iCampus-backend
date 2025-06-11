@@ -1,5 +1,5 @@
 <view class="container">
-  <t-navbar title="成绩查询" />
+  <!-- <t-navbar title="成绩查询" /> -->
   <view class="grades-container">
     <view class="semester-selector">
       <t-cell-group>

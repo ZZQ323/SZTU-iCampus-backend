@@ -14,7 +14,8 @@
     "backgroundTextStyle": "light",
     "navigationBarBackgroundColor": "#0052d9",
     "navigationBarTitleText": "深技大校园服务",
-    "navigationBarTextStyle": "white"
+    "navigationBarTextStyle": "white",
+    "navigationStyle": "default"
   },
   "tabBar": {
     "color": "#999999",
@@ -28,16 +29,22 @@
         "selectedIconPath": "assets/icons/home-active.png"
       },
       {
+        "pagePath": "pages/announcements/announcements",
+        "text": "公告",
+        "iconPath": "assets/icons/notice.png",
+        "selectedIconPath": "assets/icons/notice-active.png"
+      },
+      {
         "pagePath": "pages/schedule/schedule",
         "text": "课表",
         "iconPath": "assets/icons/schedule.png",
         "selectedIconPath": "assets/icons/schedule-active.png"
       },
       {
-        "pagePath": "pages/announcements/announcements",
-        "text": "公告",
-        "iconPath": "assets/icons/notice.png",
-        "selectedIconPath": "assets/icons/notice-active.png"
+        "pagePath": "pages/notices/notices",
+        "text": "通知",
+        "iconPath": "assets/icons/message.png",
+        "selectedIconPath": "assets/icons/message-active.png"
       },
       {
         "pagePath": "pages/events/events",

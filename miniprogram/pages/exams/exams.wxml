@@ -1,5 +1,5 @@
 <view class="container">
-  <t-navbar title="考试安排" />
+  <!-- <t-navbar title="考试安排" /> -->
   <view class="exams-container">
     <view class="exam-type-selector">
       <t-cell-group>

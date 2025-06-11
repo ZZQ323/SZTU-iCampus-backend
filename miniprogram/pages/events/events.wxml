@@ -1,15 +1,8 @@
 <view class="container">
-  <t-navbar title="活动日历" />
-  <view class="calendar-container">
-    <view class="month-selector">
-      <t-cell-group>
-        <t-cell title="{{currentYear}}年{{currentMonth}}月" arrow />
-      </t-cell-group>
-    </view>
-    <view class="events-list">
-      <t-cell-group>
-        <t-cell wx:for="{{events}}" wx:key="id" hover title="{{item.title}}" note="{{item.date}} {{item.time}} · {{item.location}}" arrow />
-      </t-cell-group>
-    </view>
+  <t-navbar title="活动日历" t-class="custom-navbar" />
+  <view class="event-content">
+    <t-cell-group>
+      <t-cell wx:for="{{events}}" wx:key="id" title="{{item.title}}" hover note="{{item.date}}" arrow bindtap="viewEvent" data-id="{{item.id}}" />
+    </t-cell-group>
   </view>
 </view> 

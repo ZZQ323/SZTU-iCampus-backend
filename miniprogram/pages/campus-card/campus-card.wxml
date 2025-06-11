@@ -1,5 +1,5 @@
 <view class="container">
-  <t-navbar title="校园卡" />
+  <!-- <t-navbar title="校园卡" /> -->
   <view class="card-container">
     <view class="card-info">
       <view class="card-header">

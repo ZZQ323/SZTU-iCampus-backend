@@ -1,8 +1,8 @@
 <view class="container">
-  <t-navbar title="部门通知" />
-  <view class="notice-list">
+  <t-navbar title="部门通知" t-class="custom-navbar" />
+  <view class="notice-content">
     <t-cell-group>
-      <t-cell wx:for="{{notices}}" wx:key="id" hover title="{{item.title}}" note="{{item.department}} · {{item.date}}" arrow />
+      <t-cell wx:for="{{notices}}" wx:key="id" title="{{item.title}}" hover note="{{item.date}}" arrow bindtap="viewNotice" data-id="{{item.id}}" />
     </t-cell-group>
   </view>
 </view> 

@@ -10,6 +10,8 @@
 
 .search-box {
   margin-bottom: 24rpx;
+  border:5rpx rgb(190, 190, 190) solid;
+  border-radius: 10rpx;
 }
 
 .quick-functions {

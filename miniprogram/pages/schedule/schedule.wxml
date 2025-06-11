@@ -1,6 +1,6 @@
 <view class="container">
-  <t-navbar title="课表查询" />
-  <view class="schedule-container">
+  <t-navbar title="课表查询" t-class="custom-navbar" />
+  <view class="schedule-content">
     <view class="week-selector">
       <t-cell-group>
         <t-cell title="当前周次" note="第{{currentWeek}}周" arrow />

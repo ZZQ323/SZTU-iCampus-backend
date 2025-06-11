@@ -53,25 +53,25 @@ Page({
   },
 
   navigateToAnnouncements() {
-    wx.navigateTo({
+    wx.switchTab({
       url: '/pages/announcements/announcements'
     })
   },
 
   navigateToSchedule() {
-    wx.navigateTo({
+    wx.switchTab({
       url: '/pages/schedule/schedule'
     })
   },
 
   navigateToNotices() {
-    wx.navigateTo({
+    wx.switchTab({
       url: '/pages/notices/notices'
     })
   },
 
   navigateToEvents() {
-    wx.navigateTo({
+    wx.switchTab({
       url: '/pages/events/events'
     })
   },

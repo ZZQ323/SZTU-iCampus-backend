@@ -1,4 +1,7 @@
 {
   "navigationBarTitleText": "活动日历",
-  "usingComponents": {}
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "t-navbar": "tdesign-miniprogram/navbar/navbar"
+  }
 } 

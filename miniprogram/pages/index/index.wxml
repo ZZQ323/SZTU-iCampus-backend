@@ -1,42 +1,60 @@
 <view class="container">
-  <!-- 顶部导航栏 -->
   <t-navbar title="深技大校园服务" t-class="custom-navbar" />
   
   <!-- 用户信息卡片 -->
-  <view class="user-card">
-    <t-avatar image="https://tdesign.gtimg.com/miniprogram/images/avatar.png" size="large" />
-    <view class="user-info">
-      <text class="user-name">同学你好</text>
-      <text class="user-id">学号：2024XXXXXX</text>
+  <view class="header">
+    <view class="user-card">
+      <image class="user-avatar" mode="aspectFill" src="/assets/test/man.png" size="normal" />
+      <view class="user-info">
+        <text class="user-name">同学你好</text>
+        <text class="user-id">学号：2024XXXXXX</text>
+      </view>
     </view>
   </view>
 
   <!-- 功能导航区 -->
-  <view class="feature-grid">
-    <t-grid column="2" border="{{false}}">
-      <t-grid-item text="校园公告" image="https://tdesign.gtimg.com/miniprogram/images/grid-icon-1.png" bindtap="navigateToAnnouncements">
-        <t-badge count="2" dot="{{false}}" offset="{{[0, 0]}}" />
-      </t-grid-item>
-      <t-grid-item text="课表查询" image="https://tdesign.gtimg.com/miniprogram/images/grid-icon-2.png" bindtap="navigateToSchedule" />
-      <t-grid-item text="部门通知" image="https://tdesign.gtimg.com/miniprogram/images/grid-icon-3.png" bindtap="navigateToNotices" />
-      <t-grid-item text="活动日历" image="https://tdesign.gtimg.com/miniprogram/images/grid-icon-4.png" bindtap="navigateToEvents" />
-    </t-grid>
+  <view class="section">
+    <view class="section-title">常用功能</view>
+    <view class="feature-grid">
+      <view class="feature-item" bindtap="navigateToAnnouncements">
+        <image class="feature-icon" src="/assets/icons/notification.png" mode="aspectFit" />
+        <text class="feature-text">校园公告</text>
+      </view>
+      <view class="feature-item" bindtap="navigateToSchedule">
+        <image class="feature-icon" src="/assets/icons/schedule.png" mode="aspectFit" />
+        <text class="feature-text">课表查询</text>
+      </view>
+      <view class="feature-item" bindtap="navigateToNotices">
+        <image class="feature-icon" src="/assets/icons/message.png" mode="aspectFit" />
+        <text class="feature-text">部门通知</text>
+      </view>
+      <view class="feature-item" bindtap="navigateToEvents">
+        <image class="feature-icon" src="/assets/icons/event.png" mode="aspectFit" />
+        <text class="feature-text">活动日历</text>
+      </view>
+    </view>
   </view>
 
   <!-- 快捷功能区 -->
-  <view class="quick-actions">
-    <t-cell-group title="快捷功能">
-      <t-cell title="成绩查询" hover arrow icon="chart" bindtap="navigateToGrades" />
-      <t-cell title="考试安排" hover arrow icon="calendar" bindtap="navigateToExams" />
-      <t-cell title="校园卡" hover arrow icon="credit-card" bindtap="navigateToCampusCard" />
-      <t-cell title="图书馆" hover arrow icon="book" bindtap="navigateToLibrary" />
-    </t-cell-group>
+  <view class="section">
+    <view class="section-title">快捷服务</view>
+    <view class="quick-actions">
+      <t-cell-group>
+        <t-cell title="成绩查询" hover arrow image="/assets/icons/Grade.png" bindtap="navigateToGrades" />
+        <t-cell title="考试安排" hover arrow image="/assets/icons/examination.png" bindtap="navigateToExams" />
+        <t-cell title="校园卡" hover arrow image="/assets/icons/wallet.png" bindtap="navigateToCampusCard" />
+        <t-cell title="图书馆" hover arrow image="/assets/icons/Library.png" bindtap="navigateToLibrary" />
+      </t-cell-group>
+    </view>
   </view>
 
   <!-- 最新公告区 -->
-  <view class="announcement-section">
-    <t-cell-group title="最新公告">
-      <t-cell wx:for="{{announcements}}" wx:key="id" title="{{item.title}}" hover note="{{item.date}}" arrow bindtap="viewAnnouncement" data-id="{{item.id}}" />
-    </t-cell-group>
+  <view class="section">
+    <view class="section-title">最新公告</view>
+    <view class="announcement-section">
+      <t-cell-group>
+        <t-cell wx:for="{{announcements}}" wx:key="id" title="{{item.title}}" hover note="{{item.date}}" arrow bindtap="viewAnnouncement" data-id="{{item.id}}" />
+      </t-cell-group>
+    </view>
   </view>
 </view> 

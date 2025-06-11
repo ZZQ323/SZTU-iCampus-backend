@@ -1,5 +1,5 @@
 <view class="container">
-  <t-navbar title="图书馆" />
+  <!-- <t-navbar title="图书馆" /> -->
   <view class="library-container">
     <view class="search-box">
       <t-search placeholder="搜索图书" />
