@@ -2,6 +2,9 @@
   "navigationBarTitleText": "课表查询",
   "navigationStyle": "custom",
   "usingComponents": {
-    "t-navbar": "tdesign-miniprogram/navbar/navbar"
+    "t-calendar": "tdesign-miniprogram/calendar/calendar",
+    "t-cell": "tdesign-miniprogram/cell/cell",
+    "t-cell-group": "tdesign-miniprogram/cell-group/cell-group",
+    "custom-navbar": "/components/custom-navbar/custom-navbar"
   }
 } 

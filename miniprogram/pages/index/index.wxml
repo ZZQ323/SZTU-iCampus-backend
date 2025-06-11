@@ -1,5 +1,10 @@
 <view class="container">
-  <t-navbar title="深技大校园服务" t-class="custom-navbar" />
+  <t-navbar 
+    title="深技大校园服务" 
+    t-class="custom-navbar"
+    back="{{true}}"
+    bind:back="onBack"
+  />
   
   <!-- 用户信息卡片 -->
   <view class="header">

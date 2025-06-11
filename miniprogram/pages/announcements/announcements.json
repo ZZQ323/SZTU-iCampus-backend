@@ -2,6 +2,8 @@
   "navigationBarTitleText": "校园公告",
   "navigationStyle": "custom",
   "usingComponents": {
-    "t-navbar": "tdesign-miniprogram/navbar/navbar"
+    "t-cell": "tdesign-miniprogram/cell/cell",
+    "t-cell-group": "tdesign-miniprogram/cell-group/cell-group",
+    "custom-navbar": "/components/custom-navbar/custom-navbar"
   }
 } 

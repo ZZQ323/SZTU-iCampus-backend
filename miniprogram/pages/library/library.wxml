@@ -1,35 +1,101 @@
 <view class="container">
-  <!-- <t-navbar title="图书馆" /> -->
+  <custom-navbar 
+    title="图书馆" 
+    background="#4a90e2"
+    color="#ffffff"
+  />
+  
   <view class="library-container">
-    <view class="search-box">
-      <t-search placeholder="搜索图书" />
+    <view class="search-section">
+      <t-input
+        class="search-input"
+        placeholder="搜索图书/作者/关键词"
+        value="{{searchKeyword}}"
+        bind:change="onSearchInput"
+        bind:enter="onSearch"
+      >
+        <t-button slot="suffix" theme="primary" size="small" bindtap="onSearch">搜索</t-button>
+      </t-input>
     </view>
-    <view class="quick-functions">
-      <t-grid column="4">
-        <t-grid-item text="借阅查询" image="assets/icons/borrow.png" />
-        <t-grid-item text="续借" image="assets/icons/renew.png" />
-        <t-grid-item text="预约" image="assets/icons/reserve.png" />
-        <t-grid-item text="座位预约" image="assets/icons/seat.png" />
-      </t-grid>
-    </view>
-    <view class="borrowed-books">
-      <view class="section-title">当前借阅</view>
-      <t-cell-group>
-        <t-cell wx:for="{{borrowedBooks}}" wx:key="id" hover title="{{item.title}}" note="应还日期：{{item.dueDate}}" arrow>
-          <view slot="note" class="book-info">
-            <text class="book-author">{{item.author}}</text>
-            <text class="book-due-date">应还日期：{{item.dueDate}}</text>
+
+    <t-tabs value="{{activeTab}}" bind:change="onTabChange">
+      <t-tab-panel label="借阅信息" value="borrow">
+        <view class="borrow-info">
+          <view class="info-card">
+            <view class="info-item">
+              <text class="label">当前借阅</text>
+              <text class="value">{{currentBorrow}}</text>
+            </view>
+            <view class="info-item">
+              <text class="label">可借数量</text>
+              <text class="value">{{maxBorrow}}</text>
+            </view>
           </view>
-        </t-cell>
-      </t-cell-group>
-    </view>
-    <view class="library-info">
-      <view class="section-title">图书馆信息</view>
-      <t-cell-group>
-        <t-cell title="开放时间" note="08:00-22:00" />
-        <t-cell title="联系电话" note="0755-88888888" />
-        <t-cell title="馆藏总量" note="{{totalBooks}}册" />
-      </t-cell-group>
-    </view>
+
+          <view class="borrow-list">
+            <t-cell-group>
+              <t-cell 
+                wx:for="{{borrowList}}" 
+                wx:key="id"
+                title="{{item.bookName}}"
+                note="借阅日期：{{item.borrowDate}}"
+                description="应还日期：{{item.returnDate}}"
+                hover
+                arrow
+                bindtap="onViewBookDetail"
+                data-id="{{item.id}}"
+              />
+            </t-cell-group>
+          </view>
+        </view>
+      </t-tab-panel>
+
+      <t-tab-panel label="座位预约" value="seat">
+        <view class="seat-section">
+          <view class="floor-selector">
+            <t-cell-group>
+              <t-cell 
+                wx:for="{{floors}}" 
+                wx:key="id"
+                title="{{item.name}}"
+                note="剩余座位：{{item.availableSeats}}"
+                hover
+                arrow
+                bindtap="onSelectFloor"
+                data-id="{{item.id}}"
+              />
+            </t-cell-group>
+          </view>
+
+          <view class="my-reservation" wx:if="{{currentReservation}}">
+            <t-cell-group>
+              <t-cell 
+                title="当前预约"
+                note="{{currentReservation.floor}} - {{currentReservation.seatNumber}}"
+                description="使用时间：{{currentReservation.time}}"
+                theme="primary"
+              />
+            </t-cell-group>
+          </view>
+        </view>
+      </t-tab-panel>
+
+      <t-tab-panel label="荐购" value="recommend">
+        <view class="recommend-section">
+          <t-input
+            class="recommend-input"
+            placeholder="请输入图书信息"
+            value="{{recommendInfo}}"
+            bind:change="onRecommendInput"
+          />
+          <t-button 
+            theme="primary" 
+            block 
+            class="recommend-button"
+            bindtap="onRecommend"
+          >提交荐购</t-button>
+        </view>
+      </t-tab-panel>
+    </t-tabs>
   </view>
 </view> 

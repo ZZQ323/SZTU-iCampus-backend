@@ -1,6 +1,13 @@
 <view class="container">
-  <!-- <t-navbar title="校园卡" /> -->
+  <t-navbar 
+    title="校园卡" 
+    t-class="custom-navbar"
+    back="{{true}}"
+    bind:back="onBack"
+  />
+  
   <view class="card-container">
+    <!-- 卡片信息 -->
     <view class="card-info">
       <view class="card-header">
         <t-avatar size="large" image="{{userInfo.avatar}}" />
@@ -10,26 +17,50 @@
         </view>
       </view>
       <view class="balance-info">
-        <text class="balance-label">卡内余额</text>
+        <text class="balance-label">余额</text>
         <text class="balance-amount">¥{{balance}}</text>
       </view>
+      <view class="card-number">卡号：{{cardNumber}}</view>
     </view>
-    <view class="card-functions">
-      <t-grid column="4">
-        <t-grid-item text="充值" image="assets/icons/recharge.png" />
-        <t-grid-item text="消费记录" image="assets/icons/record.png" />
-        <t-grid-item text="挂失" image="assets/icons/lost.png" />
-        <t-grid-item text="解挂" image="assets/icons/unlock.png" />
-      </t-grid>
-    </view>
-    <view class="recent-transactions">
-      <view class="section-title">最近交易</view>
+
+    <!-- 快捷功能区 -->
+    <view class="quick-actions">
       <t-cell-group>
-        <t-cell wx:for="{{transactions}}" wx:key="id" hover title="{{item.merchant}}" note="{{item.time}}">
-          <view slot="note" class="transaction-amount {{item.type === 'expense' ? 'expense' : 'income'}}">
-            {{item.type === 'expense' ? '-' : '+'}}¥{{item.amount}}
-          </view>
-        </t-cell>
+        <t-cell 
+          title="充值" 
+          hover 
+          arrow 
+          image="/assets/icons/recharge.png" 
+          bindtap="onRecharge" 
+        />
+        <t-cell 
+          title="消费记录" 
+          hover 
+          arrow 
+          image="/assets/icons/record.png" 
+          bindtap="onViewRecords" 
+        />
+        <t-cell 
+          title="挂失" 
+          hover 
+          arrow 
+          image="/assets/icons/lost.png" 
+          bindtap="onReportLoss" 
+        />
+      </t-cell-group>
+    </view>
+
+    <!-- 最近消费记录 -->
+    <view class="recent-records">
+      <view class="section-title">最近消费</view>
+      <t-cell-group>
+        <t-cell 
+          wx:for="{{recentRecords}}" 
+          wx:key="id" 
+          title="{{item.location}}" 
+          note="{{item.time}}"
+          description="¥{{item.amount}}"
+        />
       </t-cell-group>
     </view>
   </view>

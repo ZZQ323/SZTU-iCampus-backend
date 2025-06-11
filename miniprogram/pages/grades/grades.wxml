@@ -1,25 +1,47 @@
 <view class="container">
-  <!-- <t-navbar title="成绩查询" /> -->
+  <custom-navbar 
+    title="成绩查询" 
+    background="#4a90e2"
+    color="#ffffff"
+    bind:back="onBack"
+  />
+  
   <view class="grades-container">
-    <view class="semester-selector">
-      <t-cell-group>
-        <t-cell title="当前学期" note="{{currentSemester}}" arrow />
-      </t-cell-group>
+    <!-- 学期选择器 -->
+    <view class="semester-select">
+      <t-picker
+        title="选择学期"
+        value="{{currentSemester}}"
+        options="{{semesters}}"
+        bind:change="onSemesterChange"
+      />
     </view>
+
+    <view class="gpa-info">
+      <view class="gpa-item">
+        <text class="label">GPA</text>
+        <text class="value">{{gpa}}</text>
+      </view>
+      <view class="gpa-item">
+        <text class="label">总学分</text>
+        <text class="value">{{totalCredits}}</text>
+      </view>
+    </view>
+
+    <!-- 成绩列表 -->
     <view class="grades-list">
       <t-cell-group>
-        <t-cell wx:for="{{grades}}" wx:key="id" hover title="{{item.courseName}}" note="{{item.credit}}学分" arrow>
-          <view slot="note" class="grade-note">
-            <text class="grade-score {{item.score >= 60 ? 'pass' : 'fail'}}">{{item.score}}</text>
-            <text class="grade-point">{{item.gradePoint}}</text>
-          </view>
-        </t-cell>
-      </t-cell-group>
-    </view>
-    <view class="summary">
-      <t-cell-group>
-        <t-cell title="平均学分绩点" note="{{gpa}}" />
-        <t-cell title="已修学分" note="{{totalCredits}}" />
+        <t-cell 
+          wx:for="{{grades}}" 
+          wx:key="id" 
+          title="{{item.courseName}}" 
+          note="学分：{{item.credits}}"
+          description="成绩：{{item.score}}"
+          hover
+          arrow
+          bindtap="onViewDetail"
+          data-id="{{item.id}}"
+        />
       </t-cell-group>
     </view>
   </view>

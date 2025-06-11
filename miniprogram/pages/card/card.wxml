@@ -1,0 +1,72 @@
+<view class="container">
+  <custom-navbar 
+    title="校园卡" 
+    background="#4a90e2"
+    color="#ffffff"
+  />
+  
+  <view class="card-container">
+    <view class="card-info">
+      <view class="card-header">
+        <view class="balance">
+          <text class="label">余额</text>
+          <text class="value">¥{{balance}}</text>
+        </view>
+        <view class="card-number">{{cardNumber}}</view>
+      </view>
+      <view class="card-actions">
+        <t-button theme="primary" size="large" block bindtap="onRecharge">充值</t-button>
+      </view>
+    </view>
+
+    <view class="card-functions">
+      <t-cell-group>
+        <t-cell title="消费记录" hover arrow bindtap="onViewRecords" />
+        <t-cell title="挂失/解挂" hover arrow bindtap="onToggleLost" />
+        <t-cell title="修改密码" hover arrow bindtap="onChangePassword" />
+      </t-cell-group>
+    </view>
+
+    <view class="card-notice" wx:if="{{isLost}}">
+      <t-cell-group>
+        <t-cell title="卡片状态" note="已挂失" theme="danger" />
+      </t-cell-group>
+    </view>
+  </view>
+
+  <!-- 充值对话框 -->
+  <t-dialog
+    visible="{{showRechargeDialog}}"
+    title="校园卡充值"
+    content="请输入充值金额"
+    confirm-btn="确认"
+    cancel-btn="取消"
+    bind:confirm="onRechargeConfirm"
+    bind:cancel="onRechargeCancel"
+  >
+    <t-input
+      type="number"
+      placeholder="请输入充值金额"
+      value="{{rechargeAmount}}"
+      bind:change="onRechargeInput"
+    />
+  </t-dialog>
+
+  <!-- 密码修改对话框 -->
+  <t-dialog
+    visible="{{showPasswordDialog}}"
+    title="修改密码"
+    content="请输入新密码"
+    confirm-btn="确认"
+    cancel-btn="取消"
+    bind:confirm="onPasswordConfirm"
+    bind:cancel="onPasswordCancel"
+  >
+    <t-input
+      type="password"
+      placeholder="请输入新密码"
+      value="{{newPassword}}"
+      bind:change="onPasswordInput"
+    />
+  </t-dialog>
+</view> 

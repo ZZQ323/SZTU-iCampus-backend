@@ -1,8 +1,22 @@
 <view class="container">
-  <t-navbar title="校园公告" t-class="custom-navbar" />
-  <view class="announcement-list">
+  <custom-navbar 
+    title="校园公告" 
+    background="#4a90e2"
+    color="#ffffff"
+  />
+  
+  <view class="announcements-container">
     <t-cell-group>
-      <t-cell wx:for="{{announcements}}" wx:key="id" hover title="{{item.title}}" note="{{item.date}}" arrow bindtap="viewAnnouncement" data-id="{{item.id}}" />
+      <t-cell 
+        wx:for="{{announcements}}" 
+        wx:key="id" 
+        title="{{item.title}}" 
+        note="{{item.date}}"
+        hover
+        arrow
+        bindtap="onViewDetail"
+        data-id="{{item.id}}"
+      />
     </t-cell-group>
   </view>
 </view> 

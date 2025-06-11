@@ -1,19 +1,51 @@
 <view class="container">
-  <!-- <t-navbar title="考试安排" /> -->
+  <custom-navbar 
+    title="考试安排" 
+    background="#4a90e2"
+    color="#ffffff"
+    bind:back="onBack"
+  />
+  
   <view class="exams-container">
-    <view class="exam-type-selector">
-      <t-cell-group>
-        <t-cell title="考试类型" note="{{examType}}" arrow />
-      </t-cell-group>
+    <!-- 考试类型选择器 -->
+    <view class="exam-type-select">
+      <t-picker
+        title="选择考试类型"
+        value="{{currentType}}"
+        options="{{examTypes}}"
+        bind:change="onTypeChange"
+      />
     </view>
+
+    <view class="countdown-section" wx:if="{{nextExam}}">
+      <view class="countdown-title">下一场考试</view>
+      <view class="countdown-content">
+        <view class="exam-info">
+          <view class="course-name">{{nextExam.courseName}}</view>
+          <view class="exam-time">{{nextExam.time}}</view>
+          <view class="exam-location">{{nextExam.location}}</view>
+        </view>
+        <view class="countdown-timer">
+          <view class="countdown-label">距离考试还有</view>
+          <view class="countdown-value">{{countdown}}</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 考试列表 -->
     <view class="exams-list">
       <t-cell-group>
-        <t-cell wx:for="{{exams}}" wx:key="id" hover title="{{item.courseName}}" arrow>
-          <view slot="note" class="exam-info">
-            <text class="exam-time">{{item.date}} {{item.time}}</text>
-            <text class="exam-location">{{item.location}}</text>
-          </view>
-        </t-cell>
+        <t-cell 
+          wx:for="{{exams}}" 
+          wx:key="id" 
+          title="{{item.courseName}}" 
+          note="{{item.time}}"
+          description="{{item.location}}"
+          hover
+          arrow
+          bindtap="onViewDetail"
+          data-id="{{item.id}}"
+        />
       </t-cell-group>
     </view>
   </view>

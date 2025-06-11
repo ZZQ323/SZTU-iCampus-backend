@@ -1,8 +1,23 @@
 <view class="container">
-  <t-navbar title="活动日历" t-class="custom-navbar" />
-  <view class="event-content">
+  <custom-navbar 
+    title="校园活动" 
+    background="#4a90e2"
+    color="#ffffff"
+  />
+  
+  <view class="events-container">
     <t-cell-group>
-      <t-cell wx:for="{{events}}" wx:key="id" title="{{item.title}}" hover note="{{item.date}}" arrow bindtap="viewEvent" data-id="{{item.id}}" />
+      <t-cell 
+        wx:for="{{events}}" 
+        wx:key="id" 
+        title="{{item.title}}" 
+        note="{{item.time}}"
+        description="{{item.location}}"
+        hover
+        arrow
+        bindtap="onViewDetail"
+        data-id="{{item.id}}"
+      />
     </t-cell-group>
   </view>
 </view> 

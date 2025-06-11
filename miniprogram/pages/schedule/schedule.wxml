@@ -1,13 +1,31 @@
 <view class="container">
-  <t-navbar title="课表查询" t-class="custom-navbar" />
-  <view class="schedule-content">
-    <view class="week-selector">
+  <custom-navbar 
+    title="课表" 
+    background="#4a90e2"
+    color="#ffffff"
+  />
+  
+  <view class="schedule-container">
+    <t-calendar 
+      value="{{currentDate}}" 
+      bind:change="onDateChange"
+    />
+    
+    <view class="course-list">
+      <view class="section-title">今日课程</view>
       <t-cell-group>
-        <t-cell title="当前周次" note="第{{currentWeek}}周" arrow />
+        <t-cell 
+          wx:for="{{todayCourses}}" 
+          wx:key="id" 
+          title="{{item.name}}" 
+          note="{{item.time}}"
+          description="{{item.location}}"
+          hover
+          arrow
+          bindtap="onViewCourse"
+          data-id="{{item.id}}"
+        />
       </t-cell-group>
-    </view>
-    <view class="schedule-grid">
-      <!-- 课表内容将通过JS动态生成 -->
     </view>
   </view>
 </view> 

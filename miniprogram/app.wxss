@@ -1,6 +1,6 @@
 /** app.wxss **/
 page {
-  background-color: #f5f5f5;
+  background-color: #f6f6f6;
   font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica,
     Segoe UI, Arial, Roboto, 'PingFang SC', 'miui', 'Hiragino Sans GB', 'Microsoft Yahei',
     sans-serif;
@@ -16,22 +16,34 @@ page {
   display: none;
 }
 
-/* 导航栏标题样式 */
-.t-navbar__title {
-  font-weight: 600 !important;
+/* 导航栏样式 */
+.custom-navbar {
+  background-color: #0052d9 !important;
+}
+
+.custom-navbar .t-navbar__title {
+  color: #ffffff !important;
   font-size: 18px !important;
+  font-weight: 500 !important;
 }
 
-/* 导航栏背景色 */
-.t-navbar {
-  background-color: #f8f8f8 !important;
-  border-bottom: 1px solid #eaeaea;
+.custom-navbar .t-navbar__back {
+  color: #ffffff !important;
 }
 
-/* 页面容器通用样式 */
+/* 页面容器样式 */
 .container {
-  padding: 24rpx;
+  padding: 0 0 32rpx 0;
   box-sizing: border-box;
+  min-height: 100vh;
+}
+
+/* 通用标题样式 */
+.section-title {
+  font-size: 32rpx;
+  font-weight: 500;
+  color: #333333;
+  margin: 32rpx 32rpx 16rpx;
 }
 
 /* 图标大小控制 */

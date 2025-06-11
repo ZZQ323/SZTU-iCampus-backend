@@ -19,5 +19,18 @@ Page({
         }
       ]
     });
+  },
+
+  onBack() {
+    wx.navigateBack({
+      delta: 1
+    });
+  },
+
+  viewAnnouncement(e) {
+    const id = e.currentTarget.dataset.id;
+    wx.navigateTo({
+      url: `/pages/announcements/detail?id=${id}`
+    });
   }
 }); 

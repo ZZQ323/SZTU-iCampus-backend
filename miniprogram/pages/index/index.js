@@ -105,5 +105,11 @@ Page({
     wx.navigateTo({
       url: `/pages/announcements/detail?id=${id}`
     })
+  },
+
+  onBack() {
+    wx.navigateBack({
+      delta: 1
+    });
   }
 }) 
