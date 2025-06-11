@@ -78,3 +78,11 @@ uvicorn main:app --reload
 ## 许可证
 
 MIT License 
+
+## 参考
+
+坑：ssh: connect to host github.com port 22: Connection refused - 无忌的文章 - 知乎
+https://zhuanlan.zhihu.com/p/521340971
+
+https://blog.csdn.net/m0_68116052/article/details/142832657?fromshare=blogdetail&sharetype=blogdetail&sharerId=142832657&sharerefer=PC&sharesource=Shadowfight323&sharefrom=from_link
+

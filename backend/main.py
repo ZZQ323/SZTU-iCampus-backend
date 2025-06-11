@@ -1,10 +1,23 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
-from typing import List, Optional
+from sqlalchemy.orm import Session
+from typing import List
+import json
 import uvicorn
 
-app = FastAPI(title="SZTU iCampus API")
+from app.database import get_db, engine
+from app.models import announcement as models
+from app.schemas import announcement as schemas
+
+# 创建数据库表
+models.Base.metadata.create_all(bind=engine)
+
+app = FastAPI(
+    title="SZTU iCampus API",
+    description="深圳技术大学校园服务统一入口API",
+    version="1.0.0"
+)
 
 # 配置CORS
 app.add_middleware(
@@ -22,14 +35,50 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 async def root():
     return {"message": "欢迎使用深圳技术大学校园服务API"}
 
-@app.get("/api/announcements")
-async def get_announcements():
+@app.get("/api/announcements", response_model=List[schemas.Announcement])
+async def get_announcements(
+    skip: int = 0,
+    limit: int = 10,
+    db: Session = Depends(get_db)
+):
     """
-    获取校园公告
-    使用流式响应返回数据
+    获取校园公告列表
+    - **skip**: 跳过的记录数
+    - **limit**: 返回的最大记录数
     """
-    # TODO: 实现公告获取逻辑
-    return {"announcements": []}
+    announcements = db.query(models.Announcement).offset(skip).limit(limit).all()
+    return announcements
+
+@app.get("/api/announcements/stream")
+async def get_announcements_stream(
+    db: Session = Depends(get_db)
+):
+    """
+    使用流式响应获取校园公告
+    """
+    async def generate():
+        announcements = db.query(models.Announcement).all()
+        for announcement in announcements:
+            yield f"data: {json.dumps(announcement.__dict__)}\n\n"
+    
+    return Response(
+        generate(),
+        media_type="text/event-stream"
+    )
+
+@app.post("/api/announcements", response_model=schemas.Announcement)
+async def create_announcement(
+    announcement: schemas.AnnouncementCreate,
+    db: Session = Depends(get_db)
+):
+    """
+    创建新的校园公告
+    """
+    db_announcement = models.Announcement(**announcement.dict())
+    db.add(db_announcement)
+    db.commit()
+    db.refresh(db_announcement)
+    return db_announcement
 
 @app.get("/api/schedule")
 async def get_schedule():
