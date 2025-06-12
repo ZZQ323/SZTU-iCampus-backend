@@ -1,4 +1,5 @@
 const app = getApp()
+const { EventStream, streamManager } = require('../../utils/stream')
 
 Page({
   data: {
@@ -12,12 +13,16 @@ Page({
     selectedType: '全部',
     eventStatuses: ['全部', '即将开始', '进行中', '已结束'],
     selectedStatus: '全部',
-    organizers: ['全部', '学术委员会', '学生会', '体育部', '计算机学院', '社团联合会', '教务处']
+    organizers: ['全部', '学术委员会', '学生会', '体育部', '计算机学院', '社团联合会', '教务处'],
+    isStreamConnected: false,  // 流式连接状态
+    participantUpdates: 0      // 参与人数更新次数统计
   },
 
   onLoad() {
     this.setCurrentDate();
     this.loadEvents();
+    // 🔥 启动流式活动数据推送 - 实时更新参与人数
+    this.startEventStream();
   },
 
   setCurrentDate() {
@@ -66,8 +71,18 @@ Page({
       success: (res) => {
         console.log('活动API响应:', res.data);
         if (res.statusCode === 200 && res.data.code === 0) {
+          // 处理活动数据，计算参与度百分比
+          const events = (res.data.data.events || []).map(event => {
+            if (event.max_participants && event.current_participants >= 0) {
+              event.participationPercent = Math.min(Math.round((event.current_participants / event.max_participants) * 100), 100);
+            } else {
+              event.participationPercent = 0;
+            }
+            return event;
+          });
+          
           this.setData({
-            events: res.data.data.events || [],
+            events: events,
             loading: false
           });
         } else {
@@ -88,8 +103,89 @@ Page({
     });
   },
 
+  // 🚀 启动流式活动数据推送 - 实时更新参与人数
+  startEventStream() {
+    const eventStream = new EventStream()
+    
+    console.log('[活动页面] 启动流式活动数据推送...')
+    
+    eventStream.start((updatedEvent) => {
+      console.log('[活动页面] 收到活动数据更新:', updatedEvent)
+      
+      // 查找并更新对应的活动数据
+      const events = this.data.events.map(event => {
+        if (event.id === updatedEvent.id) {
+          // 🎯 实时更新参与人数
+          const updatedEventData = {
+            ...event,
+            current_participants: updatedEvent.current_participants,
+            max_participants: updatedEvent.max_participants || event.max_participants
+          }
+          
+          // 重新计算参与度百分比
+          if (updatedEventData.max_participants && updatedEventData.current_participants >= 0) {
+            updatedEventData.participationPercent = Math.min(
+              Math.round((updatedEventData.current_participants / updatedEventData.max_participants) * 100), 
+              100
+            )
+          }
+          
+          console.log(`[活动更新] ${event.title} 参与人数: ${event.current_participants} → ${updatedEvent.current_participants}`)
+          
+          return updatedEventData
+        }
+        return event
+      })
+      
+      this.setData({
+        events: events,
+        participantUpdates: this.data.participantUpdates + 1
+      })
+      
+      // 显示更新提醒（不要太频繁）
+      if (this.data.participantUpdates % 3 === 0) {
+        wx.showToast({
+          title: '活动数据已更新',
+          icon: 'none',
+          duration: 1500
+        })
+      }
+    })
+    
+    this.setData({ isStreamConnected: true })
+    this.eventStream = eventStream
+  },
+
+  // 停止流式推送
+  stopEventStream() {
+    if (this.eventStream) {
+      this.eventStream.stop()
+      this.setData({ isStreamConnected: false })
+      console.log('[活动页面] 停止流式活动数据推送')
+    }
+  },
+
+  // 页面显示时重新连接流
+  onShow() {
+    if (!this.data.isStreamConnected) {
+      this.startEventStream()
+    }
+  },
+
+  // 页面隐藏时断开流（节省资源）
+  onHide() {
+    this.stopEventStream()
+  },
+
+  // 页面卸载时断开流
+  onUnload() {
+    this.stopEventStream()
+  },
+
   onPullDownRefresh() {
     this.loadEvents();
+    // 重置更新计数
+    this.setData({ participantUpdates: 0 })
     setTimeout(() => {
       wx.stopPullDownRefresh();
     }, 1000);

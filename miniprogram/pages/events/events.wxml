@@ -75,7 +75,7 @@
         <t-icon name="user-group" size="24rpx" color="#666" />
         <text class="participants-text">{{item.current_participants}}/{{item.max_participants}}人</text>
         <view class="progress-bar">
-          <view class="progress-fill" style="width: {{(item.current_participants / item.max_participants * 100).toFixed(0)}}%"></view>
+          <view class="progress-fill" style="width: {{item.participationPercent}}%"></view>
         </view>
       </view>
       

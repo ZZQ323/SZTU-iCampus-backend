@@ -1,4 +1,5 @@
 const app = getApp()
+const { AnnouncementStream, streamManager } = require('../../utils/stream')
 
 Page({
   data: {
@@ -7,12 +8,16 @@ Page({
       name: '同学你好',
       studentId: '2024XXXXXX'
     },
-    loading: true
+    loading: true,
+    isStreamConnected: false,  // 流式连接状态
+    newAnnouncementCount: 0    // 新公告提醒数量
   },
 
   onLoad() {
     this.fetchAnnouncements()
     this.getUserInfo()
+    // 🔥 启动流式公告推送 - 这是流式封装的核心功能
+    this.startAnnouncementStream()
   },
 
   async getUserInfo() {
@@ -76,10 +81,78 @@ Page({
     }
   },
 
+  // 🚀 启动流式公告推送 - 核心流式功能
+  startAnnouncementStream() {
+    const announcementStream = new AnnouncementStream()
+    
+    console.log('[首页] 启动流式公告推送...')
+    
+    announcementStream.start((newAnnouncement) => {
+      console.log('[首页] 收到新公告推送:', newAnnouncement)
+      
+      // 将新公告添加到列表顶部（实时显示）
+      const currentAnnouncements = this.data.announcements
+      const updatedAnnouncements = [newAnnouncement, ...currentAnnouncements]
+      
+      this.setData({
+        announcements: updatedAnnouncements,
+        newAnnouncementCount: this.data.newAnnouncementCount + 1
+      })
+      
+      // 显示新公告提醒
+      wx.showToast({
+        title: '收到新公告',
+        icon: 'none',
+        duration: 2000
+      })
+      
+      // 震动提醒
+      wx.vibrateShort()
+    })
+    
+    this.setData({ isStreamConnected: true })
+    
+    // 存储流实例，用于页面销毁时断开连接
+    this.announcementStream = announcementStream
+  },
+
+  // 停止流式推送
+  stopAnnouncementStream() {
+    if (this.announcementStream) {
+      this.announcementStream.stop()
+      this.setData({ isStreamConnected: false })
+      console.log('[首页] 停止流式公告推送')
+    }
+  },
+
+  // 页面显示时重新连接流
+  onShow() {
+    if (!this.data.isStreamConnected) {
+      this.startAnnouncementStream()
+    }
+  },
+
+  // 页面隐藏时断开流（节省资源）
+  onHide() {
+    this.stopAnnouncementStream()
+  },
+
+  // 页面卸载时断开流
+  onUnload() {
+    this.stopAnnouncementStream()
+  },
+
+  // 清除新公告提醒数量
+  clearNewAnnouncementCount() {
+    this.setData({ newAnnouncementCount: 0 })
+  },
+
   // 下拉刷新
   onPullDownRefresh() {
     this.fetchAnnouncements().then(() => {
       wx.stopPullDownRefresh()
+      // 清除新公告提醒
+      this.clearNewAnnouncementCount()
     })
   },
 

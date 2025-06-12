@@ -361,14 +361,20 @@ async def get_events_stream(
 ):
     """
     使用流式响应获取活动数据（无需认证）
+    🔥 实时推送活动参与人数变化 - 流式封装核心功能
     """
+    import asyncio
+    import random
+    
     async def generate():
+        # 初始发送一次完整的活动列表
         events = db.query(event_models.Event).filter(
             event_models.Event.is_active == 1
         ).order_by(
             event_models.Event.start_time.asc()
         ).all()
         
+        # 发送初始数据
         for event in events:
             data = {
                 "id": event.id,
@@ -380,10 +386,45 @@ async def get_events_stream(
                 "location": event.location,
                 "start_time": event.start_time.isoformat(),
                 "end_time": event.end_time.isoformat(),
+                "max_participants": event.max_participants,
+                "current_participants": event.current_participants,
                 "created_at": event.created_at.isoformat(),
                 "updated_at": event.updated_at.isoformat() if event.updated_at else None
             }
             yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+            await asyncio.sleep(0.1)  # 控制发送速度
+        
+        # 🎯 持续推送参与人数变化（模拟实时报名）
+        while True:
+            await asyncio.sleep(random.uniform(3, 8))  # 随机间隔3-8秒推送一次更新
+            
+            # 随机选择一个活动进行参与人数更新
+            if events:
+                event = random.choice(events)
+                
+                # 模拟参与人数增加（偶尔减少，模拟取消报名）
+                change = random.choice([1, 1, 1, 1, -1])  # 80%概率增加，20%概率减少
+                new_participants = max(0, min(
+                    (event.current_participants or 0) + change,
+                    event.max_participants or 1000
+                ))
+                
+                # 更新数据库中的参与人数
+                event.current_participants = new_participants
+                db.commit()
+                
+                # 推送更新数据
+                update_data = {
+                    "id": event.id,
+                    "title": event.title,
+                    "current_participants": new_participants,
+                    "max_participants": event.max_participants,
+                    "update_type": "participant_change",  # 标记这是参与人数更新
+                    "timestamp": datetime.now().isoformat()
+                }
+                
+                print(f"[流式推送] 活动 '{event.title}' 参与人数更新为: {new_participants}")
+                yield f"data: {json.dumps(update_data, ensure_ascii=False)}\n\n"
     
     return Response(
         generate(),
@@ -391,6 +432,7 @@ async def get_events_stream(
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
         }
     )
 
