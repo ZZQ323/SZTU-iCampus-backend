@@ -5,27 +5,74 @@
     color="#ffffff"
   />
   
-  <view class="schedule-container">
-    <t-calendar 
-      value="{{currentDate}}" 
-      bind:change="onDateChange"
-    />
+  <!-- 加载状态 -->
+  <t-loading wx:if="{{loading}}" theme="dots" size="40rpx" text="正在加载课表..." />
+  
+  <view class="schedule-container" wx:else>
+    <!-- 周次选择 -->
+    <view class="week-selector">
+      <text class="week-text">第{{currentWeek}}周</text>
+      <t-button size="small" variant="outline" bindtap="changeWeek">切换周次</t-button>
+    </view>
     
-    <view class="course-list">
-      <view class="section-title">今日课程</view>
-      <t-cell-group>
-        <t-cell 
-          wx:for="{{todayCourses}}" 
-          wx:key="id" 
-          title="{{item.name}}" 
-          note="{{item.time}}"
-          description="{{item.location}}"
-          hover
-          arrow
-          bindtap="onViewCourse"
-          data-id="{{item.id}}"
-        />
-      </t-cell-group>
+    <!-- 课表表格 -->
+    <view class="schedule-table">
+      <!-- 表头 -->
+      <view class="table-header">
+        <view class="time-header">时间</view>
+        <view class="day-header" wx:for="{{weekDays}}" wx:key="*this">{{item}}</view>
+      </view>
+      
+      <!-- 时间段行 -->
+      <view class="time-row" wx:for="{{timeSlots}}" wx:key="time" wx:for-item="timeSlot">
+        <!-- 时间列 -->
+        <view class="time-cell">
+          <view class="time-label">{{timeSlot.label}}</view>
+          <view class="time-range">{{timeSlot.time}}</view>
+        </view>
+        
+        <!-- 课程列 -->
+        <view class="course-cell" wx:for="{{[1,2,3,4,5,6,7]}}" wx:key="*this" wx:for-item="day">
+          <view class="course-item" 
+                wx:for="{{weekSchedule[day]}}" 
+                wx:key="id"
+                wx:if="{{item.start_time >= timeSlot.time.split('-')[0] && item.start_time < timeSlot.time.split('-')[1]}}"
+                bindtap="viewCourseDetail"
+                data-course="{{item}}">
+            <view class="course-name">{{item.course_name}}</view>
+            <view class="course-teacher">{{item.teacher}}</view>
+            <view class="course-location">{{item.classroom}}</view>
+          </view>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 课程列表视图 -->
+    <view class="course-list-view">
+      <view class="section-title">本周课程详情</view>
+      <view class="daily-courses" wx:for="{{weekDays}}" wx:key="*this" wx:for-index="dayIndex">
+        <view class="day-title">{{item}} ({{weekSchedule[dayIndex + 1].length}}节课)</view>
+        <view class="courses">
+          <view class="course-card" 
+                wx:for="{{weekSchedule[dayIndex + 1]}}" 
+                wx:key="id"
+                bindtap="viewCourseDetail"
+                data-course="{{item}}">
+            <view class="course-header">
+              <text class="course-name">{{item.course_name}}</text>
+              <text class="course-type">{{item.course_type}}</text>
+            </view>
+            <view class="course-info">
+              <text class="course-time">{{item.start_time}}-{{item.end_time}}</text>
+              <text class="course-location">{{item.classroom}}</text>
+            </view>
+            <view class="course-teacher">{{item.teacher}}</view>
+          </view>
+        </view>
+        <view class="no-course" wx:if="{{weekSchedule[dayIndex + 1].length === 0}}">
+          <text>今日无课</text>
+        </view>
+      </view>
     </view>
   </view>
 </view> 

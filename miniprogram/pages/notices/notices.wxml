@@ -1,23 +1,71 @@
 <view class="container">
   <custom-navbar 
     title="部门通知" 
-    background="#4a90e2"
+    background="#f39c12"
     color="#ffffff"
   />
   
-  <view class="notices-container">
-    <t-cell-group>
-      <t-cell 
-        wx:for="{{notices}}" 
-        wx:key="id" 
-        title="{{item.title}}" 
-        note="{{item.department}}"
-        description="{{item.date}}"
-        hover
-        arrow
-        bindtap="onViewDetail"
-        data-id="{{item.id}}"
-      />
-    </t-cell-group>
+  <!-- 筛选器 -->
+  <view class="filter-section">
+    <view class="filter-item">
+      <text class="filter-label">部门:</text>
+      <picker bindchange="onDeptChange" value="{{departments.indexOf(selectedDept)}}" range="{{departments}}">
+        <view class="picker-text">{{selectedDept}} ▼</view>
+      </picker>
+    </view>
+    <view class="filter-item">
+      <text class="filter-label">类型:</text>
+      <picker bindchange="onTypeChange" value="{{noticeTypes.indexOf(selectedType)}}" range="{{noticeTypes}}">
+        <view class="picker-text">{{selectedType}} ▼</view>
+      </picker>
+    </view>
+  </view>
+  
+  <!-- 加载状态 -->
+  <t-loading wx:if="{{loading}}" theme="circular" size="48rpx" text="加载中..." />
+  
+  <!-- 错误状态 -->
+  <view wx:elif="{{error}}" class="error-state">
+    <t-icon name="info-circle" size="96rpx" color="#ccc" />
+    <text class="error-text">{{error}}</text>
+    <t-button theme="primary" size="small" bindtap="loadNotices">重试</t-button>
+  </view>
+  
+  <!-- 通知列表 -->
+  <view wx:elif="{{notices.length > 0}}" class="notice-list">
+    <view 
+      wx:for="{{notices}}" 
+      wx:key="id" 
+      class="notice-item"
+      data-id="{{item.id}}"
+      data-title="{{item.title}}"
+      data-content="{{item.content}}"
+      data-department="{{item.department}}"
+      data-priority="{{item.priority}}"
+      data-notice_type="{{item.notice_type}}"
+      bindtap="viewNotice"
+    >
+      <view class="notice-header">
+        <view class="notice-title">{{item.title}}</view>
+        <view class="notice-badges">
+          <text class="type-badge type-{{item.notice_type}}">{{item.notice_type === 'urgent' ? '紧急' : item.notice_type === 'info' ? '信息' : '普通'}}</text>
+          <text class="priority-badge priority-{{item.priority}}">{{item.priority === 'high' ? '高' : item.priority === 'low' ? '低' : '中'}}</text>
+        </view>
+      </view>
+      <view class="notice-meta">
+        <text class="department">{{item.department}}</text>
+        <text class="date">{{item.date}} {{item.time}}</text>
+      </view>
+      <view wx:if="{{item.target_audience}}" class="notice-audience">
+        <text class="audience-label">对象：</text>
+        <text class="audience-text">{{item.target_audience}}</text>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 空状态 -->
+  <view wx:else class="empty-state">
+    <t-icon name="notification" size="96rpx" color="#ccc" />
+    <text class="empty-text">暂无通知</text>
   </view>
 </view> 

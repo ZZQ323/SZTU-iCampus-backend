@@ -1,48 +1,139 @@
 <view class="container">
   <custom-navbar 
     title="成绩查询" 
-    background="#4a90e2"
+    background="#28a745"
     color="#ffffff"
     bind:back="onBack"
   />
   
-  <view class="grades-container">
-    <!-- 学期选择器 -->
-    <view class="semester-select">
-      <t-picker
-        title="选择学期"
-        value="{{currentSemester}}"
-        options="{{semesters}}"
-        bind:change="onSemesterChange"
-      />
-    </view>
-
-    <view class="gpa-info">
-      <view class="gpa-item">
-        <text class="label">GPA</text>
-        <text class="value">{{gpa}}</text>
+  <!-- 筛选器 -->
+  <view class="filter-section">
+    <view class="filter-row">
+      <view class="filter-item">
+        <text class="filter-label">学期:</text>
+        <picker bindchange="onSemesterChange" value="{{semesters.indexOf(currentSemester)}}" range="{{semesters}}">
+          <view class="picker-text">{{currentSemester}} ▼</view>
+        </picker>
       </view>
-      <view class="gpa-item">
-        <text class="label">总学分</text>
-        <text class="value">{{totalCredits}}</text>
+      <view class="filter-item">
+        <text class="filter-label">学年:</text>
+        <picker bindchange="onAcademicYearChange" value="{{academicYears.indexOf(currentAcademicYear)}}" range="{{academicYears}}">
+          <view class="picker-text">{{currentAcademicYear}} ▼</view>
+        </picker>
       </view>
     </view>
-
-    <!-- 成绩列表 -->
-    <view class="grades-list">
-      <t-cell-group>
-        <t-cell 
-          wx:for="{{grades}}" 
-          wx:key="id" 
-          title="{{item.courseName}}" 
-          note="学分：{{item.credits}}"
-          description="成绩：{{item.score}}"
-          hover
-          arrow
-          bindtap="onViewDetail"
-          data-id="{{item.id}}"
-        />
-      </t-cell-group>
+    <view class="filter-row">
+      <view class="filter-item">
+        <text class="filter-label">课程类型:</text>
+        <picker bindchange="onCourseTypeChange" value="{{courseTypes.indexOf(selectedCourseType)}}" range="{{courseTypes}}">
+          <view class="picker-text">{{selectedCourseType}} ▼</view>
+        </picker>
+      </view>
     </view>
+  </view>
+
+  <!-- 统计信息 -->
+  <view class="summary-section">
+    <view class="summary-card">
+      <view class="summary-item">
+        <text class="summary-value">{{summary.total_courses}}</text>
+        <text class="summary-label">总课程</text>
+      </view>
+      <view class="summary-item">
+        <text class="summary-value">{{summary.total_credits}}</text>
+        <text class="summary-label">总学分</text>
+      </view>
+      <view class="summary-item">
+        <text class="summary-value">{{summary.avg_score}}</text>
+        <text class="summary-label">平均分</text>
+      </view>
+      <view class="summary-item">
+        <text class="summary-value">{{summary.avg_gpa}}</text>
+        <text class="summary-label">平均GPA</text>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 加载状态 -->
+  <t-loading wx:if="{{loading}}" theme="circular" size="48rpx" text="加载中..." />
+  
+  <!-- 错误状态 -->
+  <view wx:elif="{{error}}" class="error-state">
+    <t-icon name="info-circle" size="96rpx" color="#ccc" />
+    <text class="error-text">{{error}}</text>
+    <t-button theme="primary" size="small" bindtap="loadGrades">重试</t-button>
+  </view>
+  
+  <!-- 成绩列表 -->
+  <view wx:elif="{{grades.length > 0}}" class="grades-list">
+    <view 
+      wx:for="{{grades}}" 
+      wx:key="id" 
+      class="grade-item"
+      data-id="{{item.id}}"
+      data-course_name="{{item.course_name}}"
+      data-course_code="{{item.course_code}}"
+      data-total_score="{{item.total_score}}"
+      data-grade_level="{{item.grade_level}}"
+      data-teacher_name="{{item.teacher_name}}"
+      data-semester="{{item.semester}}"
+      data-academic_year="{{item.academic_year}}"
+      data-regular_score="{{item.regular_score}}"
+      data-midterm_score="{{item.midterm_score}}"
+      data-final_score="{{item.final_score}}"
+      data-class_rank="{{item.class_rank}}"
+      data-class_total="{{item.class_total}}"
+      bindtap="onViewDetail"
+    >
+      <view class="grade-header">
+        <view class="course-info">
+          <view class="course-name">{{item.course_name}}</view>
+          <view class="course-meta">
+            <text class="course-code">{{item.course_code}}</text>
+            <text class="course-credits">{{item.credits}}学分</text>
+          </view>
+        </view>
+        <view class="grade-score">
+          <text class="score-value" style="color: {{getGradeColor(item.total_score)}}">{{item.total_score}}</text>
+          <text class="grade-level" style="color: {{getLevelColor(item.grade_level)}}">{{item.grade_level}}</text>
+        </view>
+      </view>
+      
+      <view class="grade-details">
+        <view class="detail-item">
+          <t-icon name="user" size="24rpx" color="#666" />
+          <text class="detail-text">{{item.teacher_name}}</text>
+        </view>
+        <view class="detail-item">
+          <t-icon name="calendar" size="24rpx" color="#666" />
+          <text class="detail-text">{{item.semester}}</text>
+        </view>
+        <view wx:if="{{item.class_rank && item.class_total}}" class="detail-item">
+          <t-icon name="chart" size="24rpx" color="#666" />
+          <text class="detail-text">班级排名 {{item.class_rank}}/{{item.class_total}}</text>
+        </view>
+      </view>
+      
+      <view class="score-breakdown">
+        <view wx:if="{{item.regular_score}}" class="breakdown-item">
+          <text class="breakdown-label">平时</text>
+          <text class="breakdown-value">{{item.regular_score}}</text>
+        </view>
+        <view wx:if="{{item.midterm_score}}" class="breakdown-item">
+          <text class="breakdown-label">期中</text>
+          <text class="breakdown-value">{{item.midterm_score}}</text>
+        </view>
+        <view wx:if="{{item.final_score}}" class="breakdown-item">
+          <text class="breakdown-label">期末</text>
+          <text class="breakdown-value">{{item.final_score}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 空状态 -->
+  <view wx:else class="empty-state">
+    <t-icon name="assignment" size="96rpx" color="#ccc" />
+    <text class="empty-text">暂无成绩</text>
   </view>
 </view> 

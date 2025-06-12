@@ -11,8 +11,8 @@
     <view class="user-card">
       <image class="user-avatar" mode="aspectFill" src="/assets/test/man.png" size="normal" />
       <view class="user-info">
-        <text class="user-name">同学你好</text>
-        <text class="user-id">学号：2024XXXXXX</text>
+        <text class="user-name">{{userInfo.name}}</text>
+        <text class="user-id">学号：{{userInfo.studentId}}</text>
       </view>
     </view>
   </view>
@@ -57,8 +57,24 @@
   <view class="section">
     <view class="section-title">最新公告</view>
     <view class="announcement-section">
-      <t-cell-group>
-        <t-cell wx:for="{{announcements}}" wx:key="id" title="{{item.title}}" hover note="{{item.date}}" arrow bindtap="viewAnnouncement" data-id="{{item.id}}" />
+      <view wx:if="{{loading}}" class="loading-container">
+        <t-loading theme="dots" size="40rpx" text="加载中..." />
+      </view>
+      <t-cell-group wx:else>
+        <t-cell 
+          wx:for="{{announcements}}" 
+          wx:key="id" 
+          title="{{item.title}}" 
+          description="{{item.department}}"
+          hover 
+          note="{{item.date}} {{item.time}}" 
+          arrow 
+          bindtap="viewAnnouncement" 
+          data-announcement="{{item}}" 
+        />
+        <view wx:if="{{announcements.length === 0}}" class="empty-state">
+          <text class="empty-text">暂无公告</text>
+        </view>
       </t-cell-group>
     </view>
   </view>

@@ -5,7 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 import requests
 
-from app import crud, models, schemas
+from app import crud, models
 from app.api import deps
 from app.core import security
 from app.core.config import settings
@@ -14,14 +14,16 @@ from app.utils import (
     generate_password_reset_token,
     verify_password_reset_token,
 )
-from app.schemas.user import Token, UserCreate, User
+from app.schemas.token import Token
+from app.schemas.user import UserCreate, User
+from app.schemas.msg import Msg
 from app.models.user import User as UserModel
 from app.database import get_db
 
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-@router.post("/login/access-token", response_model=schemas.Token)
+@router.post("/login/access-token", response_model=Token)
 def login_access_token(
     db: Session = Depends(deps.get_db), form_data: OAuth2PasswordRequestForm = Depends()
 ) -> Any:
@@ -43,14 +45,14 @@ def login_access_token(
         "token_type": "bearer",
     }
 
-@router.post("/login/test-token", response_model=schemas.User)
+@router.post("/login/test-token", response_model=User)
 def test_token(current_user: models.User = Depends(deps.get_current_user)) -> Any:
     """
     Test access token
     """
     return current_user
 
-@router.post("/password-recovery/{email}", response_model=schemas.Msg)
+@router.post("/password-recovery/{email}", response_model=Msg)
 def recover_password(email: str, db: Session = Depends(deps.get_db)) -> Any:
     """
     Password Recovery
@@ -66,7 +68,7 @@ def recover_password(email: str, db: Session = Depends(deps.get_db)) -> Any:
     # TODO: 发送重置密码邮件
     return {"msg": "Password recovery email sent"}
 
-@router.post("/reset-password/", response_model=schemas.Msg)
+@router.post("/reset-password/", response_model=Msg)
 def reset_password(
     token: str = Body(...),
     new_password: str = Body(...),

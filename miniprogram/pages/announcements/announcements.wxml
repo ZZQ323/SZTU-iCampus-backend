@@ -6,17 +6,24 @@
   />
   
   <view class="announcements-container">
-    <t-cell-group>
+    <view wx:if="{{loading}}" class="loading-container">
+      <t-loading theme="dots" size="40rpx" text="加载中..." />
+    </view>
+    <t-cell-group wx:else>
       <t-cell 
         wx:for="{{announcements}}" 
         wx:key="id" 
         title="{{item.title}}" 
-        note="{{item.date}}"
+        description="{{item.department}}"
+        note="{{item.date}} {{item.time}}"
         hover
         arrow
-        bindtap="onViewDetail"
-        data-id="{{item.id}}"
+        bindtap="viewAnnouncement"
+        data-announcement="{{item}}"
       />
+      <view wx:if="{{announcements.length === 0}}" class="empty-state">
+        <text class="empty-text">暂无公告</text>
+      </view>
     </t-cell-group>
   </view>
 </view> 

@@ -4,6 +4,198 @@
   min-height: 100vh;
 }
 
+/* 筛选器样式 */
+.filter-section {
+  background: white;
+  padding: 30rpx;
+  margin-bottom: 20rpx;
+  display: flex;
+  justify-content: space-between;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
+}
+
+.filter-item {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  margin: 0 20rpx;
+}
+
+.filter-label {
+  font-size: 28rpx;
+  color: #333;
+  margin-right: 20rpx;
+  font-weight: 500;
+}
+
+.picker-text {
+  font-size: 28rpx;
+  color: #666;
+  padding: 10rpx 20rpx;
+  background: #f8f9fa;
+  border-radius: 8rpx;
+  min-width: 120rpx;
+  text-align: center;
+}
+
+/* 加载和错误状态 */
+.error-state, .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 100rpx 0;
+  color: #999;
+}
+
+.error-text, .empty-text {
+  font-size: 28rpx;
+  margin: 20rpx 0;
+  color: #999;
+}
+
+/* 通知列表 */
 .notice-list {
-  margin-top: 16rpx;
+  padding: 0 30rpx;
+}
+
+.notice-item {
+  background: white;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.notice-item:active {
+  transform: scale(0.98);
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.15);
+}
+
+/* 通知头部 */
+.notice-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20rpx;
+}
+
+.notice-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+  line-height: 1.4;
+  flex: 1;
+  margin-right: 20rpx;
+}
+
+.notice-badges {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+/* 标签样式 */
+.type-badge, .priority-badge {
+  font-size: 20rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 12rpx;
+  color: white;
+  font-weight: 500;
+  text-align: center;
+  min-width: 60rpx;
+}
+
+/* 通知类型标签 */
+.type-urgent {
+  background: linear-gradient(135deg, #ff4757, #ff3742);
+}
+
+.type-normal {
+  background: linear-gradient(135deg, #5dade2, #3498db);
+}
+
+.type-info {
+  background: linear-gradient(135deg, #58d68d, #27ae60);
+}
+
+/* 优先级标签 */
+.priority-high {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+}
+
+.priority-medium {
+  background: linear-gradient(135deg, #f39c12, #e67e22);
+}
+
+.priority-low {
+  background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+}
+
+/* 通知元信息 */
+.notice-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15rpx;
+}
+
+.department {
+  font-size: 26rpx;
+  color: #666;
+  padding: 6rpx 16rpx;
+  background: #f8f9fa;
+  border-radius: 20rpx;
+  font-weight: 500;
+}
+
+.date {
+  font-size: 24rpx;
+  color: #999;
+}
+
+/* 目标受众 */
+.notice-audience {
+  display: flex;
+  align-items: center;
+  padding-top: 15rpx;
+  border-top: 1rpx solid #eee;
+}
+
+.audience-label {
+  font-size: 24rpx;
+  color: #666;
+  margin-right: 10rpx;
+}
+
+.audience-text {
+  font-size: 24rpx;
+  color: #007aff;
+  background: rgba(0, 122, 255, 0.1);
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+}
+
+/* 响应式设计 */
+@media (max-width: 600rpx) {
+  .filter-section {
+    flex-direction: column;
+    gap: 20rpx;
+  }
+  
+  .filter-item {
+    margin: 0;
+  }
+  
+  .notice-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .notice-badges {
+    margin-top: 15rpx;
+    flex-direction: row;
+    gap: 12rpx;
+  }
 } 

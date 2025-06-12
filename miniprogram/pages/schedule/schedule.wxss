@@ -5,15 +5,253 @@
 }
 
 .schedule-container {
-  padding: 16rpx;
+  padding: 20rpx;
 }
 
+/* 周次选择器 */
 .week-selector {
-  margin-bottom: 16rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  padding: 30rpx;
+  border-radius: 16rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
 }
 
-.schedule-grid {
-  background-color: #fff;
+.week-text {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+/* 课表表格 */
+.schedule-table {
+  background: white;
+  border-radius: 16rpx;
+  margin-bottom: 30rpx;
+  overflow: hidden;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+}
+
+.table-header {
+  display: flex;
+  background: linear-gradient(135deg, #4a90e2, #357abd);
+  color: white;
+}
+
+.time-header {
+  flex: 1;
+  padding: 20rpx 10rpx;
+  text-align: center;
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
+.day-header {
+  flex: 1;
+  padding: 20rpx 10rpx;
+  text-align: center;
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
+.time-row {
+  display: flex;
+  border-bottom: 1rpx solid #f0f0f0;
+  min-height: 120rpx;
+}
+
+.time-cell {
+  flex: 1;
+  padding: 15rpx 10rpx;
+  background: #fafafa;
+  border-right: 1rpx solid #f0f0f0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.time-label {
+  font-size: 22rpx;
+  color: #666;
+  margin-bottom: 5rpx;
+}
+
+.time-range {
+  font-size: 20rpx;
+  color: #999;
+}
+
+.course-cell {
+  flex: 1;
+  padding: 10rpx 5rpx;
+  border-right: 1rpx solid #f0f0f0;
+  min-height: 120rpx;
+  position: relative;
+}
+
+.course-item {
+  background: linear-gradient(135deg, #e3f2fd, #bbdefb);
   border-radius: 8rpx;
-  padding: 16rpx;
+  padding: 10rpx;
+  margin: 2rpx;
+  border-left: 4rpx solid #2196f3;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.course-item:active {
+  transform: scale(0.98);
+  background: linear-gradient(135deg, #bbdefb, #90caf9);
+}
+
+.course-name {
+  font-size: 20rpx;
+  font-weight: 600;
+  color: #1976d2;
+  margin-bottom: 4rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.course-teacher {
+  font-size: 18rpx;
+  color: #666;
+  margin-bottom: 2rpx;
+}
+
+.course-location {
+  font-size: 18rpx;
+  color: #999;
+}
+
+/* 课程列表视图 */
+.course-list-view {
+  background: white;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+}
+
+.section-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 30rpx;
+  text-align: center;
+}
+
+.daily-courses {
+  margin-bottom: 30rpx;
+}
+
+.day-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #4a90e2;
+  margin-bottom: 20rpx;
+  padding-bottom: 10rpx;
+  border-bottom: 2rpx solid #e3f2fd;
+}
+
+.courses {
+  display: flex;
+  flex-direction: column;
+  gap: 15rpx;
+}
+
+.course-card {
+  background: linear-gradient(135deg, #ffffff, #fafafa);
+  border-radius: 12rpx;
+  padding: 25rpx;
+  border: 1rpx solid #e0e0e0;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.course-card:active {
+  transform: translateY(2rpx);
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+}
+
+.course-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15rpx;
+}
+
+.course-header .course-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #333;
+  white-space: normal;
+}
+
+.course-type {
+  font-size: 20rpx;
+  color: white;
+  background: #4a90e2;
+  padding: 4rpx 12rpx;
+  border-radius: 20rpx;
+}
+
+.course-info {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10rpx;
+}
+
+.course-time {
+  font-size: 24rpx;
+  color: #666;
+  font-weight: 500;
+}
+
+.course-info .course-location {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.course-teacher {
+  font-size: 22rpx;
+  color: #4a90e2;
+  font-weight: 500;
+}
+
+.no-course {
+  text-align: center;
+  padding: 40rpx;
+  color: #999;
+  font-size: 24rpx;
+}
+
+/* 响应式设计 */
+@media (max-width: 750rpx) {
+  .course-cell {
+    padding: 5rpx 2rpx;
+  }
+  
+  .course-item {
+    padding: 8rpx;
+    margin: 1rpx;
+  }
+  
+  .course-name {
+    font-size: 18rpx;
+  }
+  
+  .course-teacher, .course-location {
+    font-size: 16rpx;
+  }
+}
+
+/* 加载状态 */
+.t-loading {
+  text-align: center;
+  padding: 100rpx;
 } 
