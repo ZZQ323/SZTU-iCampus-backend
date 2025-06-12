@@ -34,7 +34,7 @@ app.add_middleware(
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # 包含认证路由
-app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 
 @app.get("/")
 async def root():

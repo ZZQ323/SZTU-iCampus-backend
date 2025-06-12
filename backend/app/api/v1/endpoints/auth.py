@@ -94,13 +94,21 @@ def reset_password(
 
 @router.post("/test-login", response_model=Token)
 async def test_login(
-    student_id: str,
-    name: str,
+    data: dict = Body(...),
     db: Session = Depends(get_db)
 ):
     """
     测试用登录接口
     """
+    student_id = data.get("student_id")
+    name = data.get("name")
+    
+    if not student_id or not name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="student_id and name are required"
+        )
+    
     # 查找或创建测试用户
     user = db.query(UserModel).filter(UserModel.student_id == student_id).first()
     if not user:

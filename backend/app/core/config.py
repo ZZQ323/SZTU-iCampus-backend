@@ -1,23 +1,21 @@
 from typing import Any, Dict, List, Optional, Union
-from pydantic import AnyHttpUrl, BaseSettings, EmailStr, validator
-from pydantic_settings import BaseSettings as PydanticSettings
-import secrets
-from pathlib import Path
+from pydantic_settings import BaseSettings
+from pydantic import AnyHttpUrl, EmailStr, validator
 
 class Settings(BaseSettings):
     # 基础配置
     PROJECT_NAME: str = "SZTU iCampus"
     VERSION: str = "1.0.0"
-    API_V1_STR: str = "/api"
+    API_V1_STR: str = "/api/v1"
     
     # JWT设置
-    SECRET_KEY: str = "test-secret-key-for-development-only"  # 仅用于开发测试
+    SECRET_KEY: str = "your-secret-key-here"  # 在生产环境中应该使用环境变量
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 days
     
     # 微信小程序设置（测试用）
-    WECHAT_APP_ID: str = "test_app_id"
-    WECHAT_APP_SECRET: str = "test_app_secret"
+    WECHAT_APP_ID: str = ""
+    WECHAT_APP_SECRET: str = ""
     
     # 数据库配置
     POSTGRES_SERVER: str = "localhost"
