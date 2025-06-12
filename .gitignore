@@ -1,4 +1,5 @@
 # IDE
+clean.bat
 .vscode/
 .idea/
 *.swp
