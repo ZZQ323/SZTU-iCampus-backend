@@ -1,4 +1,46 @@
-.vscode
-.idea
-node_modules
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
 dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+miniprogram_npm/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 微信小程序
+miniprogram_dist/
+project.private.config.json
+
+# 系统文件
+.DS_Store
+Thumbs.db
