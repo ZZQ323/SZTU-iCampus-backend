@@ -1,81 +1,369 @@
-<view class="container">
-  <t-navbar 
-    title="深技大校园服务" 
-    t-class="custom-navbar"
-    back="{{true}}"
-    bind:back="onBack"
-  />
-  
+<navigation-bar title="SZTU iCampus" back="{{false}}" color="black" background="#FFFFFF"></navigation-bar>
+
+<view class="index">
+  <!-- 🌊 流式连接状态指示器 -->
+  <view class="stream-status {{streamStatus.isConnected ? 'connected' : 'disconnected'}}" bind:tap="testStreamConnection">
+    <view class="status-indicator">
+      <view class="status-dot {{streamStatus.isConnected ? 'active' : ''}}"></view>
+      <text class="status-text">{{streamStatus.isConnected ? '实时连接' : '离线模式'}}</text>
+    </view>
+    <view class="status-detail" wx:if="{{streamStatus.isConnected}}">
+      <text class="update-time">{{streamStatus.lastUpdate}}</text>
+    </view>
+  </view>
+
   <!-- 用户信息卡片 -->
-  <view class="header">
-    <view class="user-card">
-      <image class="user-avatar" mode="aspectFill" src="/assets/test/man.png" size="normal" />
-      <view class="user-info">
-        <text class="user-name">{{userInfo.name}}</text>
-        <text class="user-id">学号：{{userInfo.studentId}}</text>
+  <view class="user-card">
+    <view class="user-avatar">
+      <text class="user-icon">👋</text>
+    </view>
+    <view class="user-info">
+      <text class="user-name">{{userInfo.name}}</text>
+      <text class="user-details">学号: {{userInfo.studentId}}</text>
+      <text class="user-college">{{userInfo.college}}</text>
+    </view>
+    <view class="user-status">
+      <view class="status-badge {{streamStatus.isConnected ? 'online' : 'offline'}}">
+        {{streamStatus.isConnected ? '在线' : '离线'}}
       </view>
     </view>
   </view>
 
-  <!-- 功能导航区 -->
-  <view class="section">
-    <view class="section-title">常用功能</view>
-    <view class="feature-grid">
-      <view class="feature-item" bindtap="navigateToAnnouncements">
-        <image class="feature-icon" src="/assets/icons/notification.png" mode="aspectFit" />
-        <text class="feature-text">校园公告</text>
-      </view>
-      <view class="feature-item" bindtap="navigateToSchedule">
-        <image class="feature-icon" src="/assets/icons/schedule.png" mode="aspectFit" />
-        <text class="feature-text">课表查询</text>
-      </view>
-      <view class="feature-item" bindtap="navigateToNotices">
-        <image class="feature-icon" src="/assets/icons/message.png" mode="aspectFit" />
-        <text class="feature-text">部门通知</text>
-      </view>
-      <view class="feature-item" bindtap="navigateToEvents">
-        <image class="feature-icon" src="/assets/icons/event.png" mode="aspectFit" />
-        <text class="feature-text">活动日历</text>
-      </view>
+  <!-- 快捷服务网格 -->
+  <view class="services-section">
+    <view class="section-header">
+      <text class="section-title">🌊 智能服务</text>
+      <text class="section-subtitle">流式数据，实时体验</text>
     </view>
-  </view>
-
-  <!-- 快捷功能区 -->
-  <view class="section">
-    <view class="section-title">快捷服务</view>
-    <view class="quick-actions">
-      <t-cell-group>
-        <t-cell title="成绩查询" hover arrow image="/assets/icons/Grade.png" bindtap="navigateToGrades" />
-        <t-cell title="考试安排" hover arrow image="/assets/icons/examination.png" bindtap="navigateToExams" />
-        <t-cell title="校园卡" hover arrow image="/assets/icons/wallet.png" bindtap="navigateToCampusCard" />
-        <t-cell title="图书馆" hover arrow image="/assets/icons/Library.png" bindtap="navigateToLibrary" />
-      </t-cell-group>
-    </view>
-  </view>
-
-  <!-- 最新公告区 -->
-  <view class="section">
-    <view class="section-title">最新公告</view>
-    <view class="announcement-section">
-      <view wx:if="{{loading}}" class="loading-container">
-        <t-loading theme="dots" size="40rpx" text="加载中..." />
-      </view>
-      <t-cell-group wx:else>
-        <t-cell 
-          wx:for="{{announcements}}" 
-          wx:key="id" 
-          title="{{item.title}}" 
-          description="{{item.department}}"
-          hover 
-          note="{{item.date}} {{item.time}}" 
-          arrow 
-          bindtap="viewAnnouncement" 
-          data-announcement="{{item}}" 
-        />
-        <view wx:if="{{announcements.length === 0}}" class="empty-state">
-          <text class="empty-text">暂无公告</text>
+    
+    <view class="services-grid">
+      <view class="service-item" wx:for="{{quickServices}}" wx:key="title" bind:tap="navigateTo{{item.title}}">
+        <view class="service-icon">{{item.icon}}</view>
+        <text class="service-title">{{item.title}}</text>
+        <view class="service-indicator" wx:if="{{item.title === '公告' && newAnnouncementCount > 0}}">
+          <text class="new-count">{{newAnnouncementCount}}</text>
         </view>
-      </t-cell-group>
+      </view>
+    </view>
+  </view>
+
+  <!-- 实时公告推送区域 -->
+  <view class="announcements-section">
+    <view class="section-header">
+      <text class="section-title">📢 校园公告</text>
+      <view class="section-actions">
+        <view class="stream-indicator {{streamStatus.isConnected ? 'streaming' : ''}}">
+          <view class="stream-dot"></view>
+          <text class="stream-text">{{streamStatus.isConnected ? '实时推送' : '静态显示'}}</text>
+        </view>
+        <text class="section-more" bind:tap="navigateToAnnouncements">查看更多</text>
+      </view>
+    </view>
+
+    <!-- 🔄 加载状态 -->
+    <view class="loading-container" wx:if="{{loading}}">
+      <view class="loading-spinner"></view>
+      <text class="loading-text">📡 连接实时数据源...</text>
+    </view>
+
+    <!-- 公告列表 -->
+    <view class="announcements-list" wx:if="{{!loading}}">
+      <view class="announcement-item" 
+            wx:for="{{announcements}}" 
+            wx:key="id" 
+            bind:tap="viewAnnouncement" 
+            data-announcement="{{item}}">
+        <view class="announcement-content">
+          <view class="announcement-header">
+            <text class="announcement-title">{{item.title}}</text>
+            <view class="announcement-meta">
+              <text class="announcement-department">{{item.department}}</text>
+              <text class="announcement-time">{{item.date}} {{item.time}}</text>
+            </view>
+          </view>
+          <text class="announcement-preview">{{item.content}}</text>
+        </view>
+        <view class="announcement-indicator">
+          <view class="announcement-status new" wx:if="{{item.isNew}}">
+            <text class="status-text">新</text>
+          </view>
+          <view class="announcement-priority priority-{{item.priority}}"></view>
+        </view>
+      </view>
+
+      <!-- 空状态 -->
+      <view class="empty-state" wx:if="{{announcements.length === 0}}">
+        <text class="empty-icon">📭</text>
+        <text class="empty-text">暂无公告</text>
+        <text class="empty-subtitle">实时推送将在有新公告时自动显示</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 🔥 流式体验展示区域 -->
+  <view class="experience-section" wx:if="{{streamStatus.isConnected}}">
+    <view class="section-header">
+      <text class="section-title">✨ 流式体验</text>
+      <text class="section-subtitle">感受实时数据的魅力</text>
+    </view>
+    
+    <view class="experience-grid">
+      <view class="experience-item">
+        <view class="experience-icon">🚀</view>
+        <text class="experience-title">实时推送</text>
+        <text class="experience-desc">新消息即时送达</text>
+      </view>
+      
+      <view class="experience-item">
+        <view class="experience-icon">⚡</view>
+        <text class="experience-title">零延迟</text>
+        <text class="experience-desc">数据更新无需等待</text>
+      </view>
+      
+      <view class="experience-item">
+        <view class="experience-icon">🎯</view>
+        <text class="experience-title">智能更新</text>
+        <text class="experience-desc">只推送相关内容</text>
+      </view>
+      
+      <view class="experience-item">
+        <view class="experience-icon">💚</view>
+        <text class="experience-title">节能高效</text>
+        <text class="experience-desc">低功耗流式传输</text>
+      </view>
+    </view>
+    
+    <!-- 体验统计 -->
+    <view class="experience-stats">
+      <view class="stat-item">
+        <text class="stat-number">{{streamStatus.activeStreams}}</text>
+        <text class="stat-label">活跃数据流</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-number">{{newAnnouncementCount}}</text>
+        <text class="stat-label">实时推送次数</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-number">0</text>
+        <text class="stat-label">延迟毫秒</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 传统 vs 流式对比 -->
+  <view class="comparison-section">
+    <view class="section-header">
+      <text class="section-title">🔄 体验对比</text>
+      <text class="section-subtitle">传统方式 vs 流式封装</text>
+    </view>
+    
+    <view class="comparison-table">
+      <view class="comparison-row header">
+        <text class="comparison-cell">特性</text>
+        <text class="comparison-cell">传统方式</text>
+        <text class="comparison-cell">流式封装</text>
+      </view>
+      
+      <view class="comparison-row">
+        <text class="comparison-cell">数据获取</text>
+        <text class="comparison-cell traditional">点击-等待-加载</text>
+        <text class="comparison-cell streaming">自动-实时-推送</text>
+      </view>
+      
+      <view class="comparison-row">
+        <text class="comparison-cell">用户体验</text>
+        <text class="comparison-cell traditional">被动刷新</text>
+        <text class="comparison-cell streaming">主动通知</text>
+      </view>
+      
+      <view class="comparison-row">
+        <text class="comparison-cell">响应速度</text>
+        <text class="comparison-cell traditional">3-5秒</text>
+        <text class="comparison-cell streaming">&lt; 0.1秒</text>
+      </view>
+    </view>
+  </view>
+</view>
+
+<!-- 🌊 全局流式状态浮动按钮 -->
+<view class="floating-stream-button {{streamStatus.isConnected ? 'connected' : 'disconnected'}}" 
+      bind:tap="testStreamConnection">
+  <view class="float-icon">🌊</view>
+  <view class="float-pulse {{streamStatus.isConnected ? 'active' : ''}}"></view>
+</view>
+
+<!-- 自定义导航栏 -->
+<custom-navbar title="SZTU iCampus" show-back="{{false}}">
+  <!-- 🔗 流式连接状态指示器 -->
+  <view slot="right" class="stream-indicator {{streamStatus.isConnected ? 'connected' : 'disconnected'}}" 
+        bindtap="showDetailedStats">
+    <text class="stream-dot {{streamStatus.isConnected ? 'pulse' : ''}}"></text>
+    <text class="stream-text">{{streamStatus.isConnected ? '实时' : '离线'}}</text>
+  </view>
+</custom-navbar>
+
+<view class="container">
+  <!-- 🎮 体验模式控制面板 -->
+  <view class="experience-panel {{demoMode ? 'active' : ''}}" wx:if="{{demoMode || streamStatus.isConnected}}">
+    <view class="panel-header">
+      <text class="panel-title">🌊 流式封装体验中心</text>
+      <switch class="demo-switch" checked="{{demoMode}}" bindchange="toggleDemoMode" color="#0052d9"/>
+    </view>
+    
+    <!-- 📊 实时统计 -->
+    <view class="stats-grid">
+      <view class="stat-item">
+        <text class="stat-number">{{streamStatus.connectionDuration || 0}}s</text>
+        <text class="stat-label">连接时长</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-number">{{streamStatus.dataCount}}</text>
+        <text class="stat-label">数据接收</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-number">{{streamStatus.cacheHitRate}}</text>
+        <text class="stat-label">缓存命中</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-number">{{experienceStats.realTimePushes}}</text>
+        <text class="stat-label">实时推送</text>
+      </view>
+    </view>
+    
+    <!-- 🎯 体验操作按钮 -->
+    <view class="action-buttons">
+      <button class="action-btn primary" bindtap="showDetailedStats">
+        📊 详细统计
+      </button>
+      <button class="action-btn secondary" bindtap="testNetworkAdaptation">
+        🌐 网络测试
+      </button>
+      <button class="action-btn danger" bindtap="clearCacheExperience">
+        🧹 清理缓存
+      </button>
+    </view>
+  </view>
+
+  <!-- 用户信息卡片 -->
+  <view class="user-card">
+    <view class="user-avatar">
+      <image src="{{user.avatar}}" mode="aspectFill" />
+    </view>
+    <view class="user-info">
+      <text class="user-name">{{user.name}}</text>
+      <text class="user-id">{{user.studentId}}</text>
+    </view>
+    
+    <!-- 🔗 流式连接状态显示 -->
+    <view class="connection-status">
+      <text class="status-badge {{streamStatus.isConnected ? 'online' : 'offline'}}">
+        {{streamStatus.isConnected ? '🌊 实时连接' : '📴 离线模式'}}
+      </text>
+      <text class="last-update" wx:if="{{streamStatus.lastUpdate}}">
+        最后更新: {{streamStatus.lastUpdate}}
+      </text>
+    </view>
+  </view>
+
+  <!-- 🎯 快速功能入口 -->
+  <view class="quick-actions">
+    <view class="quick-action" bindtap="navigateToAnnouncements">
+      <image src="assets/icons/notification.png" class="action-icon"/>
+      <text class="action-text">校园公告</text>
+      <!-- 📢 新推送提示 -->
+      <view class="push-badge" wx:if="{{experienceStats.realTimePushes > 0}}">
+        {{experienceStats.realTimePushes}}
+      </view>
+    </view>
+    
+    <view class="quick-action" bindtap="navigateToSchedule">
+      <image src="assets/icons/schedule.png" class="action-icon"/>
+      <text class="action-text">课程表</text>
+    </view>
+    
+    <view class="quick-action" bindtap="navigateToEvents">
+      <image src="assets/icons/event.png" class="action-icon"/>
+      <text class="action-text">校园活动</text>
+      <!-- 👥 参与人数变化提示 -->
+      <view class="activity-badge" wx:if="{{streamStatus.activeStreams > 1}}">
+        实时
+      </view>
+    </view>
+    
+    <view class="quick-action" bindtap="navigateToGrades">
+      <image src="assets/icons/Grade.png" class="action-icon"/>
+      <text class="action-text">成绩查询</text>
+    </view>
+  </view>
+
+  <!-- 📢 最新公告 - 支持实时推送 -->
+  <view class="section">
+    <view class="section-header">
+      <text class="section-title">📢 最新公告</text>
+      <text class="section-more" bindtap="navigateToAnnouncements">查看更多</text>
+    </view>
+    
+    <view class="notices-list" wx:if="{{notices.length > 0}}">
+      <view class="notice-item {{item.isNewPush ? 'new-push' : ''}}" 
+            wx:for="{{notices}}" 
+            wx:key="id"
+            bindtap="viewAnnouncement" 
+            data-announcement="{{item}}">
+        <!-- 🌊 新推送标识 -->
+        <view class="new-push-indicator" wx:if="{{item.isNewPush}}">
+          <text class="pulse-text">🔥 实时推送</text>
+        </view>
+        
+        <view class="notice-content">
+          <text class="notice-title">{{item.title}}</text>
+          <text class="notice-department">{{item.department}}</text>
+          <text class="notice-time">{{item.created_at}}</text>
+        </view>
+        
+        <!-- 📊 数据来源标识 -->
+        <view class="source-badge">
+          <text wx:if="{{item.stream_type === 'realtime_push'}}" class="source-tag realtime">🌊 实时</text>
+          <text wx:elif="{{item.isOfflineData}}" class="source-tag offline">📦 缓存</text>
+          <text wx:else class="source-tag normal">📡 常规</text>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 空状态 -->
+    <view class="empty-state" wx:else>
+      <text class="empty-text">{{loadingNotices ? '🔄 连接实时数据中...' : '暂无公告'}}</text>
+    </view>
+  </view>
+
+  <!-- 🎯 近期活动 -->
+  <view class="section">
+    <view class="section-header">
+      <text class="section-title">🎯 近期活动</text>
+      <text class="section-more" bindtap="navigateToEvents">查看更多</text>
+    </view>
+    
+    <view class="events-list" wx:if="{{recentEvents.length > 0}}">
+      <view class="event-item" wx:for="{{recentEvents}}" wx:key="id" bindtap="viewEvent" data-event="{{item}}">
+        <view class="event-info">
+          <text class="event-title">{{item.title}}</text>
+          <text class="event-time">{{item.event_date}}</text>
+          <text class="event-location">📍 {{item.location}}</text>
+          
+          <!-- 👥 实时参与人数 -->
+          <view class="participants-info" wx:if="{{item.current_participants != null}}">
+            <text class="participants-count">
+              👥 {{item.current_participants}}/{{item.max_participants}}
+            </text>
+            <view class="progress-bar">
+              <view class="progress-fill" style="width: {{(item.current_participants / item.max_participants * 100)}}%"></view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+    
+    <view class="empty-state" wx:else>
+      <text class="empty-text">暂无活动</text>
     </view>
   </view>
 </view> 

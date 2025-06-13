@@ -1,5 +1,5 @@
 const app = getApp()
-const { EventStream, streamManager } = require('../../utils/stream')
+const { eventStream, streamManager } = require('../../utils/stream.js')
 
 Page({
   data: {
@@ -7,273 +7,565 @@ Page({
     currentMonth: 1,
     calendarVisible: false,
     events: [],
+    filteredEvents: [],
     loading: true,
     error: '',
-    eventTypes: ['全部', '学术活动', '社团活动', '体育活动', '文化活动', '比赛活动'],
-    selectedType: '全部',
+    eventTypes: [
+      { value: 'all', text: '全部' },
+      { value: 'academic', text: '学术活动' },
+      { value: 'social', text: '社团活动' },
+      { value: 'sports', text: '体育活动' },
+      { value: 'cultural', text: '文化活动' },
+      { value: 'competition', text: '比赛活动' }
+    ],
+    selectedType: 'all',
     eventStatuses: ['全部', '即将开始', '进行中', '已结束'],
     selectedStatus: '全部',
     organizers: ['全部', '学术委员会', '学生会', '体育部', '计算机学院', '社团联合会', '教务处'],
-    isStreamConnected: false,  // 流式连接状态
-    participantUpdates: 0      // 参与人数更新次数统计
+    streamStatus: {
+      isConnected: false,
+      participantUpdates: 0,
+      lastUpdate: null
+    },
+    participantChanges: {},
+    showRealTimeUpdates: true,
+    autoRefresh: true
   },
 
   onLoad() {
-    this.setCurrentDate();
-    this.loadEvents();
-    // 🔥 启动流式活动数据推送 - 实时更新参与人数
-    this.startEventStream();
+    console.log('[活动页面] 🎯 页面加载')
+    this.setCurrentDate()
+    this.loadEvents()
+    this.startEventStream()
   },
 
   setCurrentDate() {
-    const now = new Date();
+    const now = new Date()
+    const currentDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
     this.setData({
-      currentYear: now.getFullYear(),
-      currentMonth: now.getMonth() + 1
-    });
+      currentDate: currentDate,
+      calendarValue: now
+    })
   },
 
   onBack() {
     wx.navigateBack({
       delta: 1
-    });
+    })
   },
 
-  loadEvents() {
-    this.setData({ loading: true, error: '' });
-    
-    // 构建请求参数
-    let url = `${app.globalData.baseUrl}/api/events?limit=50`;
-    
-    if (this.data.selectedType !== '全部') {
-      const typeMap = {
-        '学术活动': 'academic',
-        '社团活动': 'social',
-        '体育活动': 'sports',
-        '文化活动': 'cultural',
-        '比赛活动': 'competition'
-      };
-      url += `&event_type=${typeMap[this.data.selectedType]}`;
-    }
-    
-    if (this.data.selectedStatus !== '全部') {
-      const statusMap = {
-        '即将开始': 'upcoming',
-        '进行中': 'ongoing',
-        '已结束': 'completed'
-      };
-      url += `&status=${statusMap[this.data.selectedStatus]}`;
-    }
+  async loadEvents() {
+    console.log('[活动页面] 📥 加载活动数据')
+    this.setData({ loading: true })
 
-    wx.request({
-      url: url,
-      method: 'GET',
-      success: (res) => {
-        console.log('活动API响应:', res.data);
-        if (res.statusCode === 200 && res.data.code === 0) {
-          // 处理活动数据，计算参与度百分比
-          const events = (res.data.data.events || []).map(event => {
-            if (event.max_participants && event.current_participants >= 0) {
-              event.participationPercent = Math.min(Math.round((event.current_participants / event.max_participants) * 100), 100);
-            } else {
-              event.participationPercent = 0;
-            }
-            return event;
-          });
-          
-          this.setData({
-            events: events,
-            loading: false
-          });
-        } else {
-          console.error('获取活动失败:', res.data);
-          this.setData({
-            error: '获取活动失败，请稍后重试',
-            loading: false
-          });
-        }
-      },
-      fail: (err) => {
-        console.error('请求活动失败:', err);
-        this.setData({
-          error: '网络请求失败，请检查网络连接',
-          loading: false
-        });
-      }
-    });
-  },
-
-  // 🚀 启动流式活动数据推送 - 实时更新参与人数
-  startEventStream() {
-    const eventStream = new EventStream()
-    
-    console.log('[活动页面] 启动流式活动数据推送...')
-    
-    eventStream.start((updatedEvent) => {
-      console.log('[活动页面] 收到活动数据更新:', updatedEvent)
-      
-      // 查找并更新对应的活动数据
-      const events = this.data.events.map(event => {
-        if (event.id === updatedEvent.id) {
-          // 🎯 实时更新参与人数
-          const updatedEventData = {
-            ...event,
-            current_participants: updatedEvent.current_participants,
-            max_participants: updatedEvent.max_participants || event.max_participants
-          }
-          
-          // 重新计算参与度百分比
-          if (updatedEventData.max_participants && updatedEventData.current_participants >= 0) {
-            updatedEventData.participationPercent = Math.min(
-              Math.round((updatedEventData.current_participants / updatedEventData.max_participants) * 100), 
-              100
-            )
-          }
-          
-          console.log(`[活动更新] ${event.title} 参与人数: ${event.current_participants} → ${updatedEvent.current_participants}`)
-          
-          return updatedEventData
-        }
-        return event
-      })
-      
-      this.setData({
-        events: events,
-        participantUpdates: this.data.participantUpdates + 1
-      })
-      
-      // 显示更新提醒（不要太频繁）
-      if (this.data.participantUpdates % 3 === 0) {
-        wx.showToast({
-          title: '活动数据已更新',
-          icon: 'none',
-          duration: 1500
+    try {
+      const baseUrl = getApp().globalData.baseUrl
+      const response = await new Promise((resolve, reject) => {
+        wx.request({
+          url: `${baseUrl}/api/events`,
+          method: 'GET',
+          success: resolve,
+          fail: reject
         })
+      })
+
+      if (response.statusCode === 200 && response.data.success) {
+        console.log('[活动页面] ✅ 活动数据加载成功:', response.data.data.length, '条')
+        
+        const eventsWithProgress = response.data.data.map(event => ({
+          ...event,
+          participationRate: event.max_participants > 0 ? 
+            ((event.current_participants / event.max_participants) * 100).toFixed(1) : '0',
+          isNearFull: event.max_participants > 0 && 
+            (event.current_participants / event.max_participants) > 0.8
+        }))
+        
+        this.setData({ 
+          events: eventsWithProgress,
+          loading: false 
+        })
+      } else {
+        throw new Error('活动数据加载失败')
+      }
+    } catch (error) {
+      console.error('[活动页面] ❌ 加载活动失败:', error)
+      
+      wx.showToast({
+        title: '❌ 活动加载失败',
+        icon: 'none',
+        duration: 2000
+      })
+      
+      this.setData({ loading: false })
+    }
+  },
+
+  /**
+   * 🌊 启动活动流式数据更新
+   */
+  startEventStream() {
+    console.log('[活动页面] 🌊 启动活动实时数据流')
+    
+    eventStream.start((eventData) => {
+      console.log('[活动页面] 📊 收到活动更新:', eventData)
+      
+      this.updateStreamStatus()
+      
+      if (eventData.update_type === 'participant_change') {
+        this.handleParticipantChange(eventData)
+        
+      } else if (eventData.stream_type === 'initial') {
+        this.handleInitialEventData(eventData)
+        
+      } else {
+        this.handleGeneralEventUpdate(eventData)
       }
     })
     
-    this.setData({ isStreamConnected: true })
-    this.eventStream = eventStream
+    this.statusUpdateTimer = setInterval(() => {
+      this.updateStreamStatus()
+    }, 3000)
   },
 
-  // 停止流式推送
+  /**
+   * 👥 处理参与人数变化
+   */
+  handleParticipantChange(eventData) {
+    const eventId = eventData.id
+    const newParticipants = eventData.current_participants
+    const maxParticipants = eventData.max_participants
+    
+    console.log(`[活动页面] 👥 活动 ${eventData.title} 参与人数: ${newParticipants}/${maxParticipants}`)
+    
+    const currentChanges = this.data.participantChanges
+    const changeKey = `event_${eventId}`
+    
+    if (!currentChanges[changeKey]) {
+      currentChanges[changeKey] = {
+        count: 0,
+        lastChange: Date.now()
+      }
+    }
+    
+    currentChanges[changeKey].count++
+    currentChanges[changeKey].lastChange = Date.now()
+    
+    this.setData({
+      participantChanges: currentChanges
+    })
+    
+    const updatedEvents = this.data.events.map(event => {
+      if (event.id === eventId) {
+        const oldParticipants = event.current_participants
+        const participationRate = maxParticipants > 0 ? 
+          ((newParticipants / maxParticipants) * 100).toFixed(1) : '0'
+        
+        return {
+          ...event,
+          current_participants: newParticipants,
+          participationRate,
+          isNearFull: (newParticipants / maxParticipants) > 0.8,
+          hasRecentChange: true,
+          participantTrend: newParticipants > oldParticipants ? 'increase' : 
+                          newParticipants < oldParticipants ? 'decrease' : 'same'
+        }
+      }
+      return event
+    })
+    
+    this.setData({ 
+      events: updatedEvents,
+      [`streamStatus.participantUpdates`]: this.data.streamStatus.participantUpdates + 1
+    })
+    
+    this.showParticipantChangeFeedback(eventData, newParticipants - (this.getEventById(eventId)?.current_participants || 0))
+    
+    setTimeout(() => {
+      const resetEvents = this.data.events.map(event => ({
+        ...event,
+        hasRecentChange: false,
+        participantTrend: 'same'
+      }))
+      this.setData({ events: resetEvents })
+    }, 2000)
+  },
+
+  /**
+   * 📥 处理初始活动数据
+   */
+  handleInitialEventData(eventData) {
+    console.log('[活动页面] 📥 接收初始活动数据:', eventData.title)
+    
+    // 检查是否是新活动
+    const existingEvent = this.data.events.find(event => event.id === eventData.id)
+    
+    if (!existingEvent) {
+      // 新活动，添加到列表
+      const newEventWithProgress = {
+        ...eventData,
+        participationRate: eventData.max_participants > 0 ? 
+          ((eventData.current_participants / eventData.max_participants) * 100).toFixed(1) : '0',
+        isNearFull: eventData.max_participants > 0 && 
+          (eventData.current_participants / eventData.max_participants) > 0.8,
+        isNewActivity: true
+      }
+      
+      this.setData({
+        events: [newEventWithProgress, ...this.data.events]
+      })
+      
+      // 新活动提示
+      wx.showToast({
+        title: `🎯 新活动: ${eventData.title}`,
+        icon: 'none',
+        duration: 3000
+      })
+      
+      // 移除新活动标记
+      setTimeout(() => {
+        const updatedEvents = this.data.events.map(event => ({
+          ...event,
+          isNewActivity: false
+        }))
+        this.setData({ events: updatedEvents })
+      }, 3000)
+    }
+  },
+
+  /**
+   * 🎯 处理一般活动更新
+   */
+  handleGeneralEventUpdate(eventData) {
+    console.log('[活动页面] 🎯 活动更新:', eventData.title)
+    
+    const updatedEvents = this.data.events.map(event => {
+      if (event.id === eventData.id) {
+        return {
+          ...event,
+          ...eventData,
+          participationRate: eventData.max_participants > 0 ? 
+            ((eventData.current_participants / eventData.max_participants) * 100).toFixed(1) : '0',
+          isNearFull: eventData.max_participants > 0 && 
+            (eventData.current_participants / eventData.max_participants) > 0.8,
+          hasUpdate: true
+        }
+      }
+      return event
+    })
+    
+    this.setData({ events: updatedEvents })
+    
+    setTimeout(() => {
+      const resetEvents = this.data.events.map(event => ({
+        ...event,
+        hasUpdate: false
+      }))
+      this.setData({ events: resetEvents })
+    }, 2000)
+  },
+
+  /**
+   * 🎉 参与人数变化反馈
+   */
+  showParticipantChangeFeedback(eventData, change) {
+    if (!this.data.showRealTimeUpdates) return
+    
+    const changeIcon = change > 0 ? '📈' : change < 0 ? '📉' : '➡️'
+    const changeText = change > 0 ? `+${change}` : change < 0 ? `${change}` : '无变化'
+    
+    wx.showToast({
+      title: `${changeIcon} ${eventData.title}\n${changeText} 人 (${eventData.current_participants}/${eventData.max_participants})`,
+      icon: 'none',
+      duration: 2500
+    })
+    
+    // 触觉反馈
+    if (Math.abs(change) > 0) {
+      wx.vibrateShort({
+        type: 'light'
+      })
+    }
+  },
+
+  /**
+   * 📊 更新流式状态
+   */
+  updateStreamStatus() {
+    const { eventStream } = require('../../utils/stream.js')
+    const stats = eventStream.getStats()
+    
+    this.setData({
+      streamStatus: {
+        isConnected: stats.isConnected,
+        participantUpdates: stats.participantChanges || 0,
+        lastUpdate: stats.lastUpdate ? 
+          new Date(stats.lastUpdate).toLocaleTimeString() : null
+      }
+    })
+  },
+
+  /**
+   * 🛑 停止活动流
+   */
   stopEventStream() {
-    if (this.eventStream) {
-      this.eventStream.stop()
-      this.setData({ isStreamConnected: false })
-      console.log('[活动页面] 停止流式活动数据推送')
+    const { eventStream } = require('../../utils/stream.js')
+    eventStream.stop()
+    
+    if (this.statusUpdateTimer) {
+      clearInterval(this.statusUpdateTimer)
     }
   },
 
-  // 页面显示时重新连接流
-  onShow() {
-    if (!this.data.isStreamConnected) {
-      this.startEventStream()
-    }
+  /**
+   * 🔍 根据ID获取活动
+   */
+  getEventById(eventId) {
+    return this.data.events.find(event => event.id === eventId)
   },
 
-  // 页面隐藏时断开流（节省资源）
-  onHide() {
+  /**
+   * 🎯 查看活动详情
+   */
+  viewEventDetail(e) {
+    const event = e.currentTarget.dataset.event
+    console.log('[活动页面] 🎯 查看活动详情:', event.title)
+    
+    const detailMessage = `🎯 ${event.title}
+
+📅 时间: ${event.event_date}
+📍 地点: ${event.location}
+👥 参与: ${event.current_participants}/${event.max_participants} (${event.participationRate}%)
+
+📋 描述: ${event.description || '暂无详细描述'}`
+
+    wx.showModal({
+      title: '活动详情',
+      content: detailMessage,
+      showCancel: true,
+      cancelText: '关闭',
+      confirmText: '我要参加',
+      confirmColor: '#0052d9',
+      success: (res) => {
+        if (res.confirm) {
+          this.joinEvent(event)
+        }
+      }
+    })
+  },
+
+  /**
+   * ✅ 参加活动
+   */
+  joinEvent(event) {
+    if (event.current_participants >= event.max_participants) {
+      wx.showToast({
+        title: '😔 活动人数已满',
+        icon: 'none',
+        duration: 2000
+      })
+      return
+    }
+    
+    wx.showToast({
+      title: '✅ 参加成功！',
+      icon: 'success',
+      duration: 2000
+    })
+    
+    // 模拟参与成功，触发参与人数增加
+    // 在实际应用中，这里应该调用后端API
+    console.log('[活动页面] ✅ 模拟参加活动:', event.title)
+  },
+
+  /**
+   * 🔄 手动刷新
+   */
+  onRefresh() {
+    console.log('[活动页面] 🔄 手动刷新')
+    this.loadEvents()
+    
+    wx.showToast({
+      title: '🔄 刷新中...',
+      icon: 'none',
+      duration: 1000
+    })
+  },
+
+  /**
+   * 🎮 切换实时更新显示
+   */
+  toggleRealTimeUpdates() {
+    const newState = !this.data.showRealTimeUpdates
+    
+    this.setData({
+      showRealTimeUpdates: newState
+    })
+    
+    wx.showToast({
+      title: newState ? '🌊 已开启实时更新' : '🔇 已关闭实时更新',
+      icon: 'none',
+      duration: 2000
+    })
+  },
+
+  /**
+   * 📊 查看参与统计
+   */
+  showParticipantStats() {
+    const stats = this.data.streamStatus
+    const changes = this.data.participantChanges
+    
+    let changesText = '📊 参与人数变化记录:\n\n'
+    
+    if (Object.keys(changes).length === 0) {
+      changesText += '暂无变化记录'
+    } else {
+      Object.entries(changes).forEach(([key, value]) => {
+        const eventId = key.replace('event_', '')
+        const event = this.getEventById(parseInt(eventId))
+        if (event) {
+          changesText += `🎯 ${event.title}: ${value.count} 次变化\n`
+        }
+      })
+    }
+    
+    const message = `🌊 实时数据统计
+
+🔗 连接状态: ${stats.isConnected ? '✅ 已连接' : '❌ 未连接'}
+📊 参与人数更新: ${stats.participantUpdates} 次
+⏰ 最后更新: ${stats.lastUpdate || '无'}
+
+${changesText}`
+
+    wx.showModal({
+      title: '📊 实时统计',
+      content: message,
+      showCancel: false,
+      confirmText: '知道了',
+      confirmColor: '#0052d9'
+    })
+  },
+
+  onUnload() {
+    console.log('[活动页面] 👋 页面卸载，停止活动流')
     this.stopEventStream()
   },
 
-  // 页面卸载时断开流
-  onUnload() {
+  onShow() {
+    console.log('[活动页面] 👀 页面显示')
+    this.updateStreamStatus()
+  },
+
+  onHide() {
+    console.log('[活动页面] 页面隐藏')
+    // 停止流式更新以节省资源
     this.stopEventStream()
   },
 
   onPullDownRefresh() {
-    this.loadEvents();
-    // 重置更新计数
-    this.setData({ participantUpdates: 0 })
-    setTimeout(() => {
-      wx.stopPullDownRefresh();
-    }, 1000);
+    console.log('[活动页面] 下拉刷新')
+    this.loadEvents().then(() => {
+      wx.stopPullDownRefresh()
+    })
   },
 
   onTypeChange(e) {
-    const type = this.data.eventTypes[e.detail.value];
-    this.setData({
-      selectedType: type
-    });
-    this.loadEvents();
+    const typeFilter = e.detail.value
+    console.log('[活动页面] 类型筛选:', typeFilter)
+    this.setData({ selectedType: typeFilter })
+    this.loadEvents()
   },
 
   onStatusChange(e) {
-    const status = this.data.eventStatuses[e.detail.value];
-    this.setData({
-      selectedStatus: status
-    });
-    this.loadEvents();
+    const statusFilter = e.detail.value
+    console.log('[活动页面] 状态筛选:', statusFilter)
+    this.setData({ selectedStatus: statusFilter })
+    this.loadEvents()
   },
 
   viewEvent(e) {
-    const { id, title, description, organizer, location, start_time, end_time, requirements, contact_info } = e.currentTarget.dataset;
+    const event = e.currentTarget.dataset.event
+    console.log('[活动页面] 查看活动详情:', event.title)
     
-    // 显示活动详情
+    const participantProgress = event.max_participants > 0 ? 
+      Math.round((event.current_participants / event.max_participants) * 100) : 0
+    
     wx.showModal({
-      title: title,
-      content: `${description}\n\n📅 时间：${start_time} - ${end_time}\n📍 地点：${location}\n👥 主办：${organizer}${requirements ? '\n\n📝 要求：' + requirements : ''}${contact_info ? '\n\n📞 联系：' + contact_info : ''}`,
+      title: event.title,
+      content: `📍 地点：${event.location}\n⏰ 时间：${event.start_time}\n👥 参与人数：${event.current_participants}/${event.max_participants} (${participantProgress}%)\n📝 描述：${event.description}\n\n主办方：${event.organizer}`,
       showCancel: true,
       cancelText: '关闭',
       confirmText: '我要参加',
+      confirmColor: '#0052d9',
       success: (res) => {
         if (res.confirm) {
-          wx.showToast({
-            title: '报名功能开发中',
-            icon: 'none'
-          });
+          this.joinEvent(event)
         }
       }
-    });
+    })
   },
 
   onDateSelect(e) {
-    const { value } = e.detail;
+    const selectedDate = e.detail.value
+    console.log('[活动页面] 选择日期:', selectedDate)
+    
     this.setData({
+      currentDate: selectedDate,
       calendarVisible: false
-    });
+    })
+    
     // TODO: 根据选择的日期筛选活动
-    wx.showToast({
-      title: '日期筛选开发中',
-      icon: 'none'
-    });
   },
 
   onCalendarClose() {
     this.setData({
       calendarVisible: false
-    });
+    })
+  },
+
+  /**
+   * 🔗 测试流式连接状态
+   */
+  testStreamConnection() {
+    const status = this.data.streamStatus
+    
+    wx.showModal({
+      title: '🌊 活动流式状态',
+      content: `连接状态：${status.isConnected ? '✅ 已连接' : '❌ 未连接'}\n活跃流数量：${status.activeStreams}\n最后更新：${status.lastUpdate || '无'}\n更新次数：${status.updateCount}`,
+      showCancel: false,
+      confirmText: '确定',
+      confirmColor: '#0052d9'
+    })
   },
 
   getEventTypeText(type) {
-    const texts = {
-      'academic': '学术',
-      'social': '社团',
-      'sports': '体育',
-      'cultural': '文化',
-      'competition': '比赛'
-    };
-    return texts[type] || '活动';
+    const typeMap = {
+      'academic': '学术活动',
+      'social': '社团活动',
+      'sports': '体育活动',
+      'cultural': '文化活动',
+      'competition': '比赛活动'
+    }
+    return typeMap[type] || '其他活动'
   },
 
   getStatusText(status) {
-    const texts = {
+    const statusMap = {
       'upcoming': '即将开始',
       'ongoing': '进行中',
       'completed': '已结束',
       'cancelled': '已取消'
-    };
-    return texts[status] || '未知';
+    }
+    return statusMap[status] || '未知'
   },
 
   getStatusColor(status) {
-    const colors = {
-      'upcoming': '#007aff',
-      'ongoing': '#34c759',
-      'completed': '#8e8e93',
-      'cancelled': '#ff3b30'
-    };
-    return colors[status] || '#8e8e93';
+    const colorMap = {
+      'upcoming': '#0052d9',
+      'ongoing': '#00a870',
+      'completed': '#909399',
+      'cancelled': '#e34d59'
+    }
+    return colorMap[status] || '#909399'
   }
-}); 
+}) 
