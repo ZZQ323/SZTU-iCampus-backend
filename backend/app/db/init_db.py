@@ -1,3 +1,8 @@
+"""
+数据库初始化模块
+用于创建数据库表和基础数据
+"""
+
 import logging
 from sqlalchemy.orm import Session
 from app import crud, schemas
@@ -10,6 +15,10 @@ from app.database import engine, Base
 logger = logging.getLogger(__name__)
 
 def init_db(db: Session) -> None:
+    """
+    初始化数据库
+    创建超级管理员和基础测试数据
+    """
     # 创建超级管理员
     user = crud.user.get_by_student_id(db, student_id=settings.FIRST_SUPERUSER)
     if not user:
@@ -51,10 +60,12 @@ def init_db(db: Session) -> None:
         db.commit()
         logger.info("Test announcements created")
 
-def init_db():
-    # 创建所有表
+def create_tables():
+    """
+    创建所有数据库表
+    """
     Base.metadata.create_all(bind=engine)
 
 if __name__ == "__main__":
-    init_db()
-    print("数据库初始化完成！") 
+    create_tables()
+    print("数据库表创建完成！") 

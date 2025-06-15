@@ -5,6 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 import requests
 
+# 导入项目内部模块
 from app import crud, models
 from app.api import deps
 from app.core import security
@@ -29,7 +30,20 @@ def login_access_token(
 ) -> Any:
     """
     OAuth2 compatible token login, get an access token for future requests
+    OAuth2兼容令牌登录，获取用于未来请求的访问令牌
+    功能：
+    1. 使用学号和密码进行身份验证
+    2. 检查用户是否激活
+    3. 生成JWT访问令牌
+    
+    参数:
+    - form_data: 包含username(学号)和password的表单数据
+    
+    返回:
+    - access_token: JWT令牌
+    - token_type: 令牌类型 (bearer)
     """
+    
     user = crud.user.authenticate(
         db, student_id=form_data.username, password=form_data.password
     )

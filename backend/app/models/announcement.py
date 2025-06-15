@@ -1,3 +1,4 @@
+# 所有模型都继承自 Base，这样 Base.metadata 就能收集所有表的信息
 from sqlalchemy import Column, Integer, String, DateTime, Text
 from datetime import datetime
 from app.database import Base

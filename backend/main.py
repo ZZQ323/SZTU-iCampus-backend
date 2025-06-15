@@ -10,18 +10,27 @@ import asyncio
 import random
 import time
 
-from app.database import get_db, engine
-from app.models import announcement as models, schedule as schedule_models, notice as notice_models, event as event_models, grade as grade_models
-from app.schemas import announcement as schemas, schedule as schedule_schemas, notice as notice_schemas, event as event_schemas, grade as grade_schemas
+from app.database import get_db, engine, Base
+
+# 导入模型
+from app.models.announcement import Announcement
+from app.models.schedule import Schedule
+from app.models.notice import Notice
+from app.models.event import Event
+from app.models.grade import Grade
+
+# 导入数据验证模式
+from app.schemas.announcement import AnnouncementCreate, AnnouncementResponse
+from app.schemas.schedule import ScheduleCreate, ScheduleResponse
+from app.schemas.notice import NoticeCreate, NoticeResponse
+from app.schemas.event import EventCreate, EventResponse
+from app.schemas.grade import GradeCreate, GradeResponse
+
 from app.api.v1.endpoints import auth
 from app.core.security import verify_token
 
-# 创建数据库表
-models.Base.metadata.create_all(bind=engine)
-schedule_models.Base.metadata.create_all(bind=engine)
-notice_models.Base.metadata.create_all(bind=engine)
-event_models.Base.metadata.create_all(bind=engine)
-grade_models.Base.metadata.create_all(bind=engine)
+# 创建所有数据库表
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="SZTU iCampus API",
@@ -29,7 +38,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# 配置CORS
+# 配置 CORS 中间件
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -38,21 +47,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 🌊 流式数据缓存和状态管理
+# 流式数据缓存和状态管理
 class StreamDataManager:
     def __init__(self):
-        self.last_announcement_id = 0
-        self.last_event_update = time.time()
-        self.active_connections = set()
-        self.data_cache = {}
-    
+        self.last_announcement_id = 0  # 跟踪最新公告ID
+        self.last_event_update = time.time() # 存储活跃的SSE连接
+        self.active_connections = set() 
+        self.data_cache = {} # 接口响应缓存
+    # 获取最新公告
     def get_latest_announcements(self, db: Session):
         """获取最新公告数据"""
-        announcements = db.query(models.Announcement).order_by(
-            models.Announcement.created_at.desc()
+        announcements = db.query(Announcement).order_by(
+            Announcement.created_at.desc()
         ).all()
         return announcements
-    
+    # 获取公告增量数据
     def get_announcement_diff(self, db: Session):
         """获取公告增量数据 - 流式封装核心优势"""
         current_announcements = self.get_latest_announcements(db)
@@ -62,8 +71,9 @@ class StreamDataManager:
             
         latest_id = current_announcements[0].id
         
-        # 🔥 只推送新增的公告 - 减少带宽占用
+        # 通过ID比对实现增量更新
         if latest_id > self.last_announcement_id:
+            # 筛选新公告
             new_announcements = [
                 ann for ann in current_announcements 
                 if ann.id > self.last_announcement_id
@@ -72,12 +82,12 @@ class StreamDataManager:
             return new_announcements
         
         return None
-    
+    # 模拟活动参与人数变化
     def simulate_event_participant_change(self, db: Session):
         """模拟活动参与人数实时变化 - 展示流式封装的实时性"""
-        events = db.query(event_models.Event).filter(
-            event_models.Event.is_active == 1,
-            event_models.Event.status == 'upcoming'
+        events = db.query(Event).filter(
+            Event.is_active == 1,
+            Event.status == 'upcoming'
         ).all()
         
         if events:
@@ -112,7 +122,8 @@ stream_manager = StreamDataManager()
 # 安全配置
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-# 包含认证路由
+# 将 auth.router 中定义的所有认证相关路由（登录、注册、令牌获取等）注册到主应用 app 中
+# 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 
 @app.get("/")
@@ -130,19 +141,18 @@ async def get_announcements_public(
     db: Session = Depends(get_db)
 ):
     """
-    获取校园公告列表（公开接口，智能缓存优化）
+    获取校园公告列表（公开接口，智能缓存优化，避免重复查询）
     """
-    # 🚀 智能缓存机制 - 避免重复查询
     cache_key = f"announcements_{skip}_{limit}"
     current_time = time.time()
-    
+    # 检查有效缓存（30秒内）
     if (cache_key in stream_manager.data_cache and 
         current_time - stream_manager.data_cache[cache_key]['timestamp'] < 30):
         print(f"[API] 📦 使用缓存数据 - 节省{30 - (current_time - stream_manager.data_cache[cache_key]['timestamp']):.1f}秒")
         return stream_manager.data_cache[cache_key]['data']
-    
-    announcements = db.query(models.Announcement).order_by(
-        models.Announcement.created_at.desc()
+    # 无缓存时查询数据库
+    announcements = db.query(Announcement).order_by(
+        Announcement.created_at.desc()
     ).offset(skip).limit(limit).all()
     
     announcement_list = []
@@ -178,11 +188,12 @@ async def get_announcements_public(
 @app.get("/api/announcements/stream")
 async def get_announcements_stream(db: Session = Depends(get_db)):
     """
-    🌊 公告流式推送 - 核心流式封装技术展示
+    公告流式推送 - 核心流式封装技术展示
     用户体验：新公告发布后立即推送，无需刷新页面
     """
     async def generate():
         connection_id = f"conn_{time.time()}"
+        # 1. 新连接注册
         stream_manager.active_connections.add(connection_id)
         
         print(f"[流式推送] 🔗 新连接建立: {connection_id} (总连接数: {len(stream_manager.active_connections)})")
@@ -190,6 +201,7 @@ async def get_announcements_stream(db: Session = Depends(get_db)):
         try:
             # 首次连接时发送当前数据
             announcements = stream_manager.get_latest_announcements(db)
+            # 2. 首次发送最新3条公告
             for announcement in announcements[:3]:  # 只发送最新3条
                 data = {
                     "id": announcement.id,
@@ -203,7 +215,7 @@ async def get_announcements_stream(db: Session = Depends(get_db)):
                 yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
                 await asyncio.sleep(0.1)
             
-            # 🔥 持续推送新数据 - 这是流式封装的核心价值
+            # 3. 持续推送新公告（流式核心）
             while True:
                 await asyncio.sleep(random.uniform(10, 30))  # 随机间隔推送新公告
                 
@@ -217,13 +229,11 @@ async def get_announcements_stream(db: Session = Depends(get_db)):
                     "time": datetime.now().strftime("%H:%M"),
                     "stream_type": "realtime_push"
                 }
-                
+                # 模拟新公告推送
                 print(f"[流式推送] 📢 推送新公告: {new_announcement_data['title']}")
                 yield f"data: {json.dumps(new_announcement_data, ensure_ascii=False)}\n\n"
-                
-                # 🎯 用户体验提升：推送成功反馈
+                # 推送成功反馈
                 yield f"data: {json.dumps({'type': 'push_success', 'message': '新公告推送成功', 'timestamp': datetime.now().isoformat()}, ensure_ascii=False)}\n\n"
-        
         except Exception as e:
             print(f"[流式推送] ❌ 连接错误: {e}")
         finally:
@@ -252,8 +262,8 @@ async def get_schedule(
     - **student_id**: 学生学号
     - **week**: 周次
     """
-    schedules = db.query(schedule_models.Schedule).filter(
-        schedule_models.Schedule.student_id == student_id
+    schedules = db.query(Schedule).filter(
+        Schedule.student_id == student_id
     ).all()
     
     # 转换为前端期望的格式
@@ -298,21 +308,21 @@ async def get_notices(
     - **department**: 按部门筛选
     - **notice_type**: 按通知类型筛选
     """
-    query = db.query(notice_models.Notice).filter(
-        notice_models.Notice.is_active == 1
+    query = db.query(Notice).filter(
+        Notice.is_active == 1
     )
     
     # 按部门筛选
     if department:
-        query = query.filter(notice_models.Notice.department == department)
+        query = query.filter(Notice.department == department)
     
     # 按通知类型筛选
     if notice_type:
-        query = query.filter(notice_models.Notice.notice_type == notice_type)
+        query = query.filter(Notice.notice_type == notice_type)
     
     notices = query.order_by(
-        notice_models.Notice.priority.desc(),
-        notice_models.Notice.created_at.desc()
+        Notice.priority.desc(),
+        Notice.created_at.desc()
     ).offset(skip).limit(limit).all()
     
     # 转换为前端期望的格式
@@ -349,11 +359,11 @@ async def get_notices_stream(
     使用流式响应获取部门通知（无需认证）
     """
     async def generate():
-        notices = db.query(notice_models.Notice).filter(
-            notice_models.Notice.is_active == 1
+        notices = db.query(Notice).filter(
+            Notice.is_active == 1
         ).order_by(
-            notice_models.Notice.priority.desc(),
-            notice_models.Notice.created_at.desc()
+            Notice.priority.desc(),
+            Notice.created_at.desc()
         ).all()
         
         for notice in notices:
@@ -396,24 +406,24 @@ async def get_events(
     - **status**: 按活动状态筛选
     - **organizer**: 按主办方筛选
     """
-    query = db.query(event_models.Event).filter(
-        event_models.Event.is_active == 1
+    query = db.query(Event).filter(
+        Event.is_active == 1
     )
     
     # 按活动类型筛选
     if event_type:
-        query = query.filter(event_models.Event.event_type == event_type)
+        query = query.filter(Event.event_type == event_type)
     
     # 按活动状态筛选
     if status:
-        query = query.filter(event_models.Event.status == status)
+        query = query.filter(Event.status == status)
     
     # 按主办方筛选
     if organizer:
-        query = query.filter(event_models.Event.organizer == organizer)
+        query = query.filter(Event.organizer == organizer)
     
     events = query.order_by(
-        event_models.Event.start_time.asc()
+        Event.start_time.asc()
     ).offset(skip).limit(limit).all()
     
     # 转换为前端期望的格式
@@ -463,9 +473,9 @@ async def get_events_stream(
         
         try:
             # 首次发送当前活动数据
-            events = db.query(event_models.Event).filter(
-                event_models.Event.is_active == 1
-            ).order_by(event_models.Event.start_time.asc()).all()
+            events = db.query(Event).filter(
+                Event.is_active == 1
+            ).order_by(Event.start_time.asc()).all()
             
             for event in events:
                 data = {
@@ -538,31 +548,31 @@ async def get_grades(
     - **skip**: 跳过的记录数
     - **limit**: 返回的最大记录数
     """
-    query = db.query(grade_models.Grade).filter(
-        grade_models.Grade.student_id == student_id
+    query = db.query(Grade).filter(
+        Grade.student_id == student_id
     )
     
     # 按学期筛选
     if semester:
-        query = query.filter(grade_models.Grade.semester == semester)
+        query = query.filter(Grade.semester == semester)
     
     # 按学年筛选
     if academic_year:
-        query = query.filter(grade_models.Grade.academic_year == academic_year)
+        query = query.filter(Grade.academic_year == academic_year)
     
     # 按课程类型筛选
     if course_type:
-        query = query.filter(grade_models.Grade.course_type == course_type)
+        query = query.filter(Grade.course_type == course_type)
     
     grades = query.order_by(
-        grade_models.Grade.academic_year.desc(),
-        grade_models.Grade.semester.desc(),
-        grade_models.Grade.total_score.desc()
+        Grade.academic_year.desc(),
+        Grade.semester.desc(),
+        Grade.total_score.desc()
     ).offset(skip).limit(limit).all()
     
     # 计算统计信息
-    all_grades = db.query(grade_models.Grade).filter(
-        grade_models.Grade.student_id == student_id
+    all_grades = db.query(Grade).filter(
+        Grade.student_id == student_id
     ).all()
     
     total_courses = len(all_grades)
@@ -623,11 +633,11 @@ async def get_grades_stream(
     使用流式响应获取成绩数据（无需认证）
     """
     async def generate():
-        grades = db.query(grade_models.Grade).filter(
-            grade_models.Grade.student_id == student_id
+        grades = db.query(Grade).filter(
+            Grade.student_id == student_id
         ).order_by(
-            grade_models.Grade.academic_year.desc(),
-            grade_models.Grade.semester.desc()
+            Grade.academic_year.desc(),
+            Grade.semester.desc()
         ).all()
         
         for grade in grades:
@@ -655,4 +665,19 @@ async def get_grades_stream(
     )
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True) 
+    """
+    启动FastAPI应用服务器
+    开发环境配置：
+    - host: 0.0.0.0 (允许外部访问)
+    - port: 8000 (默认端口)
+    - reload: True (开发模式下自动重载)
+    """
+    uvicorn.run(
+        "main:app",
+        # host="0.0.0.0",
+        host="127.0.0.1",  # 只允许本机访问
+        port=8000,
+        reload=True,
+        # reload=False,  # 生产环境关闭自动重载
+        log_level="info"
+    ) 

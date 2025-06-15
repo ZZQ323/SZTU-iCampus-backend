@@ -20,30 +20,41 @@ from app.models.notice import Notice
 from app.models.event import Event
 from app.models.grade import Grade
 
+
 def init_database():
     """初始化数据库和测试数据"""
+    # 创建所有数据库表
     print("正在创建数据库表...")
-    
+
     # 创建所有表
     Base.metadata.create_all(bind=engine)
     print("✓ 数据库表创建完成")
-    
+
     # 创建数据库会话
     db = SessionLocal()
-    
+
     try:
-        # 检查是否已有数据
+        # 检查是否需要初始化数据
         existing_users = db.query(User).count()
         existing_announcements = db.query(Announcement).count()
         existing_schedules = db.query(Schedule).count()
         existing_notices = db.query(Notice).count()
         existing_events = db.query(Event).count()
         existing_grades = db.query(Grade).count()
-        
-        if existing_users > 0 or existing_announcements > 0 or existing_schedules > 0 or existing_notices > 0 or existing_events > 0 or existing_grades > 0:
-            print(f"发现已有数据：{existing_users} 个用户，{existing_announcements} 个公告，{existing_schedules} 个课程，{existing_notices} 个通知，{existing_events} 个活动，{existing_grades} 个成绩")
+
+        if (
+            existing_users > 0
+            or existing_announcements > 0
+            or existing_schedules > 0
+            or existing_notices > 0
+            or existing_events > 0
+            or existing_grades > 0
+        ):
+            print(
+                f"发现已有数据：{existing_users} 个用户，{existing_announcements} 个公告，{existing_schedules} 个课程，{existing_notices} 个通知，{existing_events} 个活动，{existing_grades} 个成绩"
+            )
             choice = input("是否清空现有数据并重新初始化？(y/N): ")
-            if choice.lower() == 'y':
+            if choice.lower() == "y":
                 print("正在清空现有数据...")
                 db.query(Grade).delete()
                 db.query(Event).delete()
@@ -56,37 +67,25 @@ def init_database():
             else:
                 print("保持现有数据，退出初始化")
                 return
-        
+
         # 创建测试用户
         print("正在创建测试用户...")
         test_users = [
-            {
-                "openid": "test_admin",
-                "student_id": "admin",
-                "name": "管理员"
-            },
-            {
-                "openid": "test_student_001",
-                "student_id": "2024001001",
-                "name": "张三"
-            },
-            {
-                "openid": "test_student_002",
-                "student_id": "2024001002",
-                "name": "李四"
-            }
+            {"openid": "test_admin", "student_id": "admin", "name": "管理员"},
+            {"openid": "test_student_001", "student_id": "2024001001", "name": "张三"},
+            {"openid": "test_student_002", "student_id": "2024001002", "name": "李四"},
         ]
-        
+
         for user_data in test_users:
             user = User(**user_data)
             db.add(user)
-        
+
         # 创建测试公告
         print("正在创建测试公告...")
         test_announcements = [
-            {
-                "title": "关于2024年春季学期开学安排的通知",
-                "content": """各位同学：
+{
+    "title": "关于2024年春季学期开学安排的通知",
+    "content": """各位同学：
 
 根据学校安排，2024年春季学期将于2月26日正式开学。请同学们做好返校准备，具体安排如下：
 
@@ -103,12 +102,11 @@ def init_database():
 祝大家新学期学习进步！
 
 深圳技术大学教务处
-2024年2月1日""",
-                "department": "教务处"
-            },
-            {
-                "title": "图书馆开放时间调整通知",
-                "content": """亲爱的读者：
+2024年2月1日""","department": "教务处",
+},
+{
+    "title": "图书馆开放时间调整通知",
+    "content": """亲爱的读者：
 
 为了更好地服务广大师生，图书馆开放时间调整如下：
 
@@ -125,11 +123,11 @@ def init_database():
 
 图书馆
 2024年2月5日""",
-                "department": "图书馆"
-            },
-            {
-                "title": "校园网络维护通知",
-                "content": """各位师生：
+"department": "图书馆",
+},
+{
+    "title": "校园网络维护通知",
+    "content": """各位师生：
 
 为提升校园网络服务质量，信息中心将于本周六（3月2日）凌晨2:00-6:00进行网络设备维护升级。
 
@@ -152,11 +150,11 @@ def init_database():
 
 信息中心
 2024年2月28日""",
-                "department": "信息中心"
-            },
-            {
-                "title": "2024年春季学期课程选课通知",
-                "content": """各位同学：
+    "department": "信息中心",
+},
+{
+    "title": "2024年春季学期课程选课通知",
+    "content": """各位同学：
 
 2024年春季学期选课工作即将开始，现将有关事项通知如下：
 
@@ -178,11 +176,11 @@ def init_database():
 
 教务处
 2024年2月20日""",
-                "department": "教务处"
-            },
-            {
-                "title": "学生宿舍安全检查通知",
-                "content": """各位同学：
+    "department": "教务处",
+},
+{
+    "title": "学生宿舍安全检查通知",
+    "content": """各位同学：
 
 为确保宿舍安全，学生处将组织宿舍安全检查活动。
 
@@ -203,14 +201,14 @@ def init_database():
 
 学生处
 2024年3月10日""",
-                "department": "学生处"
-            }
+"department": "学生处",
+},
         ]
-        
+
         for announcement_data in test_announcements:
             announcement = Announcement(**announcement_data)
             db.add(announcement)
-        
+
         # 创建测试课表
         print("正在创建测试课表...")
         test_schedules = [
@@ -226,7 +224,7 @@ def init_database():
                 "course_type": "必修",
                 "credits": "4",
                 "student_id": "2024001",
-                "semester": "2024春"
+                "semester": "2024春",
             },
             {
                 "course_name": "大学英语",
@@ -239,7 +237,7 @@ def init_database():
                 "course_type": "必修",
                 "credits": "3",
                 "student_id": "2024001",
-                "semester": "2024春"
+                "semester": "2024春",
             },
             # 周二课程
             {
@@ -253,7 +251,7 @@ def init_database():
                 "course_type": "必修",
                 "credits": "4",
                 "student_id": "2024001",
-                "semester": "2024春"
+                "semester": "2024春",
             },
             {
                 "course_name": "计算机网络",
@@ -266,7 +264,7 @@ def init_database():
                 "course_type": "必修",
                 "credits": "3",
                 "student_id": "2024001",
-                "semester": "2024春"
+                "semester": "2024春",
             },
             # 周三课程
             {
@@ -280,7 +278,7 @@ def init_database():
                 "course_type": "必修",
                 "credits": "3",
                 "student_id": "2024001",
-                "semester": "2024春"
+                "semester": "2024春",
             },
             {
                 "course_name": "软件工程",
@@ -293,7 +291,7 @@ def init_database():
                 "course_type": "必修",
                 "credits": "3",
                 "student_id": "2024001",
-                "semester": "2024春"
+                "semester": "2024春",
             },
             # 周四课程
             {
@@ -307,7 +305,7 @@ def init_database():
                 "course_type": "必修",
                 "credits": "3",
                 "student_id": "2024001",
-                "semester": "2024春"
+                "semester": "2024春",
             },
             # 周五课程
             {
@@ -321,7 +319,7 @@ def init_database():
                 "course_type": "选修",
                 "credits": "2",
                 "student_id": "2024001",
-                "semester": "2024春"
+                "semester": "2024春",
             },
             {
                 "course_name": "人工智能导论",
@@ -334,14 +332,14 @@ def init_database():
                 "course_type": "选修",
                 "credits": "2",
                 "student_id": "2024001",
-                "semester": "2024春"
-            }
+                "semester": "2024春",
+            },
         ]
-        
+
         for schedule_data in test_schedules:
             schedule = Schedule(**schedule_data)
             db.add(schedule)
-        
+
         # 创建测试通知
         print("正在创建测试通知...")
         test_notices = [
@@ -353,7 +351,7 @@ def init_database():
                 "priority": "HIGH",
                 "target_audience": "全体学生",
                 "effective_date": datetime(2024, 1, 10, 9, 0),
-                "expire_date": datetime(2024, 1, 25, 18, 0)
+                "expire_date": datetime(2024, 1, 25, 18, 0),
             },
             {
                 "title": "关于图书馆寒假开放时间的通知",
@@ -363,7 +361,7 @@ def init_database():
                 "priority": "MEDIUM",
                 "target_audience": "全体师生",
                 "effective_date": datetime(2024, 1, 15, 10, 0),
-                "expire_date": datetime(2024, 3, 1, 18, 0)
+                "expire_date": datetime(2024, 3, 1, 18, 0),
             },
             {
                 "title": "网络系统维护通知",
@@ -373,7 +371,7 @@ def init_database():
                 "priority": "HIGH",
                 "target_audience": "全体师生",
                 "effective_date": datetime(2024, 1, 11, 14, 0),
-                "expire_date": datetime(2024, 1, 15, 8, 0)
+                "expire_date": datetime(2024, 1, 15, 8, 0),
             },
             {
                 "title": "学生证补办流程说明",
@@ -383,7 +381,7 @@ def init_database():
                 "priority": "LOW",
                 "target_audience": "在校学生",
                 "effective_date": datetime(2024, 1, 8, 9, 0),
-                "expire_date": datetime(2024, 6, 30, 18, 0)
+                "expire_date": datetime(2024, 6, 30, 18, 0),
             },
             {
                 "title": "食堂就餐优惠活动",
@@ -393,14 +391,14 @@ def init_database():
                 "priority": "LOW",
                 "target_audience": "全体师生",
                 "effective_date": datetime(2024, 1, 10, 8, 0),
-                "expire_date": datetime(2024, 2, 1, 20, 0)
-            }
+                "expire_date": datetime(2024, 2, 1, 20, 0),
+            },
         ]
-        
+
         for notice_data in test_notices:
             notice = Notice(**notice_data)
             db.add(notice)
-        
+
         # 创建测试活动
         print("正在创建测试活动...")
         test_events = [
@@ -417,7 +415,7 @@ def init_database():
                 "max_participants": 200,
                 "current_participants": 45,
                 "contact_info": "学术委员会 联系电话：0755-12345678",
-                "requirements": "建议提前了解相关技术背景，携带笔记本电脑"
+                "requirements": "建议提前了解相关技术背景，携带笔记本电脑",
             },
             {
                 "title": "校园文化艺术节",
@@ -432,7 +430,7 @@ def init_database():
                 "max_participants": 500,
                 "current_participants": 126,
                 "contact_info": "学生会文艺部 微信群：SZTU艺术节2024",
-                "requirements": "参赛选手需提前报名，观众免费入场"
+                "requirements": "参赛选手需提前报名，观众免费入场",
             },
             {
                 "title": "春季篮球联赛决赛",
@@ -447,7 +445,7 @@ def init_database():
                 "max_participants": 800,
                 "current_participants": 234,
                 "contact_info": "体育部 QQ群：567890123",
-                "requirements": "观众免费入场，请提前30分钟到场"
+                "requirements": "观众免费入场，请提前30分钟到场",
             },
             {
                 "title": "程序设计竞赛初赛",
@@ -462,7 +460,7 @@ def init_database():
                 "max_participants": 120,
                 "current_participants": 87,
                 "contact_info": "计算机学院竞赛组 邮箱：contest@sztu.edu.cn",
-                "requirements": "需要具备C++或Java编程基础，自带键盘（可选）"
+                "requirements": "需要具备C++或Java编程基础，自带键盘（可选）",
             },
             {
                 "title": "社团招新宣传周",
@@ -477,7 +475,7 @@ def init_database():
                 "max_participants": 1000,
                 "current_participants": 456,
                 "contact_info": "社团联合会 微信公众号：SZTU社团",
-                "requirements": "持学生证免费参加，可现场报名心仪社团"
+                "requirements": "持学生证免费参加，可现场报名心仪社团",
             },
             {
                 "title": "毕业设计答辩会",
@@ -492,32 +490,44 @@ def init_database():
                 "max_participants": 300,
                 "current_participants": 298,
                 "contact_info": "教务处 电话：0755-87654321",
-                "requirements": "答辩学生需提前准备PPT，观摩学生需提前预约"
-            }
+                "requirements": "答辩学生需提前准备PPT，观摩学生需提前预约",
+            },
         ]
-        
+
         for event_data in test_events:
             event = Event(**event_data)
             db.add(event)
-        
+
         # 创建测试成绩
         print("正在创建测试成绩...")
-        
+
         # 计算GPA和等级的辅助函数
         def calculate_gpa(score):
-            if score >= 97: return 4.0, "A+"
-            elif score >= 93: return 4.0, "A"
-            elif score >= 90: return 3.7, "A-"
-            elif score >= 87: return 3.3, "B+"
-            elif score >= 83: return 3.0, "B"
-            elif score >= 80: return 2.7, "B-"
-            elif score >= 77: return 2.3, "C+"
-            elif score >= 73: return 2.0, "C"
-            elif score >= 70: return 1.7, "C-"
-            elif score >= 67: return 1.3, "D+"
-            elif score >= 65: return 1.0, "D"
-            else: return 0.0, "F"
-        
+            if score >= 97:
+                return 4.0, "A+"
+            elif score >= 93:
+                return 4.0, "A"
+            elif score >= 90:
+                return 3.7, "A-"
+            elif score >= 87:
+                return 3.3, "B+"
+            elif score >= 83:
+                return 3.0, "B"
+            elif score >= 80:
+                return 2.7, "B-"
+            elif score >= 77:
+                return 2.3, "C+"
+            elif score >= 73:
+                return 2.0, "C"
+            elif score >= 70:
+                return 1.7, "C-"
+            elif score >= 67:
+                return 1.3, "D+"
+            elif score >= 65:
+                return 1.0, "D"
+            else:
+                return 0.0, "F"
+
         test_grades = [
             # 2023-2024学年第一学期
             {
@@ -540,7 +550,7 @@ def init_database():
                 "class_rank": 12,
                 "class_total": 45,
                 "exam_date": datetime(2023, 12, 25, 9, 0),
-                "publish_date": datetime(2024, 1, 5, 14, 30)
+                "publish_date": datetime(2024, 1, 5, 14, 30),
             },
             {
                 "student_id": "2024001",
@@ -562,7 +572,7 @@ def init_database():
                 "class_rank": 3,
                 "class_total": 38,
                 "exam_date": datetime(2023, 12, 28, 14, 0),
-                "publish_date": datetime(2024, 1, 6, 16, 20)
+                "publish_date": datetime(2024, 1, 6, 16, 20),
             },
             {
                 "student_id": "2024001",
@@ -584,7 +594,7 @@ def init_database():
                 "class_rank": 8,
                 "class_total": 42,
                 "exam_date": datetime(2024, 1, 3, 10, 0),
-                "publish_date": datetime(2024, 1, 8, 9, 15)
+                "publish_date": datetime(2024, 1, 8, 9, 15),
             },
             {
                 "student_id": "2024001",
@@ -606,7 +616,7 @@ def init_database():
                 "class_rank": 18,
                 "class_total": 35,
                 "exam_date": datetime(2023, 12, 30, 15, 0),
-                "publish_date": datetime(2024, 1, 7, 11, 45)
+                "publish_date": datetime(2024, 1, 7, 11, 45),
             },
             {
                 "student_id": "2024001",
@@ -628,7 +638,7 @@ def init_database():
                 "class_rank": 15,
                 "class_total": 50,
                 "exam_date": datetime(2023, 12, 20, 10, 0),
-                "publish_date": datetime(2024, 1, 4, 13, 20)
+                "publish_date": datetime(2024, 1, 4, 13, 20),
             },
             # 2023-2024学年第二学期
             {
@@ -651,7 +661,7 @@ def init_database():
                 "class_rank": 5,
                 "class_total": 45,
                 "exam_date": datetime(2024, 6, 25, 9, 0),
-                "publish_date": datetime(2024, 7, 5, 14, 30)
+                "publish_date": datetime(2024, 7, 5, 14, 30),
             },
             {
                 "student_id": "2024001",
@@ -673,7 +683,7 @@ def init_database():
                 "class_rank": 1,
                 "class_total": 40,
                 "exam_date": datetime(2024, 6, 28, 14, 0),
-                "publish_date": datetime(2024, 7, 6, 16, 20)
+                "publish_date": datetime(2024, 7, 6, 16, 20),
             },
             {
                 "student_id": "2024001",
@@ -695,18 +705,18 @@ def init_database():
                 "class_rank": 7,
                 "class_total": 43,
                 "exam_date": datetime(2024, 7, 2, 10, 0),
-                "publish_date": datetime(2024, 7, 8, 9, 15)
-            }
+                "publish_date": datetime(2024, 7, 8, 9, 15),
+            },
         ]
-        
+
         for grade_data in test_grades:
             grade = Grade(**grade_data)
             db.add(grade)
-        
+
         # 提交所有更改
         db.commit()
         print("✓ 测试数据创建完成")
-        
+
         # 显示统计信息
         user_count = db.query(User).count()
         announcement_count = db.query(Announcement).count()
@@ -714,7 +724,7 @@ def init_database():
         notice_count = db.query(Notice).count()
         event_count = db.query(Event).count()
         grade_count = db.query(Grade).count()
-        
+
         print(f"\n数据库初始化完成！")
         print(f"✓ 创建用户: {user_count} 个")
         print(f"✓ 创建公告: {announcement_count} 个")
@@ -729,13 +739,14 @@ def init_database():
         print(f"通知接口：http://localhost:8000/api/notices")
         print(f"活动接口：http://localhost:8000/api/events")
         print(f"成绩接口：http://localhost:8000/api/grades")
-        
+
     except Exception as e:
         print(f"❌ 初始化失败: {e}")
         db.rollback()
     finally:
         db.close()
 
+
 if __name__ == "__main__":
     print("=== SZTU-iCampus 数据库初始化工具 ===\n")
-    init_database() 
+    init_database()
