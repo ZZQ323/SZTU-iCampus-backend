@@ -32,6 +32,7 @@ from app.core.security import verify_token
 # 创建所有数据库表
 Base.metadata.create_all(bind=engine)
 
+# 一个名为 app 的 FastAPI 实例
 app = FastAPI(
     title="SZTU iCampus API",
     description="深圳技术大学校园服务统一入口API - 基于流式封装技术",
@@ -39,6 +40,7 @@ app = FastAPI(
 )
 
 # 配置 CORS 中间件
+#   允许所有域访问 API，这对于跨域请求的场景非常重要。
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -51,27 +53,40 @@ app.add_middleware(
 class StreamDataManager:
     def __init__(self):
         self.last_announcement_id = 0  # 跟踪最新公告ID
+            # 用于跟踪当前已发送的最后一个公告的 ID。
+            # 通过它可以实现增量更新，仅发送新公告，而不是重复发送所有公告
         self.last_event_update = time.time() # 存储活跃的SSE连接
+            # 它通常在活动的参与人数变化时更新。
         self.active_connections = set() 
+            # 在使用 Server-Sent Events (SSE) 推送数据时，服务器会知道哪些客户端正在等待数据
         self.data_cache = {} # 接口响应缓存
+            # 用于存储接口响应的数据，减少不必要的数据库查询(存在内存里面了，更快)
     # 获取最新公告
+    
     def get_latest_announcements(self, db: Session):
         """获取最新公告数据"""
         announcements = db.query(Announcement).order_by(
             Announcement.created_at.desc()
-        ).all()
+        ).all() 
+        # 查询 Announcement 表中的所有公告
+        # 按创建时间（created_at）降序排列，返回所有公告数据
         return announcements
+    
     # 获取公告增量数据
     def get_announcement_diff(self, db: Session):
-        """获取公告增量数据 - 流式封装核心优势"""
+        """
+            获取公告增量数据 - 流式封装
+            但是有个问题：如果运行一段事件之后，有新用户登录呢，只推送新的吗，那么怎么更新旧的呢？
+        """
         current_announcements = self.get_latest_announcements(db)
         
         if not current_announcements:
             return None
-            
+        # id 是随着时间增长的吗？
         latest_id = current_announcements[0].id
         
         # 通过ID比对实现增量更新
+        # 如果有新的公告（latest_id > self.last_announcement_id），则返回新增的公告
         if latest_id > self.last_announcement_id:
             # 筛选新公告
             new_announcements = [
@@ -82,15 +97,18 @@ class StreamDataManager:
             return new_announcements
         
         return None
-    # 模拟活动参与人数变化
+    # 模拟监控活动参与人数变化，并推送
     def simulate_event_participant_change(self, db: Session):
-        """模拟活动参与人数实时变化 - 展示流式封装的实时性"""
+        """
+            模拟活动参与人数实时变化 - 流式封装
+        """
         events = db.query(Event).filter(
             Event.is_active == 1,
             Event.status == 'upcoming'
         ).all()
         
         if events:
+            
             # 随机选择一个活动进行参与人数更新
             event = random.choice(events)
             
@@ -102,6 +120,7 @@ class StreamDataManager:
             ))
             
             # 更新数据库
+            # 将更新的参与人数保存到数据库
             event.current_participants = new_count
             db.commit()
             

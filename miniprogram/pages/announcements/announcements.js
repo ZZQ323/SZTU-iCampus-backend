@@ -18,7 +18,7 @@ Page({
   async fetchAnnouncements() {
     try {
       this.setData({ loading: true })
-      
+
       const response = await new Promise((resolve, reject) => {
         wx.request({
           url: `${app.globalData.baseUrl}/api/announcements`,
@@ -30,9 +30,9 @@ Page({
           fail: reject
         })
       })
-      
+
       console.log('公告页API Response:', response)
-      
+
       if (response.statusCode === 200 && response.data.code === 0) {
         this.setData({
           announcements: response.data.data.announcements || []
@@ -73,11 +73,11 @@ Page({
     const announcement = e.currentTarget.dataset.announcement
     // 将公告数据存储到全局，供详情页使用
     app.globalData.currentAnnouncement = announcement
-    
+
     wx.showModal({
       title: announcement.title,
-      content: announcement.content.length > 100 ? 
-        announcement.content.substring(0, 100) + '...' : 
+      content: announcement.content.length > 100 ?
+        announcement.content.substring(0, 100) + '...' :
         announcement.content,
       showCancel: true,
       confirmText: '查看详情',

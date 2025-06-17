@@ -5,26 +5,26 @@
 ### 第一步：启动后端服务
 
 1. **进入后端目录**
-   ```bash
-   cd backend
-   ```
+```bash
+cd backend
+```
 
 2. **安装依赖**
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+pip install -r requirements.txt
+```
 
 3. **初始化数据库和测试数据**
-   ```bash
-   python setup_db.py
-   ```
-   > 这会自动创建数据库表并添加5个测试公告
+```bash
+python setup_db.py
+```
+> 这会自动创建数据库表并添加5个测试公告
 
 4. **启动后端服务**
-   ```bash
-   python run.py
-   ```
-   > 后端服务将在 http://localhost:8000 启动
+```bash
+python run.py
+```
+> 后端服务将在 http://localhost:8000 启动
 
 ### 第二步：查看API效果
 

@@ -33,8 +33,8 @@ def get_db():
     获取数据库会话的依赖函数
     用于FastAPI的依赖注入系统
     """
-    db = SessionLocal()
+    db = SessionLocal() # 创建一个新的数据库会话
     try:
-        yield db
+        yield db # 将会话传递给调用者
     finally:
-        db.close()
+        db.close() # 请求结束后关闭会话
