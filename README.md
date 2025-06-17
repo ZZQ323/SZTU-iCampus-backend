@@ -151,3 +151,10 @@ backend/
 
 MIT 
 
+## 参考
+
+[坑：ssh: connect to host github.com port 22: Connection refused - 无忌的文章 - 知乎](https://zhuanlan.zhihu.com/p/521340971)
+
+[全网最全面详细的Cursor使用教程，让开发变成聊天一样容易](https://blog.csdn.net/m0_68116052/article/details/142832657?fromshare=blogdetail&sharetype=blogdetail&sharerId=142832657&sharerefer=PC&sharesource=Shadowfight323&sharefrom=from_link)
+
+[解决 Cursor 连接失败的小技巧 - 一个导航的文章 - 知乎](https://zhuanlan.zhihu.com/p/1907071064191771454)
