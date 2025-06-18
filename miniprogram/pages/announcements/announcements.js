@@ -1,17 +1,21 @@
 const app = getApp()
 
+// Page(options) options 是一个对象，属性会被直接挂到页面实例上
+
 Page({
   data: {
     announcements: [],
     loading: true
   },
-
   onLoad() {
+    // 参数 query 携带通过 ? 拼接的 URL 查询参数
+    // 第一次加载执行一次
     this.fetchAnnouncements()
   },
 
   onShow() {
     // 页面显示时刷新数据
+    // 页面每次可见时调用。常用来刷新 UI、重连 WebSocket 等
     this.fetchAnnouncements()
   },
 
@@ -20,6 +24,13 @@ Page({
       this.setData({ loading: true })
 
       const response = await new Promise((resolve, reject) => {
+        // 小程序最底层 HTTP 请求。
+        // wx.request({url, method, data, header, success, fail})
+          // url 完整地址
+          // method GET/POST/PUT…
+          // header 额外请求头
+          // success(res) 成功回调，res.statusCode 是 HTTP 码，res.data 是响应 JSON
+          // fail(err) 网络层面错误（断网/超时）
         wx.request({
           url: `${app.globalData.baseUrl}/api/announcements`,
           method: 'GET',
@@ -64,6 +75,7 @@ Page({
   },
 
   onBack() {
+    // delta 表示返回几层，1 = 上一页。
     wx.navigateBack({
       delta: 1
     });
