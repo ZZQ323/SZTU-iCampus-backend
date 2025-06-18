@@ -39,7 +39,8 @@
       return n[o].exports 
     } 
     var i = typeof require == "function" && require; 
-    for (var o = 0; o < r.length; o++)s(r[o]); return s })
+    for (var o = 0; o < r.length; o++)s(r[o]); return s }
+  )
   ({
     1: [function (_dereq_, module, exports) {
       (function (global) {
