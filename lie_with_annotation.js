@@ -49,8 +49,8 @@
         // 当前运行环境（浏览器、Node-JS-DOM shim 等）里能够拿到的 MutationObserver 构造函数；
         // 如果是早期 WebKit 内核则取 WebKitMutationObserver。
         var scheduleDrain;
+        // 这段代码的真正目的——造一个“最快的微任务调度器”
         {
-          // 这段代码的真正目的——造一个“最快的微任务调度器”
           // 作者想要一个跨环境的 nextTick()：
             // 优先用 MutationObserver（最快、与 Promise 同优先级）；
             // 其次退而求其次用 MessageChannel；
@@ -208,7 +208,12 @@
         }
         // 内部调用走流程
         var promise = new this.constructor(INTERNAL);
+        // 所以这里展示了promise的核心逻辑
+        // 如果你永远不调用 handlers.resolve(self, value) 
+        // 那么所有后续 .then() / .catch() / await 都等不到结果，代码就像卡住了一样
+        // 这就是 promise 做出的承诺：你必须做完了，才有下一步
         if (this.state !== PENDING) {
+          // 注意，这里写的是this的state，而不是新new出来的
           // then可以直接执行
           var resolver = this.state === FULFILLED ? onFulfilled : onRejected;
           unwrap(promise, resolver, this.outcome);
@@ -216,34 +221,58 @@
           // 如果前面的 promise、then 需要等待的话
           this.queue.push(new QueueItem(promise, onFulfilled, onRejected));
         }
+        // 返回这个包装了新then的promise
         return promise;
       };
       /**
-        * @description 
-        * @param 
+        * @description 如果需要等待的话，你会被推入此地
+        * 
+        * onFulfilled、onRejected实际上并没有单独的函数
+        * 不过就好像是then的if-else一样，如果你顺利，就调用onFulfilled；否则调用 onRejected 处理异常
         * @return 
         * @author zzq323 2025/06/18
         */
       function QueueItem(promise, onFulfilled, onRejected) {
+        // 包装了待执行 then 的 promise
         this.promise = promise;
         if (typeof onFulfilled === 'function') {
           this.onFulfilled = onFulfilled;
-          this.callFulfilled = this.otherCallFulfilled;
+          this.callFulfilled = this.otherCallFulfilled; // ← 只在有onFulfilled方法时
         }
         if (typeof onRejected === 'function') {
           this.onRejected = onRejected;
-          this.callRejected = this.otherCallRejected;
+          this.callRejected = this.otherCallRejected; // ← 只在有onRejected方法时
         }
       }
+      /**
+        * @description 默认成功分支；当 then() 没有 成功回调
+        * @return 
+        * @author zzq323 2025/06/18
+        */
       QueueItem.prototype.callFulfilled = function (value) {
         handlers.resolve(this.promise, value);
       };
+      /**
+        * @description 当 then() 有 成功回调
+        * @return 
+        * @author zzq323 2025/06/18
+        */
       QueueItem.prototype.otherCallFulfilled = function (value) {
         unwrap(this.promise, this.onFulfilled, value);
       };
+      /**
+        * @description 默认失败分支；当 then() 没有 失败回调
+        * @return 
+        * @author zzq323 2025/06/18
+        */
       QueueItem.prototype.callRejected = function (value) {
         handlers.reject(this.promise, value);
       };
+      /**
+        * @description 当 then() 有 失败回调
+        * @return 
+        * @author zzq323 2025/06/18
+        */
       QueueItem.prototype.otherCallRejected = function (value) {
         unwrap(this.promise, this.onRejected, value);
       };
@@ -271,14 +300,14 @@
       }
 
       /**
-        * @description 
-        * @param 
+        * @description 结束一切的函数，修正promise的函数；
+        * 
+        * value可能会有所不同，如果可以继续处理的话，那么value会继续被处理
         * @return 
         * @author zzq323 2025/06/18
         */
       handlers.resolve = function (self, value) {
-        // 带着执行成功传入的参数，去找then
-        // 但是为什么只有一个value呢？
+        // 传入代表着 “成功” 的参数，去找这个参数有没有 then
         var result = tryCatch(getThen, value);
         if (result.status === 'error') {
           return handlers.reject(self, result.value);
@@ -292,6 +321,8 @@
         } else {
           self.state = FULFILLED;
           self.outcome = value;
+          // 如果这个then的执行姗姗来迟 —— 其他东西都执行完了才 tm 轮到
+          // 顺序执行因为较慢success积累的所有then
           var i = -1;
           var len = self.queue.length;
           while (++i < len) {
@@ -372,7 +403,7 @@
       }
 
       /**
-        * @description try内执行函数，返回执行结果
+        * @description try内执行函数，返回执行结果；要么报错，要么返回执行结果的值
         * @param
         * @author zzq323 2025/06/18
         */
