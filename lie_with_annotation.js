@@ -135,6 +135,7 @@
           * @author zzq323 2025/06/18
           */
         function immediate(task) {
+          // 刚刚拿到一个task的时候
           if (queue.push(task) === 1 && !draining) {
             scheduleDrain();
           }
@@ -279,7 +280,8 @@
 
       /**
         * @description 使用 immediate 注册。immediate 和 tryCatch 类似，只是不允许返回 promise
-        * @param  
+        * 
+        * 
         * @return 
         * @author zzq323 2025/06/18
         */
@@ -291,6 +293,9 @@
           } catch (e) {
             return handlers.reject(promise, e);
           }
+          // ✅ 可以向 resolve(value) 里传入一个 Promise/thenable
+          // ✅ 也可以在 .then(onFulfilled) 的回调里 返回一个 Promise/thenable
+          // ⛔️ 唯一不行的是：把「同一个 Promise 实例」既传进去又返回出来——那会造成自引用
           if (returnValue === promise) {
             handlers.reject(promise, new TypeError('Cannot resolve promise with itself'));
           } else {
@@ -319,6 +324,7 @@
           // then起来
           safelyResolveThenable(self, thenable);
         } else {
+          // 成功标志
           self.state = FULFILLED;
           self.outcome = value;
           // 如果这个then的执行姗姗来迟 —— 其他东西都执行完了才 tm 轮到
