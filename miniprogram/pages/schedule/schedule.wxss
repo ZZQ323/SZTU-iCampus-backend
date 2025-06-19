@@ -10,9 +10,6 @@
 
 /* 周次选择器 */
 .week-selector {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   background: white;
   padding: 30rpx;
   border-radius: 16rpx;
@@ -20,10 +17,27 @@
   box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
 }
 
+.week-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
 .week-text {
   font-size: 32rpx;
   font-weight: 600;
   color: #333;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 20rpx;
+  justify-content: center;
+}
+
+.action-buttons .t-button {
+  flex: 1;
 }
 
 /* 课表表格 */

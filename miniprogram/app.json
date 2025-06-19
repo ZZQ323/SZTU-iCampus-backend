@@ -8,7 +8,11 @@
     "pages/grades/grades",
     "pages/exams/exams",
     "pages/campus-card/campus-card",
-    "pages/library/library"
+    "pages/library/library",
+    "pages/admin/admin",
+    "pages/announcement-detail/announcement-detail",
+    "pages/login/login",
+    "pages/course-editor/course-editor"
   ],
   "window": {
     "backgroundTextStyle": "light",
@@ -62,7 +66,10 @@
     "t-cell": "./miniprogram_npm/tdesign-miniprogram/cell/cell",
     "t-cell-group": "./miniprogram_npm/tdesign-miniprogram/cell-group/cell-group",
     "t-badge": "./miniprogram_npm/tdesign-miniprogram/badge/badge",
-    "t-search": "./miniprogram_npm/tdesign-miniprogram/search/search"
+    "t-search": "./miniprogram_npm/tdesign-miniprogram/search/search",
+    "t-button": "./miniprogram_npm/tdesign-miniprogram/button/button",
+    "t-dialog": "./miniprogram_npm/tdesign-miniprogram/dialog/dialog",
+    "t-message": "./miniprogram_npm/tdesign-miniprogram/message/message"
   },
   "style": "v2",
   "sitemapLocation": "sitemap.json"

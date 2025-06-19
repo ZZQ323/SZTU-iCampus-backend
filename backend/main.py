@@ -19,7 +19,8 @@ from app.models.notice import Notice
 from app.models.event import Event
 from app.models.grade import Grade
 
-from app.api.v1.endpoints import auth
+# from app.api.v1.endpoints import auth
+from app.api.v1.api import api_router
 from app.core.security import verify_token
 
 # 创建所有数据库表
@@ -136,7 +137,8 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # 将 auth.router 中定义的所有认证相关路由（登录、注册、令牌获取等）注册到主应用 app 中
 # auth.router是文件里面的一个对象
-app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+# app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(api_router, prefix="/api/v1")
 
 @app.get("/")
 async def root():

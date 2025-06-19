@@ -13,6 +13,11 @@
 - 考试安排
 - 校园卡服务
 - 图书馆服务
+- **🔧 管理员系统**（新增）
+  - 用户权限管理
+  - 公告和通知管理
+  - 系统统计查看
+  - 管理员权限控制
 
 ## 技术栈
 
@@ -145,6 +150,38 @@ backend/
 ├── alembic/              # 数据库迁移工具目录
 └── alembic.ini           # Alembic配置文件
 ```
+
+## 🔧 管理员功能使用说明
+
+### 1. 管理员权限设置
+管理员权限通过数据库中的 `is_admin` 字段控制：
+```sql
+-- 设置用户为管理员
+UPDATE users SET is_admin = true WHERE student_id = 'YOUR_STUDENT_ID';
+```
+
+### 2. 管理员功能入口
+- 管理员用户登录后，在首页用户信息卡片右上角会显示金色的"🔧 管理"按钮
+- 点击该按钮即可进入管理员中心
+
+### 3. 管理员功能列表
+- **👥 用户管理**: 查看所有用户，可以设置/取消管理员权限
+- **📢 公告管理**: 查看和删除校园公告
+- **📋 通知管理**: 查看和删除部门通知
+- **📊 系统统计**: 查看用户数量、管理员数量、公告数量等统计信息
+
+### 4. 权限保护
+- 所有管理员API都有权限验证，非管理员用户无法访问
+- 管理员页面会自动检查用户权限，非管理员会被重定向
+
+### 5. API端点
+- `GET /api/admin/stats` - 获取系统统计
+- `GET /api/admin/users` - 获取用户列表
+- `POST /api/admin/users/{user_id}/toggle-admin` - 切换用户管理员状态
+- `GET /api/admin/announcements` - 获取公告列表
+- `DELETE /api/admin/announcements/{id}` - 删除公告
+- `GET /api/admin/notices` - 获取通知列表
+- `DELETE /api/admin/notices/{id}` - 删除通知
 
 ## 贡献
 

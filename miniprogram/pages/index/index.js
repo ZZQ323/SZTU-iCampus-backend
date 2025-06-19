@@ -48,12 +48,46 @@ Page({
   },
 
   async getUserInfo() {
-    // 模拟用户信息
+    try {
+      const token = wx.getStorageSync('access_token')
+      if (token) {
+        // 获取真实用户信息
+        const response = await new Promise((resolve, reject) => {
+          wx.request({
+            url: `${app.globalData.baseUrl}/api/auth/me`,
+            method: 'GET',
+            header: {
+              'Authorization': `Bearer ${token}`
+            },
+            success: resolve,
+            fail: reject
+          })
+        })
+
+        if (response.statusCode === 200) {
+          const userInfo = response.data
+          this.setData({
+            userInfo: {
+              name: userInfo.name || '同学',
+              studentId: userInfo.student_id || '2024001',
+              college: '计算机与软件学院',
+              isAdmin: userInfo.is_admin || false
+            }
+          })
+          return
+        }
+      }
+    } catch (error) {
+      console.error('[首页] 获取用户信息失败:', error)
+    }
+    
+    // 兜底：模拟用户信息
     this.setData({
       userInfo: {
         name: '同学',
         studentId: '2024001',
-        college: '计算机与软件学院'
+        college: '计算机与软件学院',
+        isAdmin: false
       }
     })
   },
@@ -397,6 +431,26 @@ Page({
   },
 
   // 导航方法
+  navigateToService(e) {
+    const item = e.currentTarget.dataset.item
+    if (!item || !item.path) return
+    
+    // 如果是公告页面，清除新公告计数
+    if (item.title === '公告') {
+      this.clearNewAnnouncementCount()
+    }
+    
+    wx.navigateTo({
+      url: item.path,
+      fail: () => {
+        wx.showToast({
+          title: '页面暂未开放',
+          icon: 'none'
+        })
+      }
+    })
+  },
+
   navigateToAnnouncements() {
     this.clearNewAnnouncementCount()
     wx.navigateTo({
@@ -446,6 +500,31 @@ Page({
     })
   },
 
+  /**
+   * 导航到登录页面
+   */
+  navigateToLogin() {
+    console.log('[首页] 🔑 跳转到登录页面')
+    wx.navigateTo({
+      url: '/pages/login/login'
+    })
+  },
+
+  /**
+   * 查看公告详情 - 跳转到详情页面
+   */
+  viewAnnouncementDetail(e) {
+    const announcement = e.currentTarget.dataset.announcement
+    console.log('[首页] 📄 查看公告详情:', announcement.title)
+    
+    // 将公告数据存储到全局数据中
+    getApp().globalData.currentAnnouncement = announcement
+    
+    wx.navigateTo({
+      url: '/pages/announcement-detail/announcement-detail'
+    })
+  },
+
   viewAnnouncement(e) {
     const announcement = e.currentTarget.dataset.announcement
     console.log('[首页] 查看公告详情:', announcement.title)
@@ -476,5 +555,21 @@ Page({
 
   onBack() {
     // 首页通常不需要返回按钮
+  },
+
+  /**
+   * 导航到管理员页面
+   */
+  navigateToAdmin() {
+    console.log('[首页] 🔧 跳转到管理员页面')
+    wx.navigateTo({
+      url: '/pages/admin/admin',
+      fail: () => {
+        wx.showToast({
+          title: '页面暂未开放',
+          icon: 'none'
+        })
+      }
+    })
   }
 }) 

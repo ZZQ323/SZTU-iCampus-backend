@@ -1,0 +1,104 @@
+<view class="login-container">
+  <view class="login-header">
+    <view class="logo">🌊</view>
+    <text class="title">SZTU iCampus</text>
+    <text class="subtitle">深圳技术大学校园服务平台</text>
+  </view>
+
+  <view class="login-form">
+    <!-- 登录类型选择 -->
+    <view class="login-type">
+      <view class="type-tabs">
+        <view class="type-tab {{loginType === 'student' ? 'active' : ''}}" 
+              bind:tap="onLoginTypeChange" data-value="student">
+          <text>学生登录</text>
+        </view>
+        <view class="type-tab {{loginType === 'test' ? 'active' : ''}}" 
+              bind:tap="onLoginTypeChange" data-value="test">
+          <text>快速体验</text>
+        </view>
+        <view class="type-tab {{loginType === 'admin' ? 'active' : ''}}" 
+              bind:tap="onLoginTypeChange" data-value="admin">
+          <text>管理员</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 学号输入 -->
+    <view class="form-group">
+      <view class="input-label">
+        <text>{{loginType === 'admin' ? '管理员账号' : '学号'}}</text>
+      </view>
+      <input class="form-input" 
+             placeholder="{{loginType === 'admin' ? '请输入管理员账号' : '请输入学号'}}"
+             value="{{studentId}}" 
+             bind:input="onStudentIdInput" />
+    </view>
+
+    <!-- 密码输入 (管理员需要) -->
+    <view class="form-group" wx:if="{{loginType === 'admin'}}">
+      <view class="input-label">
+        <text>密码</text>
+      </view>
+      <input class="form-input" 
+             type="password"
+             placeholder="请输入密码"
+             value="{{password}}" 
+             bind:input="onPasswordInput" />
+    </view>
+
+    <!-- 姓名输入 (快速体验需要) -->
+    <view class="form-group" wx:if="{{loginType === 'test' || loginType === 'student'}}">
+      <view class="input-label">
+        <text>姓名 {{loginType === 'test' ? '(必填)' : '(选填)'}}</text>
+      </view>
+      <input class="form-input" 
+             placeholder="请输入姓名"
+             value="{{name}}" 
+             bind:input="onNameInput" />
+    </view>
+
+    <!-- 登录按钮 -->
+    <button class="login-btn {{loading ? 'loading' : ''}}" 
+            bind:tap="onLogin" 
+            disabled="{{loading}}">
+      {{loading ? '登录中...' : '登录'}}
+    </button>
+
+    <!-- 快速登录 -->
+    <view class="quick-actions" wx:if="{{loginType === 'test'}}">
+      <button class="quick-btn" bind:tap="onQuickLogin">
+        快速登录 (张三 2024001)
+      </button>
+    </view>
+
+    <!-- 提示信息 -->
+    <view class="login-tips">
+      <text wx:if="{{loginType === 'student'}}">
+        💡 学生用户可查看个人课表、成绩等信息
+      </text>
+      <text wx:if="{{loginType === 'test'}}">
+        🎯 快速体验模式，可体验流式推送等核心功能
+      </text>
+      <text wx:if="{{loginType === 'admin'}}">
+        🔑 管理员模式，可管理数据和用户信息
+        <text class="admin-hint">默认账号: admin, 密码: admin123</text>
+      </text>
+    </view>
+  </view>
+
+  <view class="feature-highlights">
+    <view class="highlight-item">
+      <text class="highlight-icon">🌊</text>
+      <text class="highlight-text">流式数据推送</text>
+    </view>
+    <view class="highlight-item">
+      <text class="highlight-icon">⚡</text>
+      <text class="highlight-text">实时消息通知</text>
+    </view>
+    <view class="highlight-item">
+      <text class="highlight-icon">📱</text>
+      <text class="highlight-text">智能缓存体验</text>
+    </view>
+  </view>
+</view> 

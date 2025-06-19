@@ -1,0 +1,190 @@
+.admin-container {
+  padding: 20rpx;
+  background-color: #f5f5f5;
+  min-height: 100vh;
+}
+
+/* 管理员信息卡片 */
+.admin-header {
+  display: flex;
+  align-items: center;
+  background: linear-gradient(135deg, #0052d9 0%, #0040a6 100%);
+  border-radius: 16rpx;
+  padding: 40rpx;
+  margin-bottom: 30rpx;
+  color: white;
+  box-shadow: 0 8rpx 32rpx rgba(0, 82, 217, 0.2);
+}
+
+.admin-info {
+  margin-left: 30rpx;
+  flex: 1;
+}
+
+.admin-name {
+  display: block;
+  font-size: 36rpx;
+  font-weight: bold;
+  margin-bottom: 10rpx;
+}
+
+.admin-role {
+  display: block;
+  font-size: 28rpx;
+  opacity: 0.9;
+}
+
+/* 系统统计 */
+.stats-section {
+  background: white;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
+}
+
+.section-title {
+  display: block;
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 30rpx;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30rpx;
+}
+
+.stat-item {
+  text-align: center;
+  padding: 30rpx;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 12rpx;
+  border: 2rpx solid #dee2e6;
+}
+
+.stat-number {
+  display: block;
+  font-size: 48rpx;
+  font-weight: bold;
+  color: #0052d9;
+  margin-bottom: 10rpx;
+}
+
+.stat-label {
+  display: block;
+  font-size: 24rpx;
+  color: #666;
+}
+
+/* 管理功能区域 */
+.management-section {
+  background: white;
+  border-radius: 16rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.tab-content {
+  padding: 30rpx;
+  min-height: 400rpx;
+}
+
+.loading-container,
+.empty-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 400rpx;
+}
+
+/* 快捷操作 */
+.quick-actions {
+  background: white;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
+}
+
+/* 列表项样式优化 */
+.t-cell {
+  border-radius: 12rpx !important;
+  margin-bottom: 16rpx !important;
+  background: #f8f9fa !important;
+  border: 1rpx solid #dee2e6 !important;
+}
+
+.t-cell:hover {
+  background: #e9ecef !important;
+  transform: translateY(-2rpx);
+  transition: all 0.2s ease;
+}
+
+/* 选项卡样式 */
+.t-tabs {
+  background: white;
+}
+
+.t-tab-panel {
+  background: white;
+}
+
+/* 对话框样式 */
+.t-dialog {
+  border-radius: 16rpx !important;
+}
+
+/* 响应式设计 */
+@media screen and (max-width: 750rpx) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .admin-header {
+    padding: 30rpx;
+  }
+  
+  .admin-name {
+    font-size: 32rpx;
+  }
+}
+
+/* 动画效果 */
+.admin-container > view {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 状态指示 */
+.stat-item:hover {
+  transform: scale(1.02);
+  transition: transform 0.2s ease;
+}
+
+/* 管理员标识 */
+.admin-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4rpx;
+  background: linear-gradient(90deg, #ffd700, #ffed4e);
+}
+
+.admin-header {
+  position: relative;
+} 

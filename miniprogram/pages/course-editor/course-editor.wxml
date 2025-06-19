@@ -1,0 +1,103 @@
+<view class="course-editor">
+  <scroll-view scroll-y class="form-container">
+    <!-- 基本信息 -->
+    <view class="form-section">
+      <view class="section-title">📚 基本信息</view>
+      
+      <view class="form-group">
+        <text class="label">课程名称 *</text>
+        <input class="input" 
+               placeholder="请输入课程名称" 
+               value="{{course.course_name}}"
+               bindinput="onCourseNameInput" />
+      </view>
+      
+      <view class="form-group">
+        <text class="label">授课教师 *</text>
+        <input class="input" 
+               placeholder="请输入教师姓名" 
+               value="{{course.teacher}}"
+               bindinput="onTeacherInput" />
+      </view>
+      
+      <view class="form-group">
+        <text class="label">上课地点 *</text>
+        <input class="input" 
+               placeholder="请输入教室号" 
+               value="{{course.classroom}}"
+               bindinput="onClassroomInput" />
+      </view>
+    </view>
+
+    <!-- 时间安排 -->
+    <view class="form-section">
+      <view class="section-title">⏰ 时间安排</view>
+      
+      <view class="form-group">
+        <text class="label">星期</text>
+        <picker range="{{weekDays}}" range-key="label" bindchange="onWeekDayChange">
+          <view class="picker">
+            {{weekDays[course.week_day - 1].label}} 📅
+          </view>
+        </picker>
+      </view>
+      
+      <view class="form-group">
+        <text class="label">时间段</text>
+        <picker range="{{timeSlots}}" range-key="label" bindchange="onTimeSlotChange">
+          <view class="picker">
+            {{course.start_time}}-{{course.end_time}} ⏰
+          </view>
+        </picker>
+      </view>
+      
+      <view class="form-group">
+        <text class="label">上课周次</text>
+        <input class="input" 
+               placeholder="例如：1-16" 
+               value="{{course.weeks}}"
+               bindinput="onWeeksInput" />
+      </view>
+    </view>
+
+    <!-- 课程属性 -->
+    <view class="form-section">
+      <view class="section-title">🏷️ 课程属性</view>
+      
+      <view class="form-group">
+        <text class="label">课程类型</text>
+        <picker range="{{courseTypes}}" bindchange="onCourseTypeChange">
+          <view class="picker">
+            {{course.course_type}} 🏷️
+          </view>
+        </picker>
+      </view>
+      
+      <view class="form-group">
+        <text class="label">学分</text>
+        <input class="input" 
+               type="digit"
+               placeholder="请输入学分" 
+               value="{{course.credits}}"
+               bindinput="onCreditsInput" />
+      </view>
+    </view>
+  </scroll-view>
+
+  <!-- 底部操作按钮 -->
+  <view class="action-bar">
+    <button class="action-btn preview" bindtap="previewCourse">
+      👁️ 预览
+    </button>
+    
+    <button class="action-btn delete" 
+            wx:if="{{isEdit}}"
+            bindtap="deleteCourse">
+      🗑️ 删除
+    </button>
+    
+    <button class="action-btn save" bindtap="saveCourse">
+      💾 保存
+    </button>
+  </view>
+</view> 

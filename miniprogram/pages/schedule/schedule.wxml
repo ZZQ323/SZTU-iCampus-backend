@@ -9,10 +9,16 @@
   <t-loading wx:if="{{loading}}" theme="dots" size="40rpx" text="正在加载课表..." />
   
   <view class="schedule-container" wx:else>
-    <!-- 周次选择 -->
+    <!-- 周次选择和操作按钮 -->
     <view class="week-selector">
-      <text class="week-text">第{{currentWeek}}周</text>
-      <t-button size="small" variant="outline" bindtap="changeWeek">切换周次</t-button>
+      <view class="week-info">
+        <text class="week-text">第{{currentWeek}}周</text>
+        <t-button size="small" variant="outline" bindtap="changeWeek">切换周次</t-button>
+      </view>
+      <view class="action-buttons">
+        <t-button size="small" theme="primary" bindtap="customSchedule">📝 自定义课表</t-button>
+        <t-button size="small" variant="outline" bindtap="importSchedule">📥 导入课表</t-button>
+      </view>
     </view>
     
     <!-- 课表表格 -->

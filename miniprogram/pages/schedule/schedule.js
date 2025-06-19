@@ -144,5 +144,65 @@ Page({
       showCancel: false,
       confirmText: '知道了'
     })
+  },
+
+  // 自定义课表
+  customSchedule() {
+    console.log('[课表] 打开自定义课表编辑器')
+    wx.navigateTo({
+      url: '/pages/schedule-editor/schedule-editor'
+    })
+  },
+
+  // 导入课表
+  importSchedule() {
+    wx.showActionSheet({
+      itemList: ['从Excel导入', '从教务系统同步', '手动输入'],
+      success: (res) => {
+        switch(res.tapIndex) {
+          case 0:
+            this.importFromExcel()
+            break
+          case 1:
+            this.syncFromSystem()
+            break
+          case 2:
+            this.addCourseManually()
+            break
+        }
+      }
+    })
+  },
+
+  // 从Excel导入
+  importFromExcel() {
+    wx.showToast({
+      title: 'Excel导入功能开发中',
+      icon: 'none'
+    })
+  },
+
+  // 从教务系统同步
+  syncFromSystem() {
+    wx.showLoading({
+      title: '同步中...'
+    })
+    
+    // 模拟同步过程
+    setTimeout(() => {
+      wx.hideLoading()
+      wx.showToast({
+        title: '同步成功',
+        icon: 'success'
+      })
+      this.fetchSchedule()
+    }, 2000)
+  },
+
+  // 手动添加课程
+  addCourseManually() {
+    wx.navigateTo({
+      url: '/pages/course-editor/course-editor'
+    })
   }
 }); 

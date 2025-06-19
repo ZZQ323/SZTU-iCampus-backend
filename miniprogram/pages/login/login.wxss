@@ -1,0 +1,174 @@
+.login-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0052d9 0%, #4a90e2 50%, #74b9ff 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40rpx;
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 80rpx;
+}
+
+.logo {
+  font-size: 120rpx;
+  margin-bottom: 20rpx;
+}
+
+.title {
+  display: block;
+  font-size: 48rpx;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 12rpx;
+}
+
+.subtitle {
+  display: block;
+  font-size: 28rpx;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.login-form {
+  width: 100%;
+  max-width: 600rpx;
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 60rpx 40rpx;
+  box-shadow: 0 20rpx 60rpx rgba(0, 82, 217, 0.2);
+}
+
+.login-type {
+  margin-bottom: 40rpx;
+}
+
+.type-tabs {
+  display: flex;
+  background: #f8f9fa;
+  border-radius: 12rpx;
+  padding: 8rpx;
+}
+
+.type-tab {
+  flex: 1;
+  text-align: center;
+  padding: 16rpx 8rpx;
+  border-radius: 8rpx;
+  transition: all 0.3s ease;
+  font-size: 28rpx;
+  color: #666666;
+}
+
+.type-tab.active {
+  background: #0052d9;
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.form-group {
+  margin-bottom: 32rpx;
+}
+
+.input-label {
+  margin-bottom: 12rpx;
+  font-size: 28rpx;
+  color: #333333;
+  font-weight: 500;
+}
+
+.form-input {
+  width: 100%;
+  height: 88rpx;
+  background: #f8f9fa;
+  border: 2rpx solid #e9ecef;
+  border-radius: 12rpx;
+  padding: 0 24rpx;
+  font-size: 32rpx;
+  box-sizing: border-box;
+  transition: all 0.3s ease;
+}
+
+.form-input:focus {
+  border-color: #0052d9;
+  background: #ffffff;
+}
+
+.login-btn {
+  width: 100%;
+  height: 88rpx;
+  background: #0052d9;
+  color: #ffffff;
+  border: none;
+  border-radius: 12rpx;
+  font-size: 32rpx;
+  font-weight: 500;
+  margin-top: 40rpx;
+  transition: all 0.3s ease;
+}
+
+.login-btn.loading {
+  background: #6c757d;
+}
+
+.login-btn:active {
+  transform: translateY(2rpx);
+}
+
+.quick-actions {
+  margin-top: 24rpx;
+}
+
+.quick-btn {
+  width: 100%;
+  height: 68rpx;
+  background: #6c757d;
+  color: #ffffff;
+  border: none;
+  border-radius: 8rpx;
+  font-size: 28rpx;
+}
+
+.login-tips {
+  margin-top: 32rpx;
+  padding: 24rpx;
+  background: #f8f9fa;
+  border-radius: 12rpx;
+  font-size: 26rpx;
+  color: #666666;
+  line-height: 1.6;
+}
+
+.admin-hint {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: #0052d9;
+}
+
+.feature-highlights {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 60rpx;
+  width: 100%;
+  max-width: 600rpx;
+}
+
+.highlight-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  opacity: 0.9;
+}
+
+.highlight-icon {
+  font-size: 48rpx;
+  margin-bottom: 8rpx;
+}
+
+.highlight-text {
+  font-size: 24rpx;
+  color: #ffffff;
+} 
