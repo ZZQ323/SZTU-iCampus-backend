@@ -19,13 +19,6 @@ from app.models.notice import Notice
 from app.models.event import Event
 from app.models.grade import Grade
 
-# 导入数据验证模式
-from app.schemas.announcement import AnnouncementCreate, AnnouncementResponse
-from app.schemas.schedule import ScheduleCreate, ScheduleResponse
-from app.schemas.notice import NoticeCreate, NoticeResponse
-from app.schemas.event import EventCreate, EventResponse
-from app.schemas.grade import GradeCreate, GradeResponse
-
 from app.api.v1.endpoints import auth
 from app.core.security import verify_token
 
@@ -142,7 +135,7 @@ stream_manager = StreamDataManager()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # 将 auth.router 中定义的所有认证相关路由（登录、注册、令牌获取等）注册到主应用 app 中
-# 
+# auth.router是文件里面的一个对象
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 
 @app.get("/")
@@ -204,6 +197,7 @@ async def get_announcements_public(
     
     return result
 
+from fastapi.responses import StreamingResponse
 @app.get("/api/announcements/stream")
 async def get_announcements_stream(db: Session = Depends(get_db)):
     """
@@ -259,7 +253,7 @@ async def get_announcements_stream(db: Session = Depends(get_db)):
             stream_manager.active_connections.discard(connection_id)
             print(f"[流式推送] 🔌 连接断开: {connection_id} (剩余连接: {len(stream_manager.active_connections)})")
     
-    return Response(
+    return StreamingResponse(
         generate(),
         media_type="text/event-stream",
         headers={
@@ -537,7 +531,7 @@ async def get_events_stream(
             stream_manager.active_connections.discard(connection_id)
             print(f"[活动流] 🔌 连接断开: {connection_id}")
     
-    return Response(
+    return StreamingResponse(
         generate(),
         media_type="text/event-stream",
         headers={

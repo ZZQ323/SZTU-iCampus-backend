@@ -363,7 +363,7 @@ Page({
   onHide() {
     console.log('[首页] 页面隐藏')
     // 停止流式推送以节省资源
-    this.stopAnnouncementStream()
+    this.stopAnnouncementStream() // 这tmd没实现
   },
 
   onUnload() {

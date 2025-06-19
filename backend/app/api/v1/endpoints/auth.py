@@ -21,6 +21,7 @@ from app.schemas.msg import Msg
 from app.models.user import User as UserModel
 from app.database import get_db
 
+# fastapi的路径对象
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -43,7 +44,7 @@ def login_access_token(
     - access_token: JWT令牌
     - token_type: 令牌类型 (bearer)
     """
-    
+    print("###来到：/login/access-token")
     user = crud.user.authenticate(
         db, student_id=form_data.username, password=form_data.password
     )
@@ -64,6 +65,7 @@ def test_token(current_user: models.User = Depends(deps.get_current_user)) -> An
     """
     Test access token
     """
+    print("###来到：/login/test-token")
     return current_user
 
 @router.post("/password-recovery/{email}", response_model=Msg)
@@ -71,6 +73,7 @@ def recover_password(email: str, db: Session = Depends(deps.get_db)) -> Any:
     """
     Password Recovery
     """
+    print("###来到：/password-recovery/{email}")
     user = crud.user.get_by_email(db, email=email)
 
     if not user:
@@ -91,6 +94,7 @@ def reset_password(
     """
     Reset password
     """
+    print("###来到：/reset-password/")
     email = verify_password_reset_token(token)
     if not email:
         raise HTTPException(status_code=400, detail="Invalid token")
@@ -116,6 +120,7 @@ async def test_login(
     """
     测试用登录接口
     """
+    print("###来到：/test-login")
     student_id = data.get("student_id")
     name = data.get("name")
     
@@ -152,6 +157,7 @@ async def wx_login(code: str, db: Session = Depends(get_db)):
     微信小程序登录
     """
     # 获取微信openid
+    print("###来到：/wx-login")
     url = f"https://api.weixin.qq.com/sns/jscode2session"
     params = {
         "appid": settings.WECHAT_APP_ID,
@@ -198,6 +204,7 @@ async def read_users_me(token: str = Depends(oauth2_scheme), db: Session = Depen
     """
     获取当前用户信息
     """
+    print("###来到：/me")
     payload = verify_token(token)
     openid = payload.get("sub")
     if openid is None:

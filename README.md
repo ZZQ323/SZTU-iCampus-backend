@@ -61,11 +61,11 @@ backend/
 ├── alembic/              # 数据库迁移
 ├── app/
 │   ├── api/             # API路由
-│   ├── core/            # 核心配置
-│   ├── crud/            # CRUD操作
+│   ├── core/            # 核心配置（配置、安全、队列），被所有层调用
+│   ├── crud/            # CRUD操作存取封装
 │   ├── db/              # 数据库
-│   ├── models/          # SQLAlchemy模型
-│   └── schemas/         # Pydantic模型
+│   ├── models/          # SQLAlchemy 使用 ORM 模型
+│   └── schemas/         # Pydantic 模型，做数据验证用的
 ├── tests/               # 测试
 ├── requirements.txt     # 依赖
 └── README.md           # 文档
