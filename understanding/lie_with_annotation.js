@@ -158,7 +158,12 @@
       var PENDING = ['PENDING'];
 
       module.exports = Promise;
-
+      /**
+        * @description 构造函数！如果是内部构造的promise不走抛弃回调返回值的路径 safelyResolveThenable
+        * @param 
+        * @return 
+        * @author zzq323 2025/06/18
+        */
       function Promise(resolver) {
         if (typeof resolver !== 'function') {
           throw new TypeError('resolver must be a function');
@@ -172,7 +177,7 @@
           safelyResolveThenable(this, resolver);
         }
       }
-
+      // 无论如何都会执行的部分
       Promise.prototype["finally"] = function (callback) {
         if (typeof callback !== 'function') {
           return this;
@@ -193,12 +198,13 @@
           return p.resolve(callback()).then(no);
         }
       };
+
+      // 直接就是一个让你传入处理错误的函数
       Promise.prototype["catch"] = function (onRejected) {
         return this.then(null, onRejected);
       };
       /**
-        * @description 当你直接调用then的时候进入
-        * @param 
+        * @description 当你直接调用then的时候先返回，后执行，执行的时候不返回 handlers.resolve 的结果
         * @return 
         * @author zzq323 2025/06/18
         */
@@ -280,8 +286,7 @@
       };
 
       /**
-        * @description 使用 immediate 注册。immediate 和 tryCatch 类似，只是不允许返回 promise
-        * 
+        * @description 使用 immediate 注册。是用来执行各种then的函数
         * 
         * @return 
         * @author zzq323 2025/06/18
@@ -306,9 +311,8 @@
       }
 
       /**
-        * @description 结束一切的函数，修正promise的函数；
-        * 
-        * value可能会有所不同，如果可以继续处理的话，那么value会继续被处理
+        * @description 结束一切的函数，修正promise的函数；直接返回设置好的promise，传入的\最终的结果直接保存在vaule里面
+        * value可能会有所不同，如果可以继续用then处理的话，那么value会继续走抛弃返回值的 safelyResolveThenable 进行处理
         * @return 
         * @author zzq323 2025/06/18
         */
@@ -322,7 +326,7 @@
         // 此时应该是个函数
         var thenable = result.value;
         if (thenable) {
-          // then起来
+          // then起来，把最终的value作为这个promise的value
           safelyResolveThenable(self, thenable);
         } else {
           // 成功标志
@@ -349,6 +353,8 @@
         self.outcome = error;
         var i = -1;
         var len = self.queue.length;
+        // 如果失败，那么所有的then也进入到失败处理环节
+        // 如果没有失败处理环节，那么直接就是返回 error ， 状态也是 REJECTED
         while (++i < len) {
           self.queue[i].callRejected(error);
         }
@@ -374,8 +380,9 @@
         // 否则返回 undefined
       }
       /**
-        * @description 带 this 入 try 执行函数
-        * @param 
+        * @description 带 this 入 try 执行 promise 回调函数的函数；
+        * 在handlers.resolve中，如果onsuccess传入的是带then的对象，那么也算是一个promise，也要走这个流程;
+        * 一般走 safelyResolveThenable ，都意味着走trycatch执行函数，也意味着回调的返回结果不被重视
         * @return 
         * @author zzq323 2025/06/18
         */
@@ -410,7 +417,13 @@
       }
 
       /**
-        * @description try内执行函数，返回执行结果；要么报错，要么返回执行结果的值
+        * @description 用来执行promise回调函数的try内执行函数，返回执行结果和有无报错；
+        * 
+        * 要么报错，要么返回执行结果的值；
+        * 
+        * 这个函数的返回值会被直接忽略；
+        * 
+        * 当然 handlers.resolve() 也会用它来查找 thennable 的 callback
         * @param
         * @author zzq323 2025/06/18
         */
@@ -429,8 +442,13 @@
         }
         return out;
       }
-
       Promise.resolve = resolve;
+      /**
+        * @description  直接调用类函数就当做内部 promise 处理，然后直接返回设置好的promise，作为回调执行结果
+        * @example {Promise.resolve().then(()=> console.log(4))}
+        * @return 
+        * @author zzq323 2025/06/18
+        */
       function resolve(value) {
         if (value instanceof this) {
           return value;
@@ -439,20 +457,32 @@
       }
 
       Promise.reject = reject;
+      /**
+        * @description 直接拒绝，不跟你多bb
+        * @return 
+        * @author zzq323 2025/06/18
+        */
       function reject(reason) {
         var promise = new this(INTERNAL);
         return handlers.reject(promise, reason);
       }
 
       Promise.all = all;
+      /**
+        * @description 一个传入多个数值的 resolve ？
+        * @return 
+        * @author zzq323 2025/06/18
+        */
       function all(iterable) {
-        var self = this;
+        var self = this; // this = Promise 这个类
+        // 传入的必须是一个数组
         if (Object.prototype.toString.call(iterable) !== '[object Array]') {
           return this.reject(new TypeError('must be an array'));
         }
 
         var len = iterable.length;
         var called = false;
+        // 如果数组长度为0
         if (!len) {
           return this.resolve([]);
         }
@@ -466,7 +496,9 @@
           allResolver(iterable[i], i);
         }
         return promise;
+
         function allResolver(value, i) {
+          // Promise.resolve
           self.resolve(value).then(resolveFromAll, function (error) {
             if (!called) {
               called = true;
@@ -482,10 +514,15 @@
           }
         }
       }
-
       Promise.race = race;
+      /**
+        * @description 只要有一个数值通过就成立了
+        * @return 
+        * @author zzq323 2025/06/18
+        */
       function race(iterable) {
         var self = this;
+        // 也必须是数组
         if (Object.prototype.toString.call(iterable) !== '[object Array]') {
           return this.reject(new TypeError('must be an array'));
         }
