@@ -1,209 +1,372 @@
+const app = getApp()
+
 Page({
   data: {
-    course: {
+    isEdit: false,
+    submitting: false,
+    
+    // 表单数据
+    form: {
       course_name: '',
+      course_code: '',
       teacher: '',
       classroom: '',
       week_day: 1,
+      time_slot: 1,
       start_time: '08:30',
       end_time: '10:10',
-      weeks: '1-16',
+      week_expression: '1-16',
+      start_week: 1,
+      end_week: 16,
+      odd_even: 'all',
       course_type: '必修',
-      credits: '2'
+      credits: '',
+      course_hours: 32,
+      course_description: '',
+      textbook: '',
+      semester: '2024-2025-1',
+      academic_year: '2024-2025',
+      term: 1,
+      student_id: '',
+      class_name: '',
+      major: '',
+      college: ''
     },
-    weekDays: [
-      { label: '周一', value: 1 },
-      { label: '周二', value: 2 },
-      { label: '周三', value: 3 },
-      { label: '周四', value: 4 },
-      { label: '周五', value: 5 },
-      { label: '周六', value: 6 },
-      { label: '周日', value: 7 }
-    ],
-    timeSlots: [
-      { label: '第1-2节', value: '08:30-10:10' },
-      { label: '第3-4节', value: '10:30-12:10' },
-      { label: '第5-6节', value: '14:00-15:40' },
-      { label: '第7-8节', value: '16:00-17:40' },
-      { label: '第9-10节', value: '19:00-20:40' }
-    ],
-    courseTypes: ['必修', '选修', '实践', '实验'],
-    isEdit: false,
-    courseId: null
+    
+    // 选择器数据
+    weekDayOptions: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+    timeSlotOptions: ['第1-2节', '第3-4节', '第5-6节', '第7-8节', '第9-10节'],
+    
+    // 选择器弹窗
+    showWeekDayPicker: false,
+    showTimeSlotPicker: false,
+    weekDayPickerOptions: [],
+    timeSlotPickerOptions: [],
+    
+    // 用户信息
+    userInfo: {}
   },
 
   onLoad(options) {
-    if (options.courseId) {
-      this.setData({
-        isEdit: true,
-        courseId: options.courseId
-      })
-      this.loadCourseData(options.courseId)
+    this.getUserInfo()
+    this.initializeForm()
+    this.initializePickers()
+    
+    // 判断是编辑还是新增
+    if (options.id) {
+      this.setData({ isEdit: true })
+      this.loadCourseData(options.id)
+    } else {
+      // 新增课程，设置默认位置
+      this.setDefaultPosition()
     }
   },
 
+  // 获取用户信息
+  getUserInfo() {
+    const userInfo = wx.getStorageSync('userInfo')
+    if (userInfo) {
+      this.setData({ 
+        userInfo,
+        'form.student_id': userInfo.student_id,
+        'form.class_name': userInfo.class_name || '',
+        'form.major': userInfo.major || '',
+        'form.college': userInfo.college || ''
+      })
+    }
+  },
+
+  // 初始化表单
+  initializeForm() {
+    // 设置默认的时间段
+    const timeSlots = [
+      { start_time: '08:30', end_time: '10:10' },
+      { start_time: '10:30', end_time: '12:10' },
+      { start_time: '14:00', end_time: '15:40' },
+      { start_time: '16:00', end_time: '17:40' },
+      { start_time: '19:00', end_time: '20:40' }
+    ]
+    
+    this.setData({
+      'form.start_time': timeSlots[0].start_time,
+      'form.end_time': timeSlots[0].end_time
+    })
+  },
+
+  // 初始化选择器
+  initializePickers() {
+    const weekDayPickerOptions = this.data.weekDayOptions.map((label, index) => ({
+      label,
+      value: index + 1
+    }))
+    
+    const timeSlotPickerOptions = this.data.timeSlotOptions.map((label, index) => ({
+      label,
+      value: index + 1
+    }))
+    
+    this.setData({
+      weekDayPickerOptions,
+      timeSlotPickerOptions
+    })
+  },
+
+  // 设置默认位置（从课表页面传递的位置信息）
+  setDefaultPosition() {
+    const position = app.globalData.addCoursePosition
+    if (position) {
+      this.setData({
+        'form.week_day': position.weekDay,
+        'form.time_slot': position.timeSlot,
+        'form.semester': position.semester
+      })
+      
+      // 更新时间
+      this.updateTimeBySlot(position.timeSlot)
+    }
+  },
+
+  // 根据时间段更新开始结束时间
+  updateTimeBySlot(timeSlot) {
+    const timeSlots = [
+      { start_time: '08:30', end_time: '10:10' },
+      { start_time: '10:30', end_time: '12:10' },
+      { start_time: '14:00', end_time: '15:40' },
+      { start_time: '16:00', end_time: '17:40' },
+      { start_time: '19:00', end_time: '20:40' }
+    ]
+    
+    const slot = timeSlots[timeSlot - 1]
+    if (slot) {
+      this.setData({
+        'form.start_time': slot.start_time,
+        'form.end_time': slot.end_time
+      })
+    }
+  },
+
+  // 加载课程数据（编辑模式）
   loadCourseData(courseId) {
-    // 这里应该从本地存储或服务器加载课程数据
-    // 暂时使用模拟数据
-    const course = {
-      course_name: '高等数学',
-      teacher: '张教授',
-      classroom: 'A101',
-      week_day: 1,
-      start_time: '08:30',
-      end_time: '10:10',
-      weeks: '1-16',
-      course_type: '必修',
-      credits: '4'
+    const token = wx.getStorageSync('token')
+    
+    wx.request({
+      url: `${app.globalData.baseURL}/api/v1/schedule/${courseId}`,
+      method: 'GET',
+      header: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      success: (res) => {
+        if (res.statusCode === 200) {
+          this.setData({
+            form: { ...this.data.form, ...res.data }
+          })
+        } else {
+          console.error('加载课程失败:', res)
+          wx.showToast({
+            title: '加载课程失败',
+            icon: 'none'
+          })
+        }
+      },
+      fail: (error) => {
+        console.error('加载课程失败:', error)
+        wx.showToast({
+          title: '加载课程失败',
+          icon: 'none'
+        })
+      }
+    })
+  },
+
+  // 通用字段变化处理
+  onFieldChange(e) {
+    const field = e.currentTarget.dataset.field
+    const value = e.detail.value
+    
+    this.setData({
+      [`form.${field}`]: value
+    })
+    
+    // 特殊处理：周次表达式变化时更新开始结束周次
+    if (field === 'week_expression') {
+      this.parseWeekExpression(value)
+    }
+  },
+
+  // 数字步进器变化处理
+  onStepperChange(e) {
+    const field = e.currentTarget.dataset.field
+    const value = e.detail.value
+    
+    this.setData({
+      [`form.${field}`]: value
+    })
+  },
+
+  // 单双周变化
+  onOddEvenChange(e) {
+    this.setData({
+      'form.odd_even': e.detail.value
+    })
+  },
+
+  // 课程类型变化
+  onCourseTypeChange(e) {
+    this.setData({
+      'form.course_type': e.detail.value
+    })
+  },
+
+  // 解析周次表达式
+  parseWeekExpression(expression) {
+    if (!expression) return
+    
+    try {
+      // 简单解析：1-16 格式
+      if (expression.includes('-') && !expression.includes(',')) {
+        const [start, end] = expression.split('-').map(num => parseInt(num.trim()))
+        if (!isNaN(start) && !isNaN(end) && start <= end) {
+          this.setData({
+            'form.start_week': start,
+            'form.end_week': end
+          })
+        }
+      }
+    } catch (error) {
+      console.log('解析周次表达式失败:', error)
+    }
+  },
+
+  // 选择星期
+  selectWeekDay() {
+    this.setData({ showWeekDayPicker: true })
+  },
+
+  hideWeekDayPicker() {
+    this.setData({ showWeekDayPicker: false })
+  },
+
+  onWeekDaySelect(e) {
+    const weekDay = e.detail.value
+    this.setData({
+      'form.week_day': weekDay,
+      showWeekDayPicker: false
+    })
+  },
+
+  // 选择时间段
+  selectTimeSlot() {
+    this.setData({ showTimeSlotPicker: true })
+  },
+
+  hideTimeSlotPicker() {
+    this.setData({ showTimeSlotPicker: false })
+  },
+
+  onTimeSlotSelect(e) {
+    const timeSlot = e.detail.value
+    this.setData({
+      'form.time_slot': timeSlot,
+      showTimeSlotPicker: false
+    })
+    
+    // 更新对应的时间
+    this.updateTimeBySlot(timeSlot)
+  },
+
+  // 表单验证
+  validateForm() {
+    const { form } = this.data
+    
+    if (!form.course_name?.trim()) {
+      wx.showToast({ title: '请输入课程名称', icon: 'none' })
+      return false
     }
     
-    this.setData({ course })
-  },
-
-  // 表单输入处理
-  onCourseNameInput(e) {
-    this.setData({
-      'course.course_name': e.detail.value
-    })
-  },
-
-  onTeacherInput(e) {
-    this.setData({
-      'course.teacher': e.detail.value
-    })
-  },
-
-  onClassroomInput(e) {
-    this.setData({
-      'course.classroom': e.detail.value
-    })
-  },
-
-  onWeeksInput(e) {
-    this.setData({
-      'course.weeks': e.detail.value
-    })
-  },
-
-  onCreditsInput(e) {
-    this.setData({
-      'course.credits': e.detail.value
-    })
-  },
-
-  // 选择器处理
-  onWeekDayChange(e) {
-    const index = e.detail.value
-    this.setData({
-      'course.week_day': this.data.weekDays[index].value
-    })
-  },
-
-  onTimeSlotChange(e) {
-    const index = e.detail.value
-    const timeSlot = this.data.timeSlots[index].value.split('-')
-    this.setData({
-      'course.start_time': timeSlot[0],
-      'course.end_time': timeSlot[1]
-    })
-  },
-
-  onCourseTypeChange(e) {
-    const index = e.detail.value
-    this.setData({
-      'course.course_type': this.data.courseTypes[index]
-    })
+    if (!form.teacher?.trim()) {
+      wx.showToast({ title: '请输入教师姓名', icon: 'none' })
+      return false
+    }
+    
+    if (!form.classroom?.trim()) {
+      wx.showToast({ title: '请输入教室', icon: 'none' })
+      return false
+    }
+    
+    if (form.start_week > form.end_week) {
+      wx.showToast({ title: '开始周次不能大于结束周次', icon: 'none' })
+      return false
+    }
+    
+    return true
   },
 
   // 保存课程
-  saveCourse() {
-    const course = this.data.course
+  onSave() {
+    if (!this.validateForm()) return
     
-    // 验证必填字段
-    if (!course.course_name || !course.teacher || !course.classroom) {
-      wx.showToast({
-        title: '请填写完整信息',
-        icon: 'none'
-      })
-      return
-    }
-
-    wx.showLoading({
-      title: '保存中...'
-    })
-
-    // 模拟保存过程
-    setTimeout(() => {
-      wx.hideLoading()
-      
-      // 保存到本地存储
-      let customCourses = wx.getStorageSync('customCourses') || []
-      
-      if (this.data.isEdit) {
-        // 编辑模式：更新现有课程
-        const index = customCourses.findIndex(c => c.id === this.data.courseId)
-        if (index !== -1) {
-          customCourses[index] = { ...course, id: this.data.courseId }
-        }
-      } else {
-        // 新增模式：添加新课程
-        const newCourse = {
-          ...course,
-          id: Date.now().toString(),
-          created_at: new Date().toISOString()
-        }
-        customCourses.push(newCourse)
-      }
-      
-      wx.setStorageSync('customCourses', customCourses)
-      
-      wx.showToast({
-        title: '保存成功',
-        icon: 'success'
-      })
-      
-      setTimeout(() => {
-        wx.navigateBack()
-      }, 1500)
-    }, 1000)
-  },
-
-  // 删除课程
-  deleteCourse() {
-    if (!this.data.isEdit) return
+    this.setData({ submitting: true })
     
-    wx.showModal({
-      title: '确认删除',
-      content: '确定要删除这门课程吗？',
+    const token = wx.getStorageSync('token')
+    const url = this.data.isEdit 
+      ? `${app.globalData.baseURL}/api/v1/schedule/${this.data.form.id}`
+      : `${app.globalData.baseURL}/api/v1/schedule/`
+    
+    const method = this.data.isEdit ? 'PUT' : 'POST'
+    
+    wx.request({
+      url,
+      method,
+      header: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      data: this.data.form,
       success: (res) => {
-        if (res.confirm) {
-          let customCourses = wx.getStorageSync('customCourses') || []
-          customCourses = customCourses.filter(c => c.id !== this.data.courseId)
-          wx.setStorageSync('customCourses', customCourses)
-          
+        console.log('保存课程响应:', res)
+        
+        if (res.statusCode === 200) {
           wx.showToast({
-            title: '删除成功',
+            title: this.data.isEdit ? '更新成功' : '保存成功',
             icon: 'success'
           })
           
           setTimeout(() => {
             wx.navigateBack()
           }, 1500)
+        } else {
+          console.error('保存失败:', res)
+          wx.showToast({
+            title: res.data?.detail || '操作失败',
+            icon: 'none'
+          })
         }
+        
+        this.setData({ submitting: false })
+      },
+      fail: (error) => {
+        console.error('保存失败:', error)
+        wx.showToast({
+          title: '网络请求失败',
+          icon: 'none'
+        })
+        
+        this.setData({ submitting: false })
       }
     })
   },
 
-  // 预览课程
-  previewCourse() {
-    const course = this.data.course
-    const weekDay = this.data.weekDays.find(w => w.value === course.week_day)?.label || '周一'
-    
+  // 取消
+  onCancel() {
     wx.showModal({
-      title: '课程预览',
-      content: `课程名称：${course.course_name}\n授课教师：${course.teacher}\n上课地点：${course.classroom}\n上课时间：${weekDay} ${course.start_time}-${course.end_time}\n上课周次：第${course.weeks}周\n课程类型：${course.course_type}\n学分：${course.credits}`,
-      showCancel: false,
-      confirmText: '知道了'
+      title: '确认取消',
+      content: '确定要取消编辑吗？未保存的内容将丢失',
+      success: (res) => {
+        if (res.confirm) {
+          wx.navigateBack()
+        }
+      }
     })
   }
 }) 

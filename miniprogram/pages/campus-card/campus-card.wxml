@@ -1,19 +1,14 @@
 <view class="container">
-  <t-navbar 
-    title="校园卡" 
-    t-class="custom-navbar"
-    back="{{true}}"
-    bind:back="onBack"
-  />
-  
   <view class="card-container">
     <!-- 卡片信息 -->
     <view class="card-info">
       <view class="card-header">
-        <t-avatar size="large" image="{{userInfo.avatar}}" />
         <view class="user-info">
-          <text class="user-name">{{userInfo.name}}</text>
-          <text class="student-id">{{userInfo.studentId}}</text>
+          <image src="assets/test/man.png" class="user-avatar" mode="aspectFill"></image>
+          <view class="user-details">
+            <text class="user-name">{{userInfo.name}}</text>
+            <text class="student-id">{{userInfo.studentId}}</text>
+          </view>
         </view>
       </view>
       <view class="balance-info">

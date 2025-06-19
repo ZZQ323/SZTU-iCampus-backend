@@ -1,0 +1,96 @@
+<view class="event-detail">
+  <view wx:if="{{loading}}" class="loading-container">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <view wx:else class="detail-container">
+    <!-- 活动标题和基本信息 -->
+    <view class="event-header">
+      <text class="event-title">{{event.title}}</text>
+      <view class="event-status">
+        <t-tag 
+          theme="{{event.status === 'ongoing' ? 'success' : (event.status === 'upcoming' ? 'primary' : 'default')}}" 
+          variant="light"
+        >
+          {{event.statusText}}
+        </t-tag>
+      </view>
+      <view class="event-meta">
+        <view class="meta-item">
+          <text class="meta-label">活动时间</text>
+          <text class="meta-value">{{event.timeText}}</text>
+        </view>
+        <view class="meta-item">
+          <text class="meta-label">活动地点</text>
+          <text class="meta-value">{{event.location}}</text>
+        </view>
+        <view class="meta-item" wx:if="{{event.organizer}}">
+          <text class="meta-label">主办方</text>
+          <text class="meta-value">{{event.organizer}}</text>
+        </view>
+        <view class="meta-item" wx:if="{{event.participants}}">
+          <text class="meta-label">参与人数</text>
+          <text class="meta-value">{{event.participants}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 活动详细信息 -->
+    <view class="event-content">
+      <view class="content-section" wx:if="{{event.description}}">
+        <view class="section-title">📋 活动介绍</view>
+        <text class="event-description">{{event.description}}</text>
+      </view>
+
+      <view class="content-section" wx:if="{{event.agenda}}">
+        <view class="section-title">📅 活动安排</view>
+        <text class="event-agenda">{{event.agenda}}</text>
+      </view>
+
+      <view class="content-section" wx:if="{{event.requirements}}">
+        <view class="section-title">⚠️ 参与要求</view>
+        <text class="event-requirements">{{event.requirements}}</text>
+      </view>
+
+      <view class="content-section" wx:if="{{event.contact}}">
+        <view class="section-title">📞 联系方式</view>
+        <text class="event-contact">{{event.contact}}</text>
+      </view>
+
+      <view class="content-section" wx:if="{{event.reward}}">
+        <view class="section-title">🎁 活动奖励</view>
+        <text class="event-reward">{{event.reward}}</text>
+      </view>
+    </view>
+
+    <!-- 操作按钮 -->
+    <view class="action-buttons">
+      <t-button 
+        wx:if="{{event.status === 'upcoming' || event.status === 'ongoing'}}"
+        theme="primary" 
+        size="large"
+        bindtap="registerEvent"
+        icon="add-circle"
+      >
+        报名参加
+      </t-button>
+      <t-button 
+        theme="light" 
+        size="large"
+        bindtap="copyEventInfo"
+        icon="content-copy"
+      >
+        复制信息
+      </t-button>
+      <t-button 
+        theme="light" 
+        size="large"
+        bindtap="shareEvent"
+        icon="share"
+      >
+        分享活动
+      </t-button>
+    </view>
+  </view>
+</view> 

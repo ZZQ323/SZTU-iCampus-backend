@@ -1,29 +1,85 @@
-<view class="container">
-  <custom-navbar 
-    title="校园公告" 
-    background="#4a90e2"
-    color="#ffffff"
-  />
-  
-  <view class="announcements-container">
-    <view wx:if="{{loading}}" class="loading-container">
-      <t-loading theme="dots" size="40rpx" text="加载中..." />
+<!-- 公告页面 -->
+<view class="page">
+  <!-- 顶部搜索栏 -->
+  <view class="bblank"></view>
+  <view class="search-header">
+    <view class="search-box">
+      <t-search 
+        value="{{searchText}}" 
+        placeholder="搜索公告..." 
+        bindchange="onSearchChange"
+        bindsubmit="onSearchSubmit"
+      />
     </view>
-    <t-cell-group wx:else>
-      <t-cell 
-        wx:for="{{announcements}}" 
-        wx:key="id" 
-        title="{{item.title}}" 
-        description="{{item.department}}"
-        note="{{item.date}} {{item.time}}"
-        hover
-        arrow
+  </view>
+
+  <!-- 分类标签 -->
+  <view class="filter-tabs">
+    <scroll-view scroll-x class="tabs-scroll">
+      <view class="tabs-container">
+        <view 
+          wx:for="{{categories}}" 
+          wx:key="index"
+          class="tab-item {{currentCategory === item.value ? 'active' : ''}}"
+          bindtap="onCategoryChange"
+          data-category="{{item.value}}"
+        >
+          {{item.label}}
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 公告列表 -->
+  <view class="content">
+    <view wx:if="{{loading}}" class="loading">
+      <t-loading size="large" text="加载中..." />
+    </view>
+
+    <view wx:elif="{{filteredAnnouncements.length === 0}}" class="empty">
+      <t-empty icon="app" description="暂无公告" />
+    </view>
+
+    <view wx:else class="announcement-list">
+      <view 
+        wx:for="{{filteredAnnouncements}}" 
+        wx:key="id"
+        class="announcement-item"
         bindtap="viewAnnouncement"
         data-announcement="{{item}}"
-      />
-      <view wx:if="{{announcements.length === 0}}" class="empty-state">
-        <text class="empty-text">暂无公告</text>
+      >
+        <view class="item-header">
+          <view class="title">{{item.title}}</view>
+          <view class="badge {{item.priority === 'high' ? 'urgent' : 'normal'}}">
+            {{item.priority === 'high' ? '重要' : '一般'}}
+          </view>
+        </view>
+        <view class="item-content">
+          <text class="preview">{{item.content}}</text>
+        </view>
+        <view class="item-footer">
+          <view class="meta">
+            <text class="department">{{item.department}}</text>
+            <text class="time">{{item.date}} {{item.time}}</text>
+          </view>
+          <view class="actions">
+            <t-button 
+              size="small" 
+              theme="light" 
+              bindtap="shareAnnouncement"
+              data-announcement="{{item}}"
+              catchtap="true"
+            >
+              分享
+            </t-button>
+          </view>
+        </view>
       </view>
-    </t-cell-group>
+    </view>
+  </view>
+
+  <!-- 刷新提示 -->
+  <view wx:if="{{showRefreshTip}}" class="refresh-tip">
+    <t-message theme="info" content="下拉刷新获取最新公告" />
   </view>
 </view> 

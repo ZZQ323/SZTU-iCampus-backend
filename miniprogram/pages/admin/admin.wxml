@@ -1,135 +1,166 @@
-<view class="admin-container">
-  <!-- 管理员信息卡片 -->
-  <view class="admin-header">
-    <t-avatar size="large" image="{{adminInfo.avatar || '/assets/test/man.png'}}" />
+<!-- 管理员页面 -->
+<view class="page">
+  <view class="bblank"></view>
+  <!-- 头部信息 -->
+  <view class="header">
     <view class="admin-info">
-      <text class="admin-name">{{adminInfo.name || '管理员'}}</text>
-      <text class="admin-role">🔧 系统管理员</text>
+      <t-avatar icon="user" size="large"></t-avatar>
+      <view class="info-text">
+        <view class="name">{{adminInfo.name}}</view>
+        <view class="role">系统管理员</view>
+      </view>
+    </view>
+    <view class="status">
+      <t-tag theme="success" variant="light">在线</t-tag>
     </view>
   </view>
 
-  <!-- 系统统计 -->
+  <!-- 统计卡片 -->
   <view class="stats-section">
-    <text class="section-title">📊 系统统计</text>
     <view class="stats-grid">
-      <view class="stat-item">
-        <text class="stat-number">{{stats.user_count || 0}}</text>
-        <text class="stat-label">用户总数</text>
+      <view class="stat-card">
+        <view class="stat-icon user">👥</view>
+        <view class="stat-content">
+          <view class="stat-number">{{stats.userCount}}</view>
+          <view class="stat-label">用户总数</view>
+        </view>
       </view>
-      <view class="stat-item">
-        <text class="stat-number">{{stats.admin_count || 0}}</text>
-        <text class="stat-label">管理员</text>
+      <view class="stat-card">
+        <view class="stat-icon admin">🔧</view>
+        <view class="stat-content">
+          <view class="stat-number">{{stats.adminCount}}</view>
+          <view class="stat-label">管理员</view>
+        </view>
       </view>
-      <view class="stat-item">
-        <text class="stat-number">{{stats.announcement_count || 0}}</text>
-        <text class="stat-label">公告数</text>
+      <view class="stat-card">
+        <view class="stat-icon announcement">📢</view>
+        <view class="stat-content">
+          <view class="stat-number">{{stats.announcementCount}}</view>
+          <view class="stat-label">公告数量</view>
+        </view>
       </view>
-      <view class="stat-item">
-        <text class="stat-number">{{stats.notice_count || 0}}</text>
-        <text class="stat-label">通知数</text>
+      <view class="stat-card">
+        <view class="stat-icon notice">📋</view>
+        <view class="stat-content">
+          <view class="stat-number">{{stats.noticeCount}}</view>
+          <view class="stat-label">通知数量</view>
+        </view>
       </view>
     </view>
   </view>
 
-  <!-- 管理功能选项卡 -->
-  <view class="management-section">
-    <t-tabs value="{{activeTab}}" bind:change="onTabChange">
-      <t-tab-panel label="👥 用户管理" value="users">
-        <view class="tab-content">
-          <view wx:if="{{loading}}" class="loading-container">
-            <t-loading theme="dots" text="加载中..." />
-          </view>
-          <view wx:else>
-            <view wx:if="{{users.length === 0}}" class="empty-container">
-              <t-empty description="暂无用户数据" />
-            </view>
-            <view wx:else>
-              <t-cell-group>
-                <t-cell 
-                  wx:for="{{users}}" 
-                  wx:key="id"
-                  title="{{item.name}}"
-                  description="学号：{{item.student_id}}"
-                  right-icon="{{item.is_admin ? 'check-circle-filled' : 'user'}}"
-                  bind:click="onUserClick"
-                  data-user="{{item}}"
-                >
-                  <view slot="note">
-                    <t-badge 
-                      content="{{item.is_admin ? '管理员' : '普通用户'}}" 
-                      theme="{{item.is_admin ? 'warning' : 'default'}}"
-                    />
-                  </view>
-                </t-cell>
-              </t-cell-group>
-            </view>
-          </view>
+  <!-- 功能模块 -->
+  <view class="functions-section">
+    <view class="section-title">管理功能</view>
+    
+    <!-- 用户管理 -->
+    <view class="function-group">
+      <view class="group-title">用户管理</view>
+      <view class="function-grid">
+        <view class="function-item" bindtap="navigateToUserList">
+          <view class="function-icon">👤</view>
+          <view class="function-text">用户列表</view>
         </view>
-      </t-tab-panel>
+        <view class="function-item" bindtap="showUserActions">
+          <view class="function-icon">⚙️</view>
+          <view class="function-text">用户操作</view>
+        </view>
+        <view class="function-item" bindtap="showAdminManagement">
+          <view class="function-icon">🛡️</view>
+          <view class="function-text">管理员设置</view>
+        </view>
+      </view>
+    </view>
 
-      <t-tab-panel label="📢 公告管理" value="announcements">
-        <view class="tab-content">
-          <view wx:if="{{loading}}" class="loading-container">
-            <t-loading theme="dots" text="加载中..." />
-          </view>
-          <view wx:else>
-            <view wx:if="{{announcements.length === 0}}" class="empty-container">
-              <t-empty description="暂无公告数据" />
-            </view>
-            <view wx:else>
-              <t-cell-group>
-                <t-cell 
-                  wx:for="{{announcements}}" 
-                  wx:key="id"
-                  title="{{item.title}}"
-                  description="{{item.department}} · {{item.date}}"
-                  right-icon="delete"
-                  bind:click="onAnnouncementDelete"
-                  data-id="{{item.id}}"
-                />
-              </t-cell-group>
-            </view>
-          </view>
+    <!-- 内容管理 -->
+    <view class="function-group">
+      <view class="group-title">内容管理</view>
+      <view class="function-grid">
+        <view class="function-item" bindtap="manageAnnouncements">
+          <view class="function-icon">📢</view>
+          <view class="function-text">公告管理</view>
         </view>
-      </t-tab-panel>
+        <view class="function-item" bindtap="manageNotices">
+          <view class="function-icon">📋</view>
+          <view class="function-text">通知管理</view>
+        </view>
+        <view class="function-item" bindtap="manageEvents">
+          <view class="function-icon">📅</view>
+          <view class="function-text">活动管理</view>
+        </view>
+      </view>
+    </view>
 
-      <t-tab-panel label="📋 通知管理" value="notices">
-        <view class="tab-content">
-          <view wx:if="{{loading}}" class="loading-container">
-            <t-loading theme="dots" text="加载中..." />
-          </view>
-          <view wx:else>
-            <view wx:if="{{notices.length === 0}}" class="empty-container">
-              <t-empty description="暂无通知数据" />
-            </view>
-            <view wx:else>
-              <t-cell-group>
-                <t-cell 
-                  wx:for="{{notices}}" 
-                  wx:key="id"
-                  title="{{item.title}}"
-                  description="{{item.department}} · {{item.date}}"
-                  right-icon="delete"
-                  bind:click="onNoticeDelete"
-                  data-id="{{item.id}}"
-                />
-              </t-cell-group>
-            </view>
-          </view>
+    <!-- 系统管理 -->
+    <view class="function-group">
+      <view class="group-title">系统管理</view>
+      <view class="function-grid">
+        <view class="function-item" bindtap="viewSystemLogs">
+          <view class="function-icon">📊</view>
+          <view class="function-text">系统日志</view>
         </view>
-      </t-tab-panel>
-    </t-tabs>
+        <view class="function-item" bindtap="showSystemSettings">
+          <view class="function-icon">⚙️</view>
+          <view class="function-text">系统设置</view>
+        </view>
+        <view class="function-item" bindtap="showDataBackup">
+          <view class="function-icon">💾</view>
+          <view class="function-text">数据备份</view>
+        </view>
+      </view>
+    </view>
   </view>
 
-  <!-- 快捷操作 -->
-  <view class="quick-actions">
-    <text class="section-title">🚀 快捷操作</text>
-    <t-cell-group>
-      <t-cell title="刷新数据" right-icon="refresh" bind:click="refreshData" />
-      <t-cell title="系统设置" right-icon="setting" bind:click="openSettings" />
-      <t-cell title="返回首页" right-icon="home" bind:click="goHome" />
-    </t-cell-group>
+  <!-- 最近操作 -->
+  <view class="recent-section">
+    <view class="section-title">最近操作</view>
+    <view class="recent-list">
+      <view 
+        wx:for="{{recentActions}}" 
+        wx:key="id"
+        class="recent-item"
+      >
+        <view class="action-icon">{{item.icon}}</view>
+        <view class="action-content">
+          <view class="action-text">{{item.action}}</view>
+          <view class="action-time">{{item.time}}</view>
+        </view>
+        <view class="action-status">
+          <t-tag 
+            theme="{{item.status === 'success' ? 'success' : 'warning'}}" 
+            variant="light" 
+            size="small"
+          >
+            {{item.statusText}}
+          </t-tag>
+        </view>
+      </view>
+    </view>
   </view>
+
+  <!-- 用户操作弹窗 -->
+  <t-action-sheet
+    visible="{{showUserActions}}"
+    items="{{userActionItems}}"
+    bind:click="onUserActionClick"
+    bind:cancel="hideUserActions"
+  />
+
+  <!-- 管理员管理弹窗 -->
+  <t-dialog
+    visible="{{showAdminDialog}}"
+    title="管理员管理"
+    content="{{adminDialogContent}}"
+    actions="{{adminDialogActions}}"
+    bind:action="onAdminDialogAction"
+  />
+
+  <!-- 加载状态 -->
+  <t-loading 
+    wx:if="{{loading}}" 
+    visible="{{loading}}" 
+    text="加载中..."
+  />
 </view>
 
 <!-- 确认对话框 -->

@@ -9,18 +9,28 @@ Page({
     quickServices: [
       { title: '公告', icon: '📢', path: '/pages/announcements/announcements' },
       { title: '课表', icon: '📅', path: '/pages/schedule/schedule' },
-      { title: '通知', icon: '📋', path: '/pages/notices/notices' },
+      { title: '通知', icon: '📋', path: '/pages/notifications/notifications' },
       { title: '活动', icon: '🎯', path: '/pages/events/events' },
       { title: '成绩', icon: '📊', path: '/pages/grades/grades' },
       { title: '考试', icon: '📝', path: '/pages/exams/exams' },
       { title: '校园卡', icon: '💳', path: '/pages/campus-card/campus-card' },
       { title: '图书馆', icon: '📚', path: '/pages/library/library' }
     ],
+    // 后勤联系电话
+    contactInfo: [
+      { name: '校医院', phone: '0755-26731120', icon: '🏥', category: '医疗' },
+      { name: '保卫处', phone: '0755-26731110', icon: '🚔', category: '安全' },
+      { name: '后勤服务中心', phone: '0755-26731130', icon: '🔧', category: '维修' },
+      { name: '学生宿舍管理', phone: '0755-26731140', icon: '🏠', category: '住宿' },
+      { name: '食堂服务热线', phone: '0755-26731150', icon: '🍽️', category: '餐饮' },
+      { name: '网络信息中心', phone: '0755-26731160', icon: '💻', category: '网络' },
+      { name: '教务处', phone: '0755-26731170', icon: '📚', category: '教务' },
+      { name: '学生处', phone: '0755-26731180', icon: '👥', category: '学务' }
+    ],
     loading: true,
     streamStatus: {
       isConnected: false,
-      activeStreams: 0,
-      lastUpdate: null
+      connectionTime: ''
     },
     notices: [],
     recentEvents: [],
@@ -37,7 +47,12 @@ Page({
       offlineRecoveries: 0
     },
     demoMode: false,
-    streamConnectTime: null
+    streamConnectTime: null,
+    showDialog: false,
+    dialogData: {
+      title: '',
+      content: ''
+    }
   },
 
   onLoad() {
@@ -47,106 +62,297 @@ Page({
     this.startStreamExperience()
   },
 
-  async getUserInfo() {
-    try {
-      const token = wx.getStorageSync('access_token')
-      if (token) {
-        // 获取真实用户信息
-        const response = await new Promise((resolve, reject) => {
-          wx.request({
-            url: `${app.globalData.baseUrl}/api/auth/me`,
-            method: 'GET',
-            header: {
-              'Authorization': `Bearer ${token}`
-            },
-            success: resolve,
-            fail: reject
-          })
-        })
+  onShow() {
+    console.log('[首页] 页面显示')
+    // 每次显示页面时更新用户信息
+    this.getUserInfo()
+    // 页面重新显示时更新状态
+    this.updateStreamStatus()
+  },
 
-        if (response.statusCode === 200) {
-          const userInfo = response.data
-          this.setData({
-            userInfo: {
-              name: userInfo.name || '同学',
-              studentId: userInfo.student_id || '2024001',
-              college: '计算机与软件学院',
-              isAdmin: userInfo.is_admin || false
-            }
-          })
-          return
-        }
-      }
-    } catch (error) {
-      console.error('[首页] 获取用户信息失败:', error)
+  onHide() {
+    console.log('[首页] 页面隐藏')
+    // 停止流式推送以节省资源
+    this.stopAnnouncementStream() // 这tmd没实现
+  },
+
+  onUnload() {
+    console.log('[首页] 👋 页面卸载，清理流式连接')
+    
+    // 清理定时器
+    if (this.streamStatusUpdater) {
+      clearInterval(this.streamStatusUpdater)
     }
     
-    // 兜底：模拟用户信息
+    // 停止流式连接
+    const { announcementStream } = require('../../utils/stream.js')
+    announcementStream.stop()
+  },
+
+  /**
+   * 🔄 清除新公告计数
+   */
+  clearNewAnnouncementCount() {
     this.setData({
-      userInfo: {
-        name: '同学',
-        studentId: '2024001',
-        college: '计算机与软件学院',
-        isAdmin: false
+      newAnnouncementCount: 0
+    })
+  },
+
+  onPullDownRefresh() {
+    console.log('[首页] 下拉刷新')
+    this.getUserInfo()
+    this.fetchAnnouncements()
+    
+    setTimeout(() => {
+      wx.stopPullDownRefresh()
+      this.clearNewAnnouncementCount()
+    }, 1000)
+  },
+
+  // 导航方法
+  navigateToService(e) {
+    const item = e.currentTarget.dataset.item
+    if (!item || !item.path) return
+    
+    console.log('[首页] 🎯 导航到服务:', item.title, item.path)
+    
+    // 如果是公告页面，清除新公告计数
+    if (item.title === '公告') {
+      this.clearNewAnnouncementCount()
+    }
+    
+    // Tab页面需要使用switchTab，普通页面使用navigateTo
+    const tabPages = [
+      '/pages/index/index',
+      '/pages/announcements/announcements', 
+      '/pages/schedule/schedule',
+      '/pages/address_book/address_book',
+      '/pages/campus-card/campus-card'
+    ]
+    
+    if (tabPages.includes(item.path)) {
+      wx.switchTab({
+        url: item.path,
+        fail: (error) => {
+          console.error('[首页] Tab导航失败:', error)
+          wx.showToast({
+            title: `${item.title}页面暂未开放`,
+            icon: 'none'
+          })
+        }
+      })
+    } else {
+      wx.navigateTo({
+        url: item.path,
+        fail: (error) => {
+          console.error('[首页] 普通导航失败:', error)
+          wx.showToast({
+            title: `${item.title}页面暂未开放`,
+            icon: 'none'
+          })
+        }
+      })
+    }
+  },
+
+  navigateToAnnouncements() {
+    this.clearNewAnnouncementCount()
+    wx.switchTab({
+      url: '/pages/announcements/announcements'
+    })
+  },
+
+  navigateToSchedule() {
+    wx.switchTab({
+      url: '/pages/schedule/schedule'
+    })
+  },
+
+  navigateToAddressBook() {
+    wx.switchTab({
+      url: '/pages/address_book/address_book'
+    })
+  },
+
+  navigateToEvents() {
+    wx.switchTab({
+      url: '/pages/events/events'
+    })
+  },
+
+  navigateToGrades() {
+    wx.navigateTo({
+      url: '/pages/grades/grades'
+    })
+  },
+
+  navigateToExams() {
+    wx.navigateTo({
+      url: '/pages/exams/exams'
+    })
+  },
+
+  navigateToCampusCard() {
+    wx.navigateTo({
+      url: '/pages/campus-card/campus-card'
+    })
+  },
+
+  navigateToLibrary() {
+    wx.navigateTo({
+      url: '/pages/library/library'
+    })
+  },
+
+  /**
+   * 导航到登录页面
+   */
+  navigateToLogin() {
+    console.log('[首页] 🔑 跳转到登录页面')
+    wx.navigateTo({
+      url: '/pages/login/login'
+    })
+  },
+
+  /**
+   * 查看公告详情 - 跳转到详情页面
+   */
+  viewAnnouncementDetail(e) {
+    const announcement = e.currentTarget.dataset.announcement
+    console.log('[首页] 📄 查看公告详情:', announcement.title)
+    
+    // 将公告数据存储到全局数据中
+    app.globalData.currentAnnouncement = announcement
+    
+    wx.navigateTo({
+      url: '/pages/announcement-detail/announcement-detail'
+    })
+  },
+
+  /**
+   * 导航到管理员页面
+   */
+  navigateToAdmin() {
+    console.log('[首页] 🔧 跳转到管理员页面')
+    wx.navigateTo({
+      url: '/pages/admin/admin',
+      fail: () => {
+        wx.showToast({
+          title: '页面暂未开放',
+          icon: 'none'
+        })
       }
     })
   },
 
-  async fetchAnnouncements() {
+  // 退出登录
+  onLogout() {
+    wx.showModal({
+      title: '确认退出',
+      content: '确定要退出登录吗？',
+      success: (res) => {
+        if (res.confirm) {
+          // 清除本地存储的用户信息
+          wx.removeStorageSync('token')
+          wx.removeStorageSync('userInfo')
+          
+          // 重置页面数据
+          this.setData({
+            userInfo: {}
+          })
+          
+          wx.showToast({
+            title: '已退出登录',
+            icon: 'success'
+          })
+        }
+      }
+    })
+  },
+
+  // 获取用户信息
+  getUserInfo() {
+    try {
+      const token = wx.getStorageSync('token')
+      const userInfo = wx.getStorageSync('userInfo')
+      
+      if (userInfo && token) {
+        this.setData({
+          userInfo: {
+            ...userInfo,
+            isAdmin: userInfo.is_admin || false
+          }
+        })
+      }
+    } catch (error) {
+      console.log('获取用户信息失败:', error)
+    }
+  },
+
+  // 获取公告列表
+  fetchAnnouncements() {
     const app = getApp()
     console.log('[首页] 📡 获取公告数据')
     
-    try {
-      wx.showLoading({
-        title: '加载中...',
-        mask: true
-      })
+    wx.showLoading({
+      title: '加载中...',
+      mask: true
+    })
 
-      const response = await new Promise((resolve, reject) => {
-        wx.request({
-          url: `${app.globalData.baseUrl}/api/announcements`,
-          method: 'GET',
-          success: resolve,
-          fail: reject
-        })
-      })
+    wx.request({
+      url: `${app.globalData.baseURL}/api/announcements`,
+      method: 'GET',
+      success: (response) => {
+        console.log('[首页] 📊 公告API响应:', response)
 
-      console.log('[首页] 📊 公告API响应:', response)
-
-      if (response.statusCode === 200 && response.data.code === 0) {
-        const announcements = response.data.data.announcements.slice(0, 3) // 只显示前3条
+        if (response.statusCode === 200 && response.data.code === 0) {
+          const announcements = response.data.data.announcements.slice(0, 3) // 只显示前3条
+          
+          this.setData({
+            announcements: announcements,
+            loading: false
+          })
+          
+          console.log('[首页] ✅ 公告数据加载完成，共', announcements.length, '条')
+          
+          // 显示加载完成提示
+          wx.showToast({
+            title: `📢 加载${announcements.length}条公告`,
+            icon: 'none',
+            duration: 1500
+          })
+        } else {
+          console.error('[首页] ❌ 公告获取失败:', response.data)
+          this.setData({
+            announcements: [],
+            loading: false
+          })
+          
+          wx.showToast({
+            title: '⚠️ 公告加载失败',
+            icon: 'none',
+            duration: 2000
+          })
+        }
         
+        wx.hideLoading()
+      },
+      fail: (error) => {
+        console.error('[首页] ❌ 公告获取失败:', error)
         this.setData({
-          announcements: announcements,
+          announcements: [],
           loading: false
         })
         
-        console.log('[首页] ✅ 公告数据加载完成，共', announcements.length, '条')
-        
-        // 显示加载完成提示
         wx.showToast({
-          title: `📢 加载${announcements.length}条公告`,
+          title: '⚠️ 公告加载失败',
           icon: 'none',
-          duration: 1500
+          duration: 2000
         })
-      } else {
-        throw new Error(response.data.message || '获取公告失败')
+        
+        wx.hideLoading()
       }
-    } catch (error) {
-      console.error('[首页] ❌ 公告获取失败:', error)
-      this.setData({
-        announcements: [],
-        loading: false
-      })
-      
-      wx.showToast({
-        title: '⚠️ 公告加载失败',
-        icon: 'none',
-        duration: 2000
-      })
-    } finally {
-      wx.hideLoading()
-    }
+    })
   },
 
   /**
@@ -207,7 +413,7 @@ Page({
     this.setData({
       streamStatus: {
         isConnected: status.isConnected,
-        lastUpdate: status.lastUpdate ? 
+        connectionTime: status.lastUpdate ? 
           new Date(status.lastUpdate).toLocaleTimeString() : null,
         dataCount: status.dataReceived,
         cacheHitRate: status.cacheHitRate,
@@ -388,185 +594,69 @@ Page({
     })
   },
 
-  onShow() {
-    console.log('[首页] 👀 页面显示')
-    // 页面重新显示时更新状态
-    this.updateStreamStatus()
-  },
-
-  onHide() {
-    console.log('[首页] 页面隐藏')
-    // 停止流式推送以节省资源
-    this.stopAnnouncementStream() // 这tmd没实现
-  },
-
-  onUnload() {
-    console.log('[首页] 👋 页面卸载，清理流式连接')
-    
-    // 清理定时器
-    if (this.streamStatusUpdater) {
-      clearInterval(this.streamStatusUpdater)
+  // 弹窗确认
+  onDialogConfirm() {
+    this.setData({ showDialog: false })
+    // 跳转到公告详情页
+    if (this.data.dialogData.announcement) {
+      app.globalData.currentAnnouncement = this.data.dialogData.announcement
+      wx.navigateTo({
+        url: '/pages/announcement-detail/announcement-detail'
+      })
     }
-    
-    // 停止流式连接
-    const { announcementStream } = require('../../utils/stream.js')
-    announcementStream.stop()
   },
 
-  /**
-   * 🔄 清除新公告计数
-   */
-  clearNewAnnouncementCount() {
-    this.setData({
-      newAnnouncementCount: 0
-    })
+  // 弹窗取消
+  onDialogCancel() {
+    this.setData({ showDialog: false })
   },
 
-  onPullDownRefresh() {
-    console.log('[首页] 下拉刷新')
-    this.fetchAnnouncements().then(() => {
-      wx.stopPullDownRefresh()
-      this.clearNewAnnouncementCount()
-    })
+  stopAnnouncementStream() {
+    // 实现停止流式推送的逻辑
   },
 
-  // 导航方法
-  navigateToService(e) {
-    const item = e.currentTarget.dataset.item
-    if (!item || !item.path) return
+  // 拨打电话
+  makePhoneCall(e) {
+    const phone = e.currentTarget.dataset.phone
+    const name = e.currentTarget.dataset.name
     
-    // 如果是公告页面，清除新公告计数
-    if (item.title === '公告') {
-      this.clearNewAnnouncementCount()
-    }
+    console.log('[首页] 📞 拨打电话:', name, phone)
     
-    wx.navigateTo({
-      url: item.path,
-      fail: () => {
+    wx.makePhoneCall({
+      phoneNumber: phone,
+      success: () => {
+        console.log('[首页] ✅ 拨打成功:', phone)
+      },
+      fail: (error) => {
+        console.error('[首页] ❌ 拨打失败:', error)
         wx.showToast({
-          title: '页面暂未开放',
+          title: '拨打电话失败',
           icon: 'none'
         })
       }
     })
   },
 
-  navigateToAnnouncements() {
-    this.clearNewAnnouncementCount()
-    wx.navigateTo({
-      url: '/pages/announcements/announcements'
-    })
-  },
-
-  navigateToSchedule() {
-    wx.navigateTo({
-      url: '/pages/schedule/schedule'
-    })
-  },
-
-  navigateToNotices() {
-    wx.navigateTo({
-      url: '/pages/notices/notices'
-    })
-  },
-
-  navigateToEvents() {
-    wx.navigateTo({
-      url: '/pages/events/events'
-    })
-  },
-
-  navigateToGrades() {
-    wx.navigateTo({
-      url: '/pages/grades/grades'
-    })
-  },
-
-  navigateToExams() {
-    wx.navigateTo({
-      url: '/pages/exams/exams'
-    })
-  },
-
-  navigateToCampusCard() {
-    wx.navigateTo({
-      url: '/pages/campus-card/campus-card'
-    })
-  },
-
-  navigateToLibrary() {
-    wx.navigateTo({
-      url: '/pages/library/library'
-    })
-  },
-
-  /**
-   * 导航到登录页面
-   */
-  navigateToLogin() {
-    console.log('[首页] 🔑 跳转到登录页面')
-    wx.navigateTo({
-      url: '/pages/login/login'
-    })
-  },
-
-  /**
-   * 查看公告详情 - 跳转到详情页面
-   */
-  viewAnnouncementDetail(e) {
-    const announcement = e.currentTarget.dataset.announcement
-    console.log('[首页] 📄 查看公告详情:', announcement.title)
+  // 复制电话号码
+  copyPhoneNumber(e) {
+    const phone = e.currentTarget.dataset.phone
+    const name = e.currentTarget.dataset.name
     
-    // 将公告数据存储到全局数据中
-    getApp().globalData.currentAnnouncement = announcement
+    console.log('[首页] 📋 复制电话号码:', name, phone)
     
-    wx.navigateTo({
-      url: '/pages/announcement-detail/announcement-detail'
-    })
-  },
-
-  viewAnnouncement(e) {
-    const announcement = e.currentTarget.dataset.announcement
-    console.log('[首页] 查看公告详情:', announcement.title)
-    
-    wx.showModal({
-      title: announcement.title,
-      content: `${announcement.content}\n\n发布部门：${announcement.department}\n发布时间：${announcement.date} ${announcement.time}`,
-      showCancel: false,
-      confirmText: '知道了',
-      confirmColor: '#0052d9'
-    })
-  },
-
-  /**
-   * 🔗 测试流式连接状态
-   */
-  testStreamConnection() {
-    const status = this.data.streamStatus
-    
-    wx.showModal({
-      title: '🌊 流式连接状态',
-      content: `连接状态：${status.isConnected ? '✅ 已连接' : '❌ 未连接'}\n活跃流数量：${status.activeStreams}\n最后更新：${status.lastUpdate || '无'}`,
-      showCancel: false,
-      confirmText: '确定',
-      confirmColor: '#0052d9'
-    })
-  },
-
-  onBack() {
-    // 首页通常不需要返回按钮
-  },
-
-  /**
-   * 导航到管理员页面
-   */
-  navigateToAdmin() {
-    console.log('[首页] 🔧 跳转到管理员页面')
-    wx.navigateTo({
-      url: '/pages/admin/admin',
-      fail: () => {
+    wx.setClipboardData({
+      data: phone,
+      success: () => {
         wx.showToast({
-          title: '页面暂未开放',
+          title: `已复制${name}电话`,
+          icon: 'success',
+          duration: 2000
+        })
+      },
+      fail: (error) => {
+        console.error('[首页] ❌ 复制失败:', error)
+        wx.showToast({
+          title: '复制失败',
           icon: 'none'
         })
       }

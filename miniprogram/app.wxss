@@ -6,6 +6,14 @@ page {
     sans-serif;
 }
 
+/* 安全区域适配 */
+.page {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  min-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
 /* 全局主色调 */
 :root {
   --td-brand-color: #0052d9;

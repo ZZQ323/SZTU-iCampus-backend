@@ -2,22 +2,25 @@
 
 深圳技术大学校园服务小程序后端API服务
 
-## 功能特性
+## 已实现功能
 
 - 用户认证与授权
-- 校园公告管理
-- 课表查询
-- 部门通知
+- 校园公告、部门通知
+- 课表查询与管理
 - 活动日历
 - 成绩查询
-- 考试安排
+- 考试安排与倒计时
 - 校园卡服务
-- 图书馆服务
+- 图书馆服务（借阅、座位预约、图书荐购）
+- 图形化自定义课表
+- 通讯录服务
 - **🔧 管理员系统**（新增）
   - 用户权限管理
   - 公告和通知管理
   - 系统统计查看
   - 管理员权限控制
+
+## 待实现功能
 
 ## 技术栈
 
@@ -182,6 +185,29 @@ UPDATE users SET is_admin = true WHERE student_id = 'YOUR_STUDENT_ID';
 - `DELETE /api/admin/announcements/{id}` - 删除公告
 - `GET /api/admin/notices` - 获取通知列表
 - `DELETE /api/admin/notices/{id}` - 删除通知
+
+## 🔄 新增API端点
+
+### 考试管理 (Exams)
+- `GET /api/v1/exams/` - 获取考试列表
+- `GET /api/v1/exams/{exam_id}` - 获取考试详情
+- `GET /api/v1/exams/countdown/{exam_id}` - 获取考试倒计时
+
+### 图书馆服务 (Library) 
+- `GET /api/v1/library/borrow-info` - 获取借阅信息
+- `GET /api/v1/library/search` - 图书搜索
+- `GET /api/v1/library/seats` - 获取座位信息
+- `POST /api/v1/library/seat-reservation` - 预约座位
+- `GET /api/v1/library/reservations` - 获取预约记录
+- `POST /api/v1/library/recommend` - 图书荐购
+- `GET /api/v1/library/recommendations` - 获取荐购记录
+- `POST /api/v1/library/renew` - 图书续借
+
+### 课表管理 (Schedule)
+- `GET /api/v1/schedule/grid/{week_number}` - 获取指定周课表网格
+- `GET /api/v1/schedule/current-week` - 获取当前周课表
+- `POST /api/v1/schedule/` - 创建新课程
+- `GET /api/v1/schedule/time-slots/info` - 获取时间段信息
 
 ## 贡献
 

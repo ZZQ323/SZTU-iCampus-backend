@@ -1,3 +1,5 @@
+const app = getApp()
+
 Page({
   data: {
     activeTab: 'borrow',
@@ -7,7 +9,8 @@ Page({
     borrowList: [],
     floors: [],
     currentReservation: null,
-    recommendInfo: ''
+    recommendInfo: '',
+    loading: false
   },
 
   onLoad() {
@@ -36,57 +39,66 @@ Page({
       return
     }
 
-    // TODO: 调用搜索接口
     wx.navigateTo({
       url: `/pages/library/search/search?keyword=${this.data.searchKeyword}`
     })
   },
 
   loadBorrowInfo() {
-    // TODO: 从后端获取借阅信息
-    // 模拟数据
-    this.setData({
-      currentBorrow: 2,
-      maxBorrow: 10,
-      borrowList: [
-        {
-          id: 1,
-          bookName: '高等数学（第七版）',
-          borrowDate: '2024-03-01',
-          returnDate: '2024-06-01'
-        },
-        {
-          id: 2,
-          bookName: '大学英语（第四版）',
-          borrowDate: '2024-03-05',
-          returnDate: '2024-06-05'
+    this.setData({ loading: true });
+    
+    const userInfo = wx.getStorageSync('userInfo');
+    const studentId = userInfo?.studentId || '2024001';
+    
+    wx.request({
+      url: `${app.globalData.baseURL}/api/v1/library/borrow-info`,
+      method: 'GET',
+      data: {
+        student_id: studentId
+      },
+      success: (res) => {
+        console.log('[图书馆] 借阅信息API响应:', res);
+        
+        if (res.statusCode === 200 && res.data.code === 0) {
+          const borrowData = res.data.data;
+          
+          this.setData({
+            currentBorrow: borrowData.current_borrow,
+            maxBorrow: borrowData.max_borrow,
+            borrowList: borrowData.borrow_list,
+            loading: false
+          });
+        } else {
+          console.error('[图书馆] 获取借阅信息失败:', res.data);
+          this.setData({ loading: false });
         }
-      ]
-    })
+      },
+      fail: (error) => {
+        console.error('[图书馆] 借阅信息请求失败:', error);
+        this.setData({ loading: false });
+      }
+    });
   },
 
   loadSeatInfo() {
-    // TODO: 从后端获取座位信息
-    // 模拟数据
-    this.setData({
-      floors: [
-        {
-          id: 1,
-          name: '一楼阅览室',
-          availableSeats: 45
-        },
-        {
-          id: 2,
-          name: '二楼阅览室',
-          availableSeats: 38
-        },
-        {
-          id: 3,
-          name: '三楼阅览室',
-          availableSeats: 52
+    wx.request({
+      url: `${app.globalData.baseURL}/api/v1/library/seats`,
+      method: 'GET',
+      success: (res) => {
+        console.log('[图书馆] 座位信息API响应:', res);
+        
+        if (res.statusCode === 200 && res.data.code === 0) {
+          this.setData({
+            floors: res.data.data.floors
+          });
+        } else {
+          console.error('[图书馆] 获取座位信息失败:', res.data);
         }
-      ]
-    })
+      },
+      fail: (error) => {
+        console.error('[图书馆] 座位信息请求失败:', error);
+      }
+    });
   },
 
   onViewBookDetail(e) {
@@ -118,7 +130,6 @@ Page({
       return
     }
 
-    // TODO: 调用荐购接口
     wx.showToast({
       title: '荐购成功',
       icon: 'success'

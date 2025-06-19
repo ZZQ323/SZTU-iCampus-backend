@@ -1,103 +1,222 @@
-<view class="course-editor">
-  <scroll-view scroll-y class="form-container">
+<!-- 课程编辑器 -->
+<view class="page">
+  <view class="bblank"></view>
+  
+  <!-- 表单内容 -->
+  <view class="form-container">
+    <view class="form-title">{{isEdit ? '编辑课程' : '添加课程'}}</view>
+    
     <!-- 基本信息 -->
     <view class="form-section">
-      <view class="section-title">📚 基本信息</view>
+      <view class="section-title">基本信息</view>
       
-      <view class="form-group">
-        <text class="label">课程名称 *</text>
-        <input class="input" 
-               placeholder="请输入课程名称" 
-               value="{{course.course_name}}"
-               bindinput="onCourseNameInput" />
+      <view class="form-item">
+        <view class="label">课程名称 *</view>
+        <t-input
+          placeholder="请输入课程名称"
+          value="{{form.course_name}}"
+          bind:change="onFieldChange"
+          data-field="course_name"
+        />
       </view>
       
-      <view class="form-group">
-        <text class="label">授课教师 *</text>
-        <input class="input" 
-               placeholder="请输入教师姓名" 
-               value="{{course.teacher}}"
-               bindinput="onTeacherInput" />
+      <view class="form-item">
+        <view class="label">课程代码</view>
+        <t-input
+          placeholder="请输入课程代码（可选）"
+          value="{{form.course_code}}"
+          bind:change="onFieldChange"
+          data-field="course_code"
+        />
       </view>
       
-      <view class="form-group">
-        <text class="label">上课地点 *</text>
-        <input class="input" 
-               placeholder="请输入教室号" 
-               value="{{course.classroom}}"
-               bindinput="onClassroomInput" />
+      <view class="form-item">
+        <view class="label">授课教师 *</view>
+        <t-input
+          placeholder="请输入教师姓名"
+          value="{{form.teacher}}"
+          bind:change="onFieldChange"
+          data-field="teacher"
+        />
+      </view>
+      
+      <view class="form-item">
+        <view class="label">教室 *</view>
+        <t-input
+          placeholder="请输入教室位置"
+          value="{{form.classroom}}"
+          bind:change="onFieldChange"
+          data-field="classroom"
+        />
       </view>
     </view>
-
+    
     <!-- 时间安排 -->
     <view class="form-section">
-      <view class="section-title">⏰ 时间安排</view>
+      <view class="section-title">时间安排</view>
       
-      <view class="form-group">
-        <text class="label">星期</text>
-        <picker range="{{weekDays}}" range-key="label" bindchange="onWeekDayChange">
-          <view class="picker">
-            {{weekDays[course.week_day - 1].label}} 📅
-          </view>
-        </picker>
+      <view class="form-item">
+        <view class="label">星期 *</view>
+        <t-cell title="{{weekDayOptions[form.week_day - 1] || '请选择星期'}}" arrow bindtap="selectWeekDay" />
       </view>
       
-      <view class="form-group">
-        <text class="label">时间段</text>
-        <picker range="{{timeSlots}}" range-key="label" bindchange="onTimeSlotChange">
-          <view class="picker">
-            {{course.start_time}}-{{course.end_time}} ⏰
-          </view>
-        </picker>
+      <view class="form-item">
+        <view class="label">时间段 *</view>
+        <t-cell title="{{timeSlotOptions[form.time_slot - 1] || '请选择时间段'}}" arrow bindtap="selectTimeSlot" />
       </view>
       
-      <view class="form-group">
-        <text class="label">上课周次</text>
-        <input class="input" 
-               placeholder="例如：1-16" 
-               value="{{course.weeks}}"
-               bindinput="onWeeksInput" />
+      <view class="form-item">
+        <view class="label">开始时间</view>
+        <t-input
+          placeholder="08:30"
+          value="{{form.start_time}}"
+          bind:change="onFieldChange"
+          data-field="start_time"
+        />
+      </view>
+      
+      <view class="form-item">
+        <view class="label">结束时间</view>
+        <t-input
+          placeholder="10:10"
+          value="{{form.end_time}}"
+          bind:change="onFieldChange"
+          data-field="end_time"
+        />
       </view>
     </view>
-
+    
+    <!-- 周次设置 -->
+    <view class="form-section">
+      <view class="section-title">周次设置</view>
+      
+      <view class="form-item">
+        <view class="label">开始周次 *</view>
+        <t-stepper
+          value="{{form.start_week}}"
+          min="1"
+          max="30"
+          bind:change="onStepperChange"
+          data-field="start_week"
+        />
+      </view>
+      
+      <view class="form-item">
+        <view class="label">结束周次 *</view>
+        <t-stepper
+          value="{{form.end_week}}"
+          min="{{form.start_week}}"
+          max="30"
+          bind:change="onStepperChange"
+          data-field="end_week"
+        />
+      </view>
+      
+      <view class="form-item">
+        <view class="label">周次表达式</view>
+        <t-input
+          placeholder="例：1-16 或 1,3,5,7 或 1-8+10-16"
+          value="{{form.week_expression}}"
+          bind:change="onFieldChange"
+          data-field="week_expression"
+        />
+        <view class="hint">支持复杂表达式，如：1-16（第1到16周）、1,3,5（第1、3、5周）</view>
+      </view>
+      
+      <view class="form-item">
+        <view class="label">单双周</view>
+        <t-radio-group value="{{form.odd_even}}" bind:change="onOddEvenChange">
+          <t-radio value="all" label="全部" />
+          <t-radio value="odd" label="单周" />
+          <t-radio value="even" label="双周" />
+        </t-radio-group>
+      </view>
+    </view>
+    
     <!-- 课程属性 -->
     <view class="form-section">
-      <view class="section-title">🏷️ 课程属性</view>
+      <view class="section-title">课程属性</view>
       
-      <view class="form-group">
-        <text class="label">课程类型</text>
-        <picker range="{{courseTypes}}" bindchange="onCourseTypeChange">
-          <view class="picker">
-            {{course.course_type}} 🏷️
-          </view>
-        </picker>
+      <view class="form-item">
+        <view class="label">课程类型 *</view>
+        <t-radio-group value="{{form.course_type}}" bind:change="onCourseTypeChange">
+          <t-radio value="必修" label="必修" />
+          <t-radio value="选修" label="选修" />
+          <t-radio value="实验" label="实验" />
+          <t-radio value="实践" label="实践" />
+        </t-radio-group>
       </view>
       
-      <view class="form-group">
-        <text class="label">学分</text>
-        <input class="input" 
-               type="digit"
-               placeholder="请输入学分" 
-               value="{{course.credits}}"
-               bindinput="onCreditsInput" />
+      <view class="form-item">
+        <view class="label">学分</view>
+        <t-input
+          placeholder="请输入学分"
+          value="{{form.credits}}"
+          bind:change="onFieldChange"
+          data-field="credits"
+        />
+      </view>
+      
+      <view class="form-item">
+        <view class="label">课时</view>
+        <t-stepper
+          value="{{form.course_hours}}"
+          min="1"
+          max="200"
+          bind:change="onStepperChange"
+          data-field="course_hours"
+        />
       </view>
     </view>
-  </scroll-view>
-
-  <!-- 底部操作按钮 -->
-  <view class="action-bar">
-    <button class="action-btn preview" bindtap="previewCourse">
-      👁️ 预览
-    </button>
     
-    <button class="action-btn delete" 
-            wx:if="{{isEdit}}"
-            bindtap="deleteCourse">
-      🗑️ 删除
-    </button>
-    
-    <button class="action-btn save" bindtap="saveCourse">
-      💾 保存
-    </button>
+    <!-- 课程描述 -->
+    <view class="form-section">
+      <view class="section-title">课程描述</view>
+      
+      <view class="form-item">
+        <view class="label">课程描述</view>
+        <t-textarea
+          placeholder="请输入课程描述"
+          value="{{form.course_description}}"
+          bind:change="onFieldChange"
+          data-field="course_description"
+          maxlength="500"
+        />
+      </view>
+      
+      <view class="form-item">
+        <view class="label">教材信息</view>
+        <t-textarea
+          placeholder="请输入教材信息"
+          value="{{form.textbook}}"
+          bind:change="onFieldChange"
+          data-field="textbook"
+          maxlength="300"
+        />
+      </view>
+    </view>
   </view>
-</view> 
+  
+  <!-- 底部操作栏 -->
+  <view class="bottom-actions">
+    <t-button theme="light" size="large" bindtap="onCancel">取消</t-button>
+    <t-button theme="primary" size="large" bindtap="onSave" loading="{{submitting}}">
+      {{isEdit ? '更新' : '保存'}}
+    </t-button>
+  </view>
+</view>
+
+<!-- 选择器弹窗 -->
+<t-action-sheet
+  visible="{{showWeekDayPicker}}"
+  items="{{weekDayPickerOptions}}"
+  bind:click="onWeekDaySelect"
+  bind:cancel="hideWeekDayPicker"
+/>
+
+<t-action-sheet
+  visible="{{showTimeSlotPicker}}"
+  items="{{timeSlotPickerOptions}}"
+  bind:click="onTimeSlotSelect"
+  bind:cancel="hideTimeSlotPicker"
+/> 

@@ -232,7 +232,7 @@ async def get_announcements_stream(db: Session = Depends(get_db)):
             
             # 3. 持续推送新公告（流式核心）
             while True:
-                await asyncio.sleep(random.uniform(10, 30))  # 随机间隔推送新公告
+                await asyncio.sleep(random.uniform(1000, 3000))  # 随机间隔推送新公告
                 
                 # 模拟新公告发布
                 new_announcement_data = {
@@ -266,47 +266,7 @@ async def get_announcements_stream(db: Session = Depends(get_db)):
         }
     )
 
-@app.get("/api/schedule")
-async def get_schedule(
-    student_id: str = "2024001",
-    week: int = 1,
-    db: Session = Depends(get_db)
-):
-    """
-    获取课表信息（公开接口，无需认证）
-    - **student_id**: 学生学号
-    - **week**: 周次
-    """
-    schedules = db.query(Schedule).filter(
-        Schedule.student_id == student_id
-    ).all()
-    
-    # 转换为前端期望的格式
-    schedule_list = []
-    for schedule in schedules:
-        schedule_list.append({
-            "id": schedule.id,
-            "course_name": schedule.course_name,
-            "teacher": schedule.teacher,
-            "classroom": schedule.classroom,
-            "week_day": schedule.week_day,
-            "start_time": schedule.start_time,
-            "end_time": schedule.end_time,
-            "weeks": schedule.weeks,
-            "course_type": schedule.course_type,
-            "credits": schedule.credits
-        })
-    
-    return {
-        "code": 0,
-        "message": "success",
-        "data": {
-            "schedules": schedule_list,
-            "total": len(schedule_list),
-            "current_week": week,
-            "student_id": student_id
-        }
-    }
+# 注释：课表API已迁移到 /api/v1/schedule，此处删除冗余实现
 
 @app.get("/api/notices")
 async def get_notices(

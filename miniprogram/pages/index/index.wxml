@@ -1,0 +1,117 @@
+<!-- 首页 -->
+<view class="page">
+  <view class="bblank"></view>
+  <!-- 顶部用户卡片 -->
+  <view class="user-card">
+    <view class="user-info">
+      <image src="../../assets/test/man.png" class="user-avatar" mode="aspectFill"></image>
+      <view class="user-details">
+        <view class="user-name">{{userInfo.name || '点击登录'}}</view>
+        <view class="user-id">{{userInfo.studentId || '未登录'}}</view>
+      </view>
+    </view>
+    <view class="user-actions">
+      <button wx:if="{{!userInfo.name}}" size="mini" class="custom-btn login-btn" bindtap="navigateToLogin">登录</button>
+      <button wx:if="{{userInfo.name}}" size="mini" class="custom-btn logout-btn" bindtap="onLogout">退出</button>
+      <button wx:if="{{userInfo.isAdmin}}" size="mini" class="custom-btn admin-btn" bindtap="navigateToAdmin">管理</button>
+    </view>
+  </view>
+
+  <!-- 快捷服务网格 -->
+  <view class="section">
+    <view class="section-title">校园服务</view>
+    <view class="service-grid">
+      <view 
+        wx:for="{{quickServices}}" 
+        wx:key="title"
+        class="service-item" 
+        bindtap="navigateToService"
+        data-item="{{item}}"
+      >
+        <view class="service-icon-text">{{item.icon}}</view>
+        <text class="service-text">{{item.title}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 最新公告 -->
+  <view class="section">
+    <view class="section-header">
+      <view class="section-title">最新公告</view>
+      <t-button theme="light" size="small" bindtap="navigateToAnnouncements">查看更多</t-button>
+    </view>
+    <t-cell-group wx:if="{{announcements.length > 0}}">
+      <t-cell 
+        wx:for="{{announcements}}" 
+        wx:key="id"
+        title="{{item.title}}"
+        description="{{item.department}} · {{item.date}}"
+        arrow
+        bindtap="viewAnnouncementDetail"
+        data-announcement="{{item}}"
+      ></t-cell>
+    </t-cell-group>
+    <view wx:else class="empty-state">
+      <text>暂无公告</text>
+    </view>
+  </view>
+
+  <!-- 流式数据状态 -->
+  <view class="stream-status" wx:if="{{streamStatus.isConnected}}">
+    <text class="status-text">🌊 实时数据已连接</text>
+    <text class="status-detail">{{streamStatus.connectionTime}}</text>
+  </view>
+
+  <!-- 后勤联系电话 -->
+  <view class="section contact-section">
+    <view class="section-title">后勤联系电话</view>
+    <view class="contact-grid">
+      <view 
+        wx:for="{{contactInfo}}" 
+        wx:key="name"
+        class="contact-item"
+      >
+        <view class="contact-header">
+          <view class="contact-icon">{{item.icon}}</view>
+          <view class="contact-details">
+            <view class="contact-name">{{item.name}}</view>
+            <view class="contact-category">{{item.category}}</view>
+          </view>
+        </view>
+        <view class="contact-phone">{{item.phone}}</view>
+        <view class="contact-actions">
+          <view 
+            class="action-btn call-btn" 
+            bindtap="makePhoneCall"
+            data-phone="{{item.phone}}"
+            data-name="{{item.name}}"
+          >
+            📞 拨打
+          </view>
+          <view 
+            class="action-btn copy-btn" 
+            bindtap="copyPhoneNumber"
+            data-phone="{{item.phone}}"
+            data-name="{{item.name}}"
+          >
+            📋 复制
+          </view>
+        </view>
+      </view>
+    </view>
+    <view class="contact-footer">
+      <text class="footer-tip">💡 紧急情况请拨打保卫处电话</text>
+    </view>
+  </view>
+</view>
+
+<!-- 公告详情弹窗 -->
+<t-dialog
+  visible="{{showDialog}}"
+  title="{{dialogData.title}}"
+  content="{{dialogData.content}}"
+  confirm-btn="查看详情"
+  cancel-btn="关闭"
+  bind:confirm="onDialogConfirm"
+  bind:cancel="onDialogCancel"
+></t-dialog> 

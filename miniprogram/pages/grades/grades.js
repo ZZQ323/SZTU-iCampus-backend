@@ -57,7 +57,7 @@ Page({
     this.setData({ loading: true, error: '' });
     
     // 构建请求参数
-    let url = `${app.globalData.baseUrl}/api/grades?limit=50`;
+    let url = `${app.globalData.baseURL}/api/grades?limit=50`;
     
     if (this.data.currentSemester !== '全部') {
       url += `&semester=${encodeURIComponent(this.data.currentSemester)}`;

@@ -1,97 +1,140 @@
-.container {
-  padding: 0;
-  background-color: #f5f5f5;
+/* 课表页面样式 */
+.bblank{
+  width: 100%;
+  height:2vh;
+}
+.page {
+  background: rgb(196, 193, 235);
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding-top: env(safe-area-inset-top);
 }
 
-.schedule-container {
-  padding: 20rpx;
-}
-
-/* 周次选择器 */
-.week-selector {
+/* 头部控制栏 */
+.header {
   background: white;
-  padding: 30rpx;
-  border-radius: 16rpx;
-  margin-bottom: 20rpx;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+  padding: 32rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1rpx solid #e0e0e0;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+  width: 85vw;
+  margin: auto;
+  border-radius: 3%;
 }
 
 .week-info {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20rpx;
+  flex-direction: column;
 }
 
-.week-text {
-  font-size: 32rpx;
+.week-title {
+  font-size: 36rpx;
   font-weight: 600;
-  color: #333;
+  color: #1a1a1a;
+  margin-bottom: 8rpx;
 }
 
-.action-buttons {
+.week-subtitle {
+  font-size: 24rpx;
+  color: #666;
+}
+
+.header-actions {
   display: flex;
-  gap: 20rpx;
-  justify-content: center;
+  gap: 16rpx;
 }
 
-.action-buttons .t-button {
+/* 课表内容 */
+.schedule-content {
   flex: 1;
+  padding: 20rpx;
 }
 
-/* 课表表格 */
-.schedule-table {
+/* 加载状态 */
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 400rpx;
+}
+
+/* 课表网格 */
+.schedule-grid {
   background: white;
   border-radius: 16rpx;
-  margin-bottom: 30rpx;
   overflow: hidden;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.08);
 }
 
-.table-header {
+/* 星期头部 */
+.week-header {
   display: flex;
-  background: linear-gradient(135deg, #4a90e2, #357abd);
+  background: #0052d9;
   color: white;
 }
 
-.time-header {
-  flex: 1;
-  padding: 20rpx 10rpx;
-  text-align: center;
-  font-size: 24rpx;
-  font-weight: 600;
+.time-column {
+  width: 120rpx;
+  padding: 24rpx 12rpx;
+  background: #003eb3;
 }
 
-.day-header {
+.day-column {
   flex: 1;
-  padding: 20rpx 10rpx;
+  padding: 16rpx 8rpx;
   text-align: center;
-  font-size: 24rpx;
+  border-left: 1rpx solid rgba(255, 255, 255, 0.2);
+}
+
+.day-column.today {
+  background: #4a90e2;
+}
+
+.day-name {
+  font-size: 28rpx;
   font-weight: 600;
+  margin-bottom: 4rpx;
+}
+
+.day-date {
+  font-size: 22rpx;
+  opacity: 0.8;
+}
+
+/* 课表网格内容 */
+.schedule-grid-content {
+  display: flex;
+  flex-direction: column;
 }
 
 .time-row {
   display: flex;
   border-bottom: 1rpx solid #f0f0f0;
-  min-height: 120rpx;
 }
 
+.time-row:last-child {
+  border-bottom: none;
+}
+
+/* 时间单元格 */
 .time-cell {
-  flex: 1;
-  padding: 15rpx 10rpx;
+  width: 120rpx;
+  padding: 20rpx 12rpx;
   background: #fafafa;
-  border-right: 1rpx solid #f0f0f0;
+  border-right: 1rpx solid #e0e0e0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
 }
 
-.time-label {
-  font-size: 22rpx;
+.time-period {
+  font-size: 24rpx;
   color: #666;
-  margin-bottom: 5rpx;
+  margin-bottom: 4rpx;
 }
 
 .time-range {
@@ -99,149 +142,187 @@
   color: #999;
 }
 
+/* 课程单元格 */
 .course-cell {
   flex: 1;
-  padding: 10rpx 5rpx;
-  border-right: 1rpx solid #f0f0f0;
   min-height: 120rpx;
+  border-left: 1rpx solid #f0f0f0;
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
+.course-cell.today {
+  background: #f8fbff;
+}
+
+/* 课程项 */
 .course-item {
-  background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+  width: 100%;
+  height: 100%;
+  padding: 12rpx;
   border-radius: 8rpx;
-  padding: 10rpx;
-  margin: 2rpx;
-  border-left: 4rpx solid #2196f3;
+  margin: 4rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+  font-size: 20rpx;
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
 .course-item:active {
-  transform: scale(0.98);
-  background: linear-gradient(135deg, #bbdefb, #90caf9);
+  transform: scale(0.95);
+}
+
+/* 不同类型课程的颜色 */
+.course-item.required {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+}
+
+.course-item.elective {
+  background: linear-gradient(135deg, #ffecd2, #fcb69f);
+  color: #8b4513;
+}
+
+.course-item.lab {
+  background: linear-gradient(135deg, #a8edea, #fed6e3);
+  color: #2c3e50;
+}
+
+.course-item.practice {
+  background: linear-gradient(135deg, #ff9a9e, #fecfef);
+  color: #8b1538;
 }
 
 .course-name {
-  font-size: 20rpx;
+  font-size: 22rpx;
   font-weight: 600;
-  color: #1976d2;
   margin-bottom: 4rpx;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.course-teacher {
-  font-size: 18rpx;
-  color: #666;
-  margin-bottom: 2rpx;
+  line-height: 1.2;
 }
 
 .course-location {
   font-size: 18rpx;
-  color: #999;
+  opacity: 0.8;
+  margin-bottom: 2rpx;
 }
 
-/* 课程列表视图 */
-.course-list-view {
-  background: white;
-  border-radius: 16rpx;
-  padding: 30rpx;
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+.course-teacher {
+  font-size: 18rpx;
+  opacity: 0.8;
+}
+
+/* 空单元格 */
+.empty-cell {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.3;
+  transition: all 0.3s ease;
+}
+
+.empty-cell:active {
+  opacity: 0.6;
+  background: #f0f8ff;
+}
+
+.add-text {
+  font-size: 32rpx;
+  color: #ccc;
+}
+
+/* 今日课程卡片 */
+.today-courses {
+  margin-top: 32rpx;
 }
 
 .section-title {
-  font-size: 36rpx;
+  font-size: 32rpx;
   font-weight: 600;
-  color: #333;
-  margin-bottom: 30rpx;
-  text-align: center;
-}
-
-.daily-courses {
-  margin-bottom: 30rpx;
-}
-
-.day-title {
-  font-size: 28rpx;
-  font-weight: 600;
-  color: #4a90e2;
+  color: #1a1a1a;
   margin-bottom: 20rpx;
-  padding-bottom: 10rpx;
-  border-bottom: 2rpx solid #e3f2fd;
+  padding: 0 20rpx;
 }
 
-.courses {
-  display: flex;
-  flex-direction: column;
-  gap: 15rpx;
+.course-cards {
+  white-space: nowrap;
+  padding: 0 20rpx;
 }
 
 .course-card {
-  background: linear-gradient(135deg, #ffffff, #fafafa);
-  border-radius: 12rpx;
-  padding: 25rpx;
-  border: 1rpx solid #e0e0e0;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+  display: inline-block;
+  width: 280rpx;
+  background: white;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-right: 20rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.08);
   transition: all 0.3s ease;
 }
 
 .course-card:active {
-  transform: translateY(2rpx);
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+  transform: translateY(-4rpx);
 }
 
-.course-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15rpx;
+.course-card.ongoing {
+  border-left: 6rpx solid #52c41a;
 }
 
-.course-header .course-name {
-  font-size: 28rpx;
-  font-weight: 600;
-  color: #333;
-  white-space: normal;
+.course-card.upcoming {
+  border-left: 6rpx solid #1890ff;
 }
 
-.course-type {
-  font-size: 20rpx;
-  color: white;
-  background: #4a90e2;
-  padding: 4rpx 12rpx;
-  border-radius: 20rpx;
+.course-card.finished {
+  border-left: 6rpx solid #d9d9d9;
+  opacity: 0.7;
 }
 
-.course-info {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 10rpx;
-}
-
-.course-time {
+.card-time {
   font-size: 24rpx;
   color: #666;
-  font-weight: 500;
+  margin-bottom: 8rpx;
 }
 
-.course-info .course-location {
+.card-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 8rpx;
+  line-height: 1.3;
+}
+
+.card-info {
   font-size: 24rpx;
-  color: #999;
+  color: #666;
+  margin-bottom: 8rpx;
 }
 
-.course-teacher {
+.card-status {
   font-size: 22rpx;
-  color: #4a90e2;
-  font-weight: 500;
+  padding: 4rpx 12rpx;
+  border-radius: 12rpx;
+  text-align: center;
 }
 
-.no-course {
-  text-align: center;
-  padding: 40rpx;
+.course-card.ongoing .card-status {
+  background: #f6ffed;
+  color: #52c41a;
+}
+
+.course-card.upcoming .card-status {
+  background: #e6f7ff;
+  color: #1890ff;
+}
+
+.course-card.finished .card-status {
+  background: #f5f5f5;
   color: #999;
-  font-size: 24rpx;
 }
 
 /* 响应式设计 */

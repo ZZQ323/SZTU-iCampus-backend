@@ -1,0 +1,85 @@
+<!-- 通知页面 -->
+<view class="page">
+  <!-- 顶部搜索栏 -->
+  <view class="bblank"></view>
+  <view class="search-header">
+    <view class="search-box">
+      <t-search 
+        value="{{searchText}}" 
+        placeholder="搜索通知..." 
+        bindchange="onSearchChange"
+        bindsubmit="onSearchSubmit"
+      />
+    </view>
+  </view>
+
+  <!-- 分类标签 -->
+  <view class="filter-tabs">
+    <scroll-view scroll-x class="tabs-scroll">
+      <view class="tabs-container">
+        <view 
+          wx:for="{{categories}}" 
+          wx:key="index"
+          class="tab-item {{currentCategory === item.value ? 'active' : ''}}"
+          bindtap="onCategoryChange"
+          data-category="{{item.value}}"
+        >
+          {{item.label}}
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 通知列表 -->
+  <view class="content">
+    <view wx:if="{{loading}}" class="loading">
+      <t-loading size="large" text="加载中..." />
+    </view>
+
+    <view wx:elif="{{filteredNotifications.length === 0}}" class="empty">
+      <t-empty icon="app" description="暂无通知" />
+    </view>
+
+    <view wx:else class="notification-list">
+      <view 
+        wx:for="{{filteredNotifications}}" 
+        wx:key="id"
+        class="notification-item"
+        bindtap="viewNotification"
+        data-notification="{{item}}"
+      >
+        <view class="item-header">
+          <view class="title">{{item.title}}</view>
+          <view class="badge {{item.priority === 'high' ? 'urgent' : 'normal'}}">
+            {{item.priority === 'high' ? '重要' : '一般'}}
+          </view>
+        </view>
+        <view class="item-content">
+          <text class="preview">{{item.content}}</text>
+        </view>
+        <view class="item-footer">
+          <view class="meta">
+            <text class="department">{{item.department}}</text>
+            <text class="time">{{item.date}} {{item.time}}</text>
+          </view>
+          <view class="actions">
+            <t-button 
+              size="small" 
+              theme="light" 
+              bindtap="shareNotification"
+              data-notification="{{item}}"
+              catchtap="true"
+            >
+              分享
+            </t-button>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 刷新提示 -->
+  <view wx:if="{{showRefreshTip}}" class="refresh-tip">
+    <t-message theme="info" content="下拉刷新获取最新通知" />
+  </view>
+</view> 

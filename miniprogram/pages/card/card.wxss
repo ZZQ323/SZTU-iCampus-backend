@@ -1,58 +1,188 @@
-.container {
+/* 校园卡快速操作面板样式 */
+.bblank {
+  width: 100%;
+  height: 2vh;
+}
+
+.page {
+  background: rgb(196, 193, 235);
   min-height: 100vh;
-  background: #f5f5f5;
+  padding: 20rpx;
 }
 
-.card-container {
-  padding: 24rpx;
-}
-
-.card-info {
-  background: #ffffff;
-  border-radius: 12rpx;
-  padding: 32rpx;
-  margin-bottom: 24rpx;
-}
-
-.card-header {
+/* 卡片状态区域 */
+.card-status {
   margin-bottom: 32rpx;
 }
 
-.balance {
-  text-align: center;
-  margin-bottom: 16rpx;
+.balance-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 24rpx;
+  padding: 40rpx 32rpx;
+  color: white;
+  box-shadow: 0 8rpx 24rpx rgba(102, 126, 234, 0.3);
 }
 
-.balance .label {
-  font-size: 28rpx;
-  color: #666;
-  margin-bottom: 8rpx;
-  display: block;
-}
-
-.balance .value {
-  font-size: 48rpx;
-  color: #4a90e2;
-  font-weight: bold;
-}
-
-.card-number {
-  text-align: center;
-  font-size: 24rpx;
-  color: #999;
-}
-
-.card-actions {
-  margin-top: 32rpx;
-}
-
-.card-functions {
-  background: #ffffff;
-  border-radius: 12rpx;
-  overflow: hidden;
+.balance-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 24rpx;
 }
 
-.card-notice {
-  margin-top: 24rpx;
+.balance-label {
+  font-size: 28rpx;
+  opacity: 0.9;
+}
+
+.status-indicator {
+  padding: 8rpx 16rpx;
+  border-radius: 20rpx;
+  font-size: 24rpx;
+}
+
+.status-indicator.normal {
+  background: rgba(76, 175, 80, 0.2);
+  border: 1rpx solid rgba(76, 175, 80, 0.3);
+}
+
+.status-indicator.lost {
+  background: rgba(244, 67, 54, 0.2);
+  border: 1rpx solid rgba(244, 67, 54, 0.3);
+}
+
+.balance-amount {
+  font-size: 64rpx;
+  font-weight: bold;
+  margin-bottom: 16rpx;
+}
+
+.card-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 24rpx;
+  opacity: 0.8;
+}
+
+/* 快速操作区域 */
+.quick-actions {
+  background: white;
+  border-radius: 24rpx;
+  padding: 32rpx;
+  margin-bottom: 32rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.1);
+}
+
+.action-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 24rpx;
+}
+
+.action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24rpx;
+}
+
+.action-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32rpx 24rpx;
+  border-radius: 16rpx;
+  background: #f8f9fa;
+  border: 2rpx solid transparent;
+  transition: all 0.3s ease;
+}
+
+.action-item:active {
+  transform: scale(0.95);
+  background: #e9ecef;
+}
+
+.action-item.danger {
+  background: #ffebee;
+  border-color: #ffcdd2;
+}
+
+.action-icon {
+  width: 64rpx;
+  height: 64rpx;
+  margin-bottom: 16rpx;
+}
+
+.action-text {
+  font-size: 28rpx;
+  color: #333;
+  text-align: center;
+}
+
+/* 充值选项区域 */
+.recharge-options {
+  background: white;
+  border-radius: 24rpx;
+  padding: 32rpx;
+  margin-bottom: 32rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.1);
+}
+
+.option-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 24rpx;
+}
+
+.amount-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16rpx;
+}
+
+.amount-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24rpx;
+  border-radius: 12rpx;
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+  font-weight: bold;
+  font-size: 28rpx;
+  transition: all 0.3s ease;
+  box-shadow: 0 2rpx 8rpx rgba(76, 175, 80, 0.3);
+}
+
+.amount-item:active {
+  transform: scale(0.95);
+  box-shadow: 0 1rpx 4rpx rgba(76, 175, 80, 0.5);
+}
+
+/* 使用提示区域 */
+.usage-tips {
+  background: white;
+  border-radius: 24rpx;
+  padding: 32rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.1);
+}
+
+.tips-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 20rpx;
+}
+
+.tips-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.tips-list text {
+  font-size: 26rpx;
+  color: #666;
+  line-height: 1.5;
 } 

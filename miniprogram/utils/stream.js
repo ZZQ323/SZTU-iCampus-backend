@@ -445,11 +445,11 @@ class AnnouncementStream {
     }
 
     console.log('[AnnouncementStream] 🚀 启动公告实时推送')
-    const baseUrl = getApp().globalData.baseUrl
+    const baseURL = getApp().globalData.baseURL
 
     this.streamManager.connect(
       'announcements',
-      `${baseUrl}/api/announcements/stream`,
+      `${baseURL}/api/announcements/stream`,
       (data) => {
         console.log('[AnnouncementStream] 📨 收到新公告:', data.title)
 
@@ -526,11 +526,11 @@ class EventStream {
     }
 
     console.log('[EventStream] 🚀 启动活动实时更新')
-    const baseUrl = getApp().globalData.baseUrl
+    const baseURL = getApp().globalData.baseURL
 
     this.streamManager.connect(
       'events',
-      `${baseUrl}/api/events/stream`,
+      `${baseURL}/api/events/stream`,
       (data) => {
         if (data.update_type === 'participant_change') {
           this.participantChangeCount++

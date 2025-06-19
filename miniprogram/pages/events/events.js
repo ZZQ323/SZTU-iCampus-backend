@@ -59,10 +59,10 @@ Page({
     this.setData({ loading: true })
 
     try {
-      const baseUrl = getApp().globalData.baseUrl
+      const baseURL = getApp().globalData.baseURL
       const response = await new Promise((resolve, reject) => {
         wx.request({
-          url: `${baseUrl}/api/events`,
+          url: `${baseURL}/api/events`,
           method: 'GET',
           success: resolve,
           fail: reject
@@ -330,27 +330,44 @@ Page({
     const event = e.currentTarget.dataset.event
     console.log('[活动页面] 🎯 查看活动详情:', event.title)
     
-    const detailMessage = `🎯 ${event.title}
-
-📅 时间: ${event.event_date}
-📍 地点: ${event.location}
-👥 参与: ${event.current_participants}/${event.max_participants} (${event.participationRate}%)
-
-📋 描述: ${event.description || '暂无详细描述'}`
-
-    wx.showModal({
-      title: '活动详情',
-      content: detailMessage,
-      showCancel: true,
-      cancelText: '关闭',
-      confirmText: '我要参加',
-      confirmColor: '#0052d9',
-      success: (res) => {
-        if (res.confirm) {
-          this.joinEvent(event)
-        }
-      }
+    // 构造完整的活动数据
+    const eventDetail = {
+      title: event.title,
+      description: event.description || '这是一个精彩的校园活动，期待您的参与！',
+      location: event.location,
+      organizer: event.organizer || '学生会',
+      status: this.getEventStatus(event),
+      startTime: event.start_time || event.event_date,
+      endTime: event.end_time,
+      date: event.event_date,
+      time: event.start_time,
+      participants: `${event.current_participants}/${event.max_participants}`,
+      agenda: event.agenda || '活动安排详情请关注后续通知',
+      requirements: event.requirements || '欢迎所有同学参与，无特殊要求',
+      contact: event.contact || '活动负责人：活动组委会',
+      reward: event.reward || '参与即可获得活动证书'
+    }
+    
+    // 存储到全局数据
+    app.globalData.currentEvent = eventDetail
+    
+    wx.navigateTo({
+      url: '/pages/event-detail/event-detail'
     })
+  },
+
+  // 获取活动状态
+  getEventStatus(event) {
+    const now = new Date()
+    const eventDate = new Date(event.event_date)
+    
+    if (eventDate > now) {
+      return 'upcoming'
+    } else if (event.current_participants >= event.max_participants) {
+      return 'ended'
+    } else {
+      return 'ongoing'
+    }
   },
 
   /**
