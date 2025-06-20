@@ -1,7 +1,8 @@
 <!-- 公告页面 -->
 <view class="page">
-  <!-- 顶部搜索栏 -->
   <view class="bblank"></view>
+  
+  <!-- 顶部搜索栏 -->
   <view class="search-header">
     <view class="search-box">
       <t-search 

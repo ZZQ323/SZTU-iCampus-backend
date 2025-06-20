@@ -7,6 +7,9 @@ Page({
     currentSemester: '2024-2025-1',
     semesterStartDate: '2024-09-02',
     loading: false,
+    selectedDay: 'monday',
+    selectedDayName: '周一',
+    selectedDayCourses: [],
     
     // 星期数据
     weekDays: [
@@ -29,330 +32,361 @@ Page({
     ],
     
     // 课表数据 [周一到周日][第几节课]
-    scheduleData: [],
+    scheduleData: {
+      week_info: {
+        current_week: 12,
+        total_weeks: 18,
+        semester: "2024-2025学年第一学期"
+      },
+      schedule: {}
+    },
+    
+    // 星期标题
+    dayHeaders: [
+      { name: '周一', key: 'monday', date: '12/16', isToday: false },
+      { name: '周二', key: 'tuesday', date: '12/17', isToday: false },
+      { name: '周三', key: 'wednesday', date: '12/18', isToday: true },
+      { name: '周四', key: 'thursday', date: '12/19', isToday: false },
+      { name: '周五', key: 'friday', date: '12/20', isToday: false },
+      { name: '周六', key: 'saturday', date: '12/21', isToday: false },
+      { name: '周日', key: 'sunday', date: '12/22', isToday: false }
+    ],
     
     // 今日课程
-    todayCourses: [],
-    todayIndex: 0,
+    todayCourses: [
+      {
+        id: 1,
+        course_name: "数据结构与算法",
+        teacher: "李教授",
+        time: "08:30-10:10",
+        location: "C2-301",
+        status: "upcoming"
+      },
+      {
+        id: 2,
+        course_name: "软件工程",
+        teacher: "王教授",
+        time: "10:30-12:10",
+        location: "C2-305",
+        status: "current"
+      },
+      {
+        id: 3,
+        course_name: "数据库原理",
+        teacher: "张教授",
+        time: "14:30-16:10",
+        location: "C2-302",
+        status: "upcoming"
+      }
+    ],
     
-    // 用户信息
-    userInfo: {}
+    // 周次选择器
+    weekRange: [
+      { label: "第1周", value: 1 },
+      { label: "第2周", value: 2 },
+      { label: "第3周", value: 3 },
+      { label: "第4周", value: 4 },
+      { label: "第5周", value: 5 },
+      { label: "第6周", value: 6 },
+      { label: "第7周", value: 7 },
+      { label: "第8周", value: 8 },
+      { label: "第9周", value: 9 },
+      { label: "第10周", value: 10 },
+      { label: "第11周", value: 11 },
+      { label: "第12周", value: 12 },
+      { label: "第13周", value: 13 },
+      { label: "第14周", value: 14 },
+      { label: "第15周", value: 15 },
+      { label: "第16周", value: 16 },
+      { label: "第17周", value: 17 },
+      { label: "第18周", value: 18 }
+    ],
+    weekIndex: 11,
+    
+    // 弹窗
+    showModal: false,
+    modalData: {},
+    
+    // 其他状态
+    isEmpty: false,
+    
+    // 周课程统计
+    weekSummary: {
+      totalCourses: 18,
+      requiredCourses: 12,
+      electiveCourses: 4,
+      practicalCourses: 2
+    }
   },
 
   onLoad() {
-    this.getUserInfo()
-    this.initializeData()
-    
-    // 获取当前周次后再获取课表数据
-    this.getCurrentWeek().then(() => {
-      this.fetchScheduleData()
-    })
+    console.log('课表页面加载');
+    this.initializeSchedule();
+    this.setTodayAsDefault();
   },
 
   onShow() {
-    this.updateTodayInfo()
-    // 只在有数据时更新今日课程，避免重复请求
-    if (this.data.scheduleData.length > 0) {
-      this.getTodayCourses(this.data.todayIndex)
-    }
+    this.updateSelectedDayCourses();
   },
 
-  // 获取用户信息
-  getUserInfo() {
-    const userInfo = wx.getStorageSync('userInfo')
-    if (userInfo) {
-      this.setData({ userInfo })
-    }
-  },
-
-  // 获取当前周次
-  getCurrentWeek() {
-    return new Promise((resolve) => {
-      const token = wx.getStorageSync('token')
-      if (!token) {
-        this.setData({ currentWeek: 1 })
-        resolve()
-        return
-      }
-      
-      wx.request({
-        url: `${app.globalData.baseURL}/api/v1/schedule/current-week`,
-        method: 'GET',
-        header: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+  initializeSchedule() {
+    // 模拟课表数据
+    const mockSchedule = {
+      monday: [
+        {
+          id: 1,
+          course_name: "数据结构与算法",
+          teacher: "李教授",
+          time: "08:30-10:10",
+          time_slot: "1-2",
+          location: "C2-301",
+          course_type: "required",
+          weeks: "1-16周",
+          status: "upcoming",
+          note: "请携带笔记本电脑"
         },
-        data: {
-          semester: this.data.currentSemester,
-          semester_start: this.data.semesterStartDate
+        {
+          id: 2,
+          course_name: "软件工程",
+          teacher: "王教授", 
+          time: "10:30-12:10",
+          time_slot: "3-4",
+          location: "C2-305",
+          course_type: "required",
+          weeks: "1-16周",
+          status: "upcoming"
         },
-        success: (res) => {
-          if (res.statusCode === 200 && res.data.current_week) {
-            this.setData({
-              currentWeek: res.data.current_week
-            })
-          }
-          resolve()
-        },
-        fail: (error) => {
-          console.error('获取当前周次失败:', error)
-          this.setData({ currentWeek: 1 })
-          resolve()
+        {
+          id: 3,
+          course_name: "数据库原理",
+          teacher: "张教授",
+          time: "14:30-16:10", 
+          time_slot: "7-8",
+          location: "C2-302",
+          course_type: "required",
+          weeks: "1-16周",
+          status: "upcoming"
         }
-      })
-    })
+      ],
+      tuesday: [
+        {
+          id: 4,
+          course_name: "计算机网络",
+          teacher: "陈教授",
+          time: "08:30-10:10",
+          time_slot: "1-2", 
+          location: "B3-201",
+          course_type: "required",
+          weeks: "1-16周",
+          status: "upcoming"
+        },
+        {
+          id: 5,
+          course_name: "人工智能导论",
+          teacher: "刘教授",
+          time: "14:30-16:10",
+          time_slot: "7-8",
+          location: "A1-105",
+          course_type: "elective",
+          weeks: "1-16周", 
+          status: "upcoming"
+        }
+      ],
+      wednesday: [
+        {
+          id: 6,
+          course_name: "操作系统",
+          teacher: "赵教授",
+          time: "08:30-10:10",
+          time_slot: "1-2",
+          location: "C2-303",
+          course_type: "required",
+          weeks: "1-16周",
+          status: "current",
+          note: "今日有随堂测验"
+        },
+        {
+          id: 7,
+          course_name: "编译原理",
+          teacher: "孙教授",
+          time: "10:30-12:10",
+          time_slot: "3-4",
+          location: "C2-306",
+          course_type: "required",
+          weeks: "1-16周",
+          status: "finished"
+        }
+      ],
+      thursday: [
+        {
+          id: 8,
+          course_name: "算法设计与分析",
+          teacher: "钱教授",
+          time: "08:30-10:10",
+          time_slot: "1-2",
+          location: "C2-304",
+          course_type: "required",
+          weeks: "1-16周",
+          status: "upcoming"
+        },
+        {
+          id: 9,
+          course_name: "移动应用开发",
+          teacher: "周教授",
+          time: "14:30-16:10",
+          time_slot: "7-8",
+          location: "D1-301",
+          course_type: "elective",
+          weeks: "1-16周",
+          status: "upcoming"
+        }
+      ],
+      friday: [
+        {
+          id: 10,
+          course_name: "软件测试",
+          teacher: "吴教授",
+          time: "08:30-10:10",
+          time_slot: "1-2",
+          location: "C2-307",
+          course_type: "required",
+          weeks: "1-16周",
+          status: "upcoming"
+        },
+        {
+          id: 11,
+          course_name: "项目实训",
+          teacher: "郑教授",
+          time: "14:30-17:00",
+          time_slot: "7-9",
+          location: "实训室A",
+          course_type: "practical",
+          weeks: "1-16周",
+          status: "upcoming",
+          note: "分组进行项目开发"
+        }
+      ],
+      saturday: [],
+      sunday: []
+    };
+
+    this.setData({
+      'scheduleData.schedule': mockSchedule
+    });
   },
 
-  // 初始化数据
-  initializeData() {
-    // 初始化空课表
-    const scheduleData = []
-    for (let day = 0; day < 7; day++) {
-      scheduleData[day] = []
-      for (let time = 0; time < 5; time++) {
-        scheduleData[day][time] = null
-      }
+  setTodayAsDefault() {
+    const dayHeaders = this.data.dayHeaders;
+    const todayIndex = dayHeaders.findIndex(day => day.isToday);
+    
+    if (todayIndex !== -1) {
+      this.setData({
+        selectedDay: dayHeaders[todayIndex].key,
+        selectedDayName: dayHeaders[todayIndex].name
+      });
     }
     
-    this.setData({ scheduleData })
-    this.updateTodayInfo()
+    this.updateSelectedDayCourses();
   },
 
-  // 更新今日信息
-  updateTodayInfo() {
-    const today = new Date().getDay()
-    const todayIndex = today === 0 ? 6 : today - 1 // 转换为0-6，周一为0
-    
-    // 更新星期显示
-    const weekDays = this.data.weekDays.map((day, index) => {
-      const date = new Date()
-      date.setDate(date.getDate() + index - todayIndex)
-      return {
-        ...day,
-        date: `${date.getMonth() + 1}-${date.getDate().toString().padStart(2, '0')}`
-      }
-    })
+  onSelectDay(e) {
+    const day = e.currentTarget.dataset.day;
+    const dayHeader = this.data.dayHeaders.find(item => item.key === day);
     
     this.setData({
-      weekDays,
-      todayIndex
-    })
+      selectedDay: day,
+      selectedDayName: dayHeader ? dayHeader.name : '未知'
+    });
     
-    // 获取今日课程
-    this.getTodayCourses(todayIndex)
+    this.updateSelectedDayCourses();
   },
 
-  // 获取今日课程
-  getTodayCourses(dayIndex) {
-    const { scheduleData, timeSlots } = this.data
-    const todayCourses = []
-    const now = new Date()
-    const currentTime = now.getHours() * 60 + now.getMinutes()
+  updateSelectedDayCourses() {
+    const schedule = this.data.scheduleData.schedule;
+    const selectedDayCourses = schedule[this.data.selectedDay] || [];
     
-    if (scheduleData[dayIndex]) {
-      scheduleData[dayIndex].forEach((course, timeIndex) => {
-        if (course) {
-          const timeSlot = timeSlots[timeIndex]
-          const [startTime, endTime] = [timeSlot.start_time, timeSlot.end_time]
-          const [startHour, startMin] = startTime.split(':').map(Number)
-          const [endHour, endMin] = endTime.split(':').map(Number)
-          
-          const courseStartTime = startHour * 60 + startMin
-          const courseEndTime = endHour * 60 + endMin
-          
-          let status = 'upcoming'
-          let statusText = '即将开始'
-          
-          if (currentTime >= courseStartTime && currentTime <= courseEndTime) {
-            status = 'ongoing'
-            statusText = '进行中'
-          } else if (currentTime > courseEndTime) {
-            status = 'finished'
-            statusText = '已结束'
-          }
-          
-          todayCourses.push({
-            ...course,
-            timeRange: `${startTime}-${endTime}`,
-            status,
-            statusText
-          })
-        }
-      })
-    }
-    
-    this.setData({ todayCourses })
+    this.setData({
+      selectedDayCourses: selectedDayCourses
+    });
   },
 
-  // 获取课表数据
-  fetchScheduleData() {
-    this.setData({ loading: true })
+  onWeekChange(e) {
+    const weekIndex = e.detail.value;
+    const weekData = this.data.weekRange[weekIndex];
     
-    const token = wx.getStorageSync('token')
-    if (!token) {
-      this.setData({ loading: false })
-      this.generateMockSchedule() // 使用模拟数据
-      return
-    }
+    this.setData({
+      weekIndex: weekIndex,
+      'scheduleData.week_info.current_week': weekData.value
+    });
     
-    wx.request({
-      url: `${app.globalData.baseURL}/api/v1/schedule/grid/${this.data.currentWeek}`,
-      method: 'GET',
-      header: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      data: {
-        semester: this.data.currentSemester
-      },
-      success: (res) => {
-        console.log('课表API响应:', res)
-        
-        if (res.statusCode === 200) {
-          const { schedule_data, time_slots } = res.data
-          
-          this.setData({
-            scheduleData: schedule_data || [],
-            timeSlots: time_slots || this.data.timeSlots
-          })
-          
-          // 更新今日课程
-          this.getTodayCourses(this.data.todayIndex)
-        } else {
-          console.error('API返回错误状态:', res.statusCode)
-          this.generateMockSchedule()
-        }
-        
-        this.setData({ loading: false })
-      },
-      fail: (error) => {
-        console.error('获取课表失败:', error)
-        wx.showToast({
-          title: '获取课表失败，使用模拟数据',
-          icon: 'none'
-        })
-        
-        // 使用模拟数据
-        this.generateMockSchedule()
-        this.setData({ loading: false })
-      }
-    })
+    // 这里可以调用API获取对应周次的课表
+    console.log(`切换到第${weekData.value}周`);
   },
 
-  // 生成模拟课表数据（备用）
-  generateMockSchedule() {
-    const schedule = []
-    
-    // 初始化空课表
-    for (let day = 0; day < 7; day++) {
-      schedule[day] = []
-      for (let time = 0; time < 5; time++) {
-        schedule[day][time] = null
-      }
-    }
-    
-    // 添加一些示例课程
-    const courses = [
-      { course_name: '高等数学', teacher: '张教授', classroom: 'A101', course_type: '必修' },
-      { course_name: '数据结构', teacher: '李老师', classroom: 'B205', course_type: '必修' },
-      { course_name: '计算机网络', teacher: '王老师', classroom: 'C303', course_type: '必修' },
-      { course_name: '软件工程', teacher: '赵老师', classroom: 'D401', course_type: '选修' },
-      { course_name: '数据库实验', teacher: '钱老师', classroom: '实验室1', course_type: '实验' },
-      { course_name: '毕业设计', teacher: '孙老师', classroom: 'E502', course_type: '实践' }
-    ]
-    
-    // 随机分配课程到课表中
-    const assignments = [
-      [0, 0, 0], [0, 1, 1], [1, 0, 2], [1, 2, 3], 
-      [2, 1, 4], [2, 3, 1], [3, 0, 5], [3, 2, 0],
-      [4, 1, 2], [4, 3, 3]
-    ]
-    
-    assignments.forEach(([day, time, courseIndex]) => {
-      if (courses[courseIndex]) {
-        schedule[day][time] = {
-          id: `${day}-${time}`,
-          ...courses[courseIndex]
-        }
-      }
-    })
-    
-    this.setData({ scheduleData: schedule })
+  showCourseDetail(e) {
+    const course = e.currentTarget.dataset.course;
+    this.setData({
+      modalData: course,
+      showModal: true
+    });
   },
 
-  // 切换周次
-  changeWeek() {
-    // 生成周次选项
-    const weekOptions = []
-    for (let i = 1; i <= 20; i++) {
-      weekOptions.push(`第${i}周`)
-    }
-    
-    wx.showActionSheet({
-      itemList: weekOptions,
-      success: (res) => {
-        const selectedWeek = res.tapIndex + 1 // tapIndex从0开始，所以+1
-        
-        this.setData({
-          currentWeek: selectedWeek
-        })
-        
-        // 重新获取该周课表数据
-        this.fetchScheduleData()
-        
-        wx.showToast({
-          title: `已切换到第${selectedWeek}周`,
-          icon: 'success'
-        })
-      },
-      fail: (res) => {
-        console.log('用户取消选择')
-      }
-    })
+  hideModal() {
+    this.setData({
+      showModal: false,
+      modalData: {}
+    });
   },
 
-  // 查看课程详情
-  viewCourseDetail(e) {
-    const course = e.currentTarget.dataset.course
-    
-    if (!course) return
-    
-    // 存储到全局数据
-    app.globalData.currentCourse = course
-    
-    wx.navigateTo({
-      url: '/pages/course-detail/course-detail'
-    })
-  },
-
-  // 添加课程
-  addCourse(e) {
-    const { day, time } = e.currentTarget.dataset
-    
-    // 存储位置信息
-    app.globalData.addCoursePosition = {
-      weekDay: parseInt(day) + 1, // 转换为1-7
-      timeSlot: parseInt(time) + 1, // 转换为1-5
-      currentWeek: this.data.currentWeek,
-      semester: this.data.currentSemester
-    }
-    
-    wx.navigateTo({
-      url: '/pages/course-editor/course-editor'
-    })
-  },
-
-  // 下拉刷新
   onPullDownRefresh() {
-    this.fetchScheduleData()
-    
-    // 延迟停止下拉刷新
-    setTimeout(() => {
-      wx.stopPullDownRefresh()
+    this.loadScheduleData().finally(() => {
+      wx.stopPullDownRefresh();
+    });
+  },
+
+  async loadScheduleData() {
+    try {
+      this.setData({ loading: true });
+      
+      // 这里应该调用后端API获取课表数据
+      // const res = await wx.request({
+      //   url: 'http://localhost:8000/api/v1/schedule',
+      //   method: 'GET',
+      //   data: {
+      //     week: this.data.scheduleData.week_info.current_week
+      //   },
+      //   header: {
+      //     'Authorization': 'Bearer ' + wx.getStorageSync('token')
+      //   }
+      // });
+      
+      // 模拟API调用延迟
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      console.log('课表数据加载完成');
+    } catch (error) {
+      console.error('加载课表数据失败:', error);
       wx.showToast({
-        title: '刷新成功',
-        icon: 'success'
-      })
-    }, 1000)
+        title: '加载失败',
+        icon: 'error'
+      });
+    } finally {
+      this.setData({ loading: false });
+    }
+  },
+
+  onShareAppMessage() {
+    return {
+      title: '我的课表 - SZTU校园',
+      path: '/pages/schedule/schedule',
+      imageUrl: '/assets/icons/schedule.png'
+    };
+  },
+
+  onShareTimeline() {
+    return {
+      title: '我的课表 - SZTU校园服务',
+      imageUrl: '/assets/icons/schedule.png'
+    };
   }
 }) 

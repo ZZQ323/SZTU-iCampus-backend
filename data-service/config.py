@@ -4,7 +4,7 @@ SZTU-iCampus 数据服务配置文件
 """
 import os
 from typing import Dict, Any
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -20,8 +20,8 @@ class Settings(BaseSettings):
     PORT: int = 8001
     WORKERS: int = 4
     
-    # 数据库配置
-    DATABASE_URL: str = "postgresql://postgres:password@localhost:5432/sztu_campus"
+    # 数据库配置 (修改为SQLite便于快速测试)
+    DATABASE_URL: str = "sqlite:///./sztu_campus.db"
     DATABASE_ECHO: bool = False  # 是否打印SQL语句
     DATABASE_POOL_SIZE: int = 20
     DATABASE_MAX_OVERFLOW: int = 30

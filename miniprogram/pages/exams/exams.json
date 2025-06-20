@@ -1,10 +1,9 @@
 {
   "navigationBarTitleText": "考试安排",
   "navigationStyle": "custom",
+  "enablePullDownRefresh": true,
   "usingComponents": {
-    "t-picker": "/miniprogram_npm/tdesign-miniprogram/picker/picker",
     "t-cell": "/miniprogram_npm/tdesign-miniprogram/cell/cell",
-    "t-cell-group": "/miniprogram_npm/tdesign-miniprogram/cell-group/cell-group",
-    "custom-navbar": "/components/custom-navbar/custom-navbar"
+    "t-cell-group": "/miniprogram_npm/tdesign-miniprogram/cell-group/cell-group"
   }
 } 

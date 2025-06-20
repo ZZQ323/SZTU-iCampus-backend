@@ -11,13 +11,10 @@ requests>=2.31.0
 email-validator>=2.0.0
 alembic==1.13.0
 
-# 数据服务集成依赖
 httpx==0.25.2
 redis==5.0.1
 
-# 日志系统
 loguru==0.7.2
 
-# 开发工具
 pytest==7.4.3
 pytest-asyncio==0.21.1

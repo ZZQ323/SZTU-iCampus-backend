@@ -16,26 +16,51 @@ from config import settings, DATABASE_CONFIG
 # 创建基础模型类
 Base = declarative_base()
 
+# 判断数据库类型
+is_sqlite = settings.DATABASE_URL.startswith("sqlite")
+
 # 同步数据库引擎
-sync_engine = create_engine(
-    settings.DATABASE_URL,
-    echo=DATABASE_CONFIG["echo"],
-    pool_size=DATABASE_CONFIG["pool_size"],
-    max_overflow=DATABASE_CONFIG["max_overflow"],
-    pool_pre_ping=True,  # 连接池预检查
-    pool_recycle=3600,   # 连接回收时间（秒）
-)
+if is_sqlite:
+    # SQLite配置
+    sync_engine = create_engine(
+        settings.DATABASE_URL,
+        echo=DATABASE_CONFIG["echo"],
+        poolclass=StaticPool,
+        connect_args={"check_same_thread": False},
+        pool_pre_ping=True,
+    )
+else:
+    # PostgreSQL配置
+    sync_engine = create_engine(
+        settings.DATABASE_URL,
+        echo=DATABASE_CONFIG["echo"],
+        pool_size=DATABASE_CONFIG["pool_size"],
+        max_overflow=DATABASE_CONFIG["max_overflow"],
+        pool_pre_ping=True,
+        pool_recycle=3600,
+    )
 
 # 异步数据库引擎（用于高性能场景）
-async_database_url = settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
-async_engine = create_async_engine(
-    async_database_url,
-    echo=DATABASE_CONFIG["echo"],
-    pool_size=DATABASE_CONFIG["pool_size"],
-    max_overflow=DATABASE_CONFIG["max_overflow"],
-    pool_pre_ping=True,
-    pool_recycle=3600,
-)
+if is_sqlite:
+    # SQLite使用aiosqlite
+    async_database_url = settings.DATABASE_URL.replace("sqlite://", "sqlite+aiosqlite://")
+    async_engine = create_async_engine(
+        async_database_url,
+        echo=DATABASE_CONFIG["echo"],
+        poolclass=StaticPool,
+        connect_args={"check_same_thread": False},
+    )
+else:
+    # PostgreSQL使用asyncpg
+    async_database_url = settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
+    async_engine = create_async_engine(
+        async_database_url,
+        echo=DATABASE_CONFIG["echo"],
+        pool_size=DATABASE_CONFIG["pool_size"],
+        max_overflow=DATABASE_CONFIG["max_overflow"],
+        pool_pre_ping=True,
+        pool_recycle=3600,
+    )
 
 # 创建会话工厂
 SessionLocal = sessionmaker(
@@ -89,31 +114,35 @@ def create_database():
     创建数据库（如果不存在）
     """
     try:
-        # 从完整URL中提取数据库名
-        db_name = settings.DATABASE_URL.split("/")[-1]
-        base_url = settings.DATABASE_URL.rsplit("/", 1)[0]
-        
-        # 连接到默认的postgres数据库
-        temp_engine = create_engine(f"{base_url}/postgres")
-        
-        with temp_engine.connect() as conn:
-            # 设置autocommit模式以执行CREATE DATABASE
-            conn.execute(text("COMMIT"))
+        if is_sqlite:
+            # SQLite数据库文件会在连接时自动创建
+            logger.info("SQLite database will be created automatically on connection")
+        else:
+            # PostgreSQL需要手动创建数据库
+            db_name = settings.DATABASE_URL.split("/")[-1]
+            base_url = settings.DATABASE_URL.rsplit("/", 1)[0]
             
-            # 检查数据库是否存在
-            result = conn.execute(
-                text("SELECT 1 FROM pg_database WHERE datname = :db_name"),
-                {"db_name": db_name}
-            )
+            # 连接到默认的postgres数据库
+            temp_engine = create_engine(f"{base_url}/postgres")
             
-            if not result.fetchone():
-                # 创建数据库
-                conn.execute(text(f"CREATE DATABASE {db_name}"))
-                logger.info(f"Database '{db_name}' created successfully")
-            else:
-                logger.info(f"Database '{db_name}' already exists")
+            with temp_engine.connect() as conn:
+                # 设置autocommit模式以执行CREATE DATABASE
+                conn.execute(text("COMMIT"))
                 
-        temp_engine.dispose()
+                # 检查数据库是否存在
+                result = conn.execute(
+                    text("SELECT 1 FROM pg_database WHERE datname = :db_name"),
+                    {"db_name": db_name}
+                )
+                
+                if not result.fetchone():
+                    # 创建数据库
+                    conn.execute(text(f"CREATE DATABASE {db_name}"))
+                    logger.info(f"Database '{db_name}' created successfully")
+                else:
+                    logger.info(f"Database '{db_name}' already exists")
+                    
+            temp_engine.dispose()
         
     except Exception as e:
         logger.error(f"Error creating database: {e}")
@@ -159,9 +188,14 @@ def check_database_connection():
     """
     try:
         with sync_engine.connect() as conn:
-            result = conn.execute(text("SELECT version()"))
-            version = result.fetchone()[0]
-            logger.info(f"Database connection successful. PostgreSQL version: {version}")
+            if is_sqlite:
+                result = conn.execute(text("SELECT sqlite_version()"))
+                version = result.fetchone()[0]
+                logger.info(f"Database connection successful. SQLite version: {version}")
+            else:
+                result = conn.execute(text("SELECT version()"))
+                version = result.fetchone()[0]
+                logger.info(f"Database connection successful. PostgreSQL version: {version}")
             return True
             
     except Exception as e:
@@ -175,9 +209,14 @@ async def check_async_database_connection():
     """
     try:
         async with async_engine.connect() as conn:
-            result = await conn.execute(text("SELECT version()"))
-            version = result.fetchone()[0]
-            logger.info(f"Async database connection successful. PostgreSQL version: {version}")
+            if is_sqlite:
+                result = await conn.execute(text("SELECT sqlite_version()"))
+                version = result.fetchone()[0]
+                logger.info(f"Async database connection successful. SQLite version: {version}")
+            else:
+                result = await conn.execute(text("SELECT version()"))
+                version = result.fetchone()[0]
+                logger.info(f"Async database connection successful. PostgreSQL version: {version}")
             return True
             
     except Exception as e:
@@ -191,42 +230,66 @@ def get_database_stats():
     """
     try:
         with sync_engine.connect() as conn:
-            # 获取数据库大小
-            db_name = settings.DATABASE_URL.split("/")[-1]
-            size_result = conn.execute(
-                text("SELECT pg_size_pretty(pg_database_size(:db_name))"),
-                {"db_name": db_name}
-            )
-            db_size = size_result.fetchone()[0]
-            
-            # 获取连接数
-            connections_result = conn.execute(
-                text("""
-                    SELECT count(*) 
-                    FROM pg_stat_activity 
-                    WHERE datname = :db_name
-                """),
-                {"db_name": db_name}
-            )
-            active_connections = connections_result.fetchone()[0]
-            
-            # 获取表数量
-            tables_result = conn.execute(
-                text("""
-                    SELECT count(*) 
-                    FROM information_schema.tables 
-                    WHERE table_schema = 'public'
-                """)
-            )
-            table_count = tables_result.fetchone()[0]
-            
-            return {
-                "database_size": db_size,
-                "active_connections": active_connections,
-                "table_count": table_count,
-                "engine_pool_size": sync_engine.pool.size(),
-                "engine_checked_out": sync_engine.pool.checkedout(),
-            }
+            if is_sqlite:
+                # SQLite统计信息
+                # 获取数据库文件大小
+                import os
+                db_file = settings.DATABASE_URL.replace("sqlite:///", "")
+                if os.path.exists(db_file):
+                    db_size = f"{os.path.getsize(db_file) / 1024 / 1024:.2f} MB"
+                else:
+                    db_size = "0 MB"
+                
+                # 获取表数量
+                tables_result = conn.execute(
+                    text("SELECT count(*) FROM sqlite_master WHERE type='table'")
+                )
+                table_count = tables_result.fetchone()[0]
+                
+                return {
+                    "database_size": db_size,
+                    "active_connections": 1,  # SQLite只支持单连接
+                    "table_count": table_count,
+                    "database_type": "SQLite",
+                }
+            else:
+                # PostgreSQL统计信息
+                db_name = settings.DATABASE_URL.split("/")[-1]
+                size_result = conn.execute(
+                    text("SELECT pg_size_pretty(pg_database_size(:db_name))"),
+                    {"db_name": db_name}
+                )
+                db_size = size_result.fetchone()[0]
+                
+                # 获取连接数
+                connections_result = conn.execute(
+                    text("""
+                        SELECT count(*) 
+                        FROM pg_stat_activity 
+                        WHERE datname = :db_name
+                    """),
+                    {"db_name": db_name}
+                )
+                active_connections = connections_result.fetchone()[0]
+                
+                # 获取表数量
+                tables_result = conn.execute(
+                    text("""
+                        SELECT count(*) 
+                        FROM information_schema.tables 
+                        WHERE table_schema = 'public'
+                    """)
+                )
+                table_count = tables_result.fetchone()[0]
+                
+                return {
+                    "database_size": db_size,
+                    "active_connections": active_connections,
+                    "table_count": table_count,
+                    "engine_pool_size": sync_engine.pool.size(),
+                    "engine_checked_out": sync_engine.pool.checkedout(),
+                    "database_type": "PostgreSQL",
+                }
             
     except Exception as e:
         logger.error(f"Error getting database stats: {e}")

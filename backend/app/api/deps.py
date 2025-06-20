@@ -78,6 +78,34 @@ async def get_admin_user(
     return current_user
 
 
+async def get_current_active_superuser(
+    current_user: Dict = Depends(get_current_active_user)
+) -> Dict:
+    """
+    获取当前活跃超级管理员用户
+    """
+    if current_user.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions. Admin role required."
+        )
+    return current_user
+
+
+async def get_current_admin_user(
+    current_user: Dict = Depends(get_current_active_user)
+) -> Dict:
+    """
+    获取当前管理员用户（别名函数）
+    """
+    if current_user.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions. Admin role required."
+        )
+    return current_user
+
+
 def create_access_token(data: dict) -> str:
     """
     创建JWT访问令牌

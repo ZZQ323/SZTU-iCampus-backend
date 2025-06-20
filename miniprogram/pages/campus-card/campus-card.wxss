@@ -58,7 +58,7 @@
 }
 
 .custom-navbar {
-  background: #4a90e2 !important;
+  /* background: #4a90e2 !important; */
 }
 
 .card-header {
@@ -113,4 +113,526 @@
 
 .transaction-amount.income {
   color: #00a870;
+}
+
+.campus-card-container {
+  background: #f5f7fa;
+  min-height: 100vh;
+  padding-bottom: 80px;
+}
+
+
+
+
+/* 校园卡卡片 */
+.card-section {
+  padding: 16px;
+}
+
+.campus-card {
+  background: linear-gradient(135deg, #0052d9 0%, #4dabf7 100%);
+  border-radius: 16px;
+  padding: 24px;
+  color: white;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 82, 217, 0.3);
+}
+
+.campus-card.card-lost {
+  background: linear-gradient(135deg, #666 0%, #999 100%);
+  box-shadow: 0 8px 24px rgba(102, 102, 102, 0.3);
+}
+
+.campus-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -20%;
+  width: 120px;
+  height: 120px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+}
+
+.campus-card::after {
+  content: '';
+  position: absolute;
+  bottom: -30%;
+  left: -10%;
+  width: 80px;
+  height: 80px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+}
+
+/* 卡片状态指示器 */
+.card-status {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 2;
+}
+
+.status-indicator {
+  background: rgba(0, 0, 0, 0.2);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-indicator.lost {
+  background: #e34d59;
+}
+
+/* 卡片头部 */
+.card-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24px;
+  position: relative;
+  z-index: 2;
+}
+
+.user-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin-right: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.user-avatar image {
+  width: 100%;
+  height: 100%;
+}
+
+.user-info {
+  flex: 1;
+}
+
+.user-name {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.user-id {
+  font-size: 14px;
+  opacity: 0.9;
+  margin-bottom: 2px;
+}
+
+.card-number {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.card-logo {
+  font-size: 20px;
+  font-weight: bold;
+  opacity: 0.8;
+}
+
+/* 余额部分 */
+.balance-section {
+  margin-bottom: 24px;
+  position: relative;
+  z-index: 2;
+}
+
+.balance-label {
+  font-size: 14px;
+  opacity: 0.9;
+  margin-bottom: 8px;
+}
+
+.balance-amount {
+  font-size: 36px;
+  font-weight: bold;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.last-update {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+/* 卡片操作按钮 */
+.card-actions {
+  display: flex;
+  gap: 12px;
+  position: relative;
+  z-index: 2;
+}
+
+.action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.action-btn.primary {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.action-btn.secondary {
+  background: white;
+  color: #0052d9;
+}
+
+/* 区域标题 */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  margin: 24px 0 16px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.section-action {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  color: #0052d9;
+  gap: 4px;
+}
+
+/* 统计卡片 */
+.stats-section {
+  margin: 0 16px;
+}
+
+.stats-cards {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  flex: 1;
+  background: white;
+  padding: 16px;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.stat-amount {
+  font-size: 20px;
+  font-weight: bold;
+  color: #0052d9;
+  margin-bottom: 4px;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #666;
+}
+
+/* 消费分类统计 */
+.category-stats {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.category-header {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 16px;
+}
+
+.category-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.category-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.category-info {
+  width: 80px;
+  flex-shrink: 0;
+}
+
+.category-name {
+  font-size: 14px;
+  color: #333;
+  margin-bottom: 2px;
+}
+
+.category-amount {
+  font-size: 12px;
+  color: #666;
+}
+
+.category-bar {
+  flex: 1;
+  height: 6px;
+  background: #f0f0f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.category-percentage {
+  width: 40px;
+  text-align: right;
+  font-size: 12px;
+  color: #666;
+}
+
+/* 交易记录 */
+.records-section {
+  margin: 0 16px;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 0;
+  background: white;
+  border-radius: 12px;
+  color: #666;
+  gap: 12px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60px 20px;
+  background: white;
+  border-radius: 12px;
+  color: #999;
+}
+
+.empty-text {
+  font-size: 16px;
+  margin: 12px 0 4px;
+}
+
+.records-list {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.record-item {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.record-item:last-child {
+  border-bottom: none;
+}
+
+.record-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8f9fa;
+  border-radius: 50%;
+  margin-right: 12px;
+}
+
+.record-info {
+  flex: 1;
+}
+
+.record-location {
+  font-size: 15px;
+  color: #333;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.record-time {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 2px;
+}
+
+.record-description {
+  font-size: 12px;
+  color: #999;
+}
+
+.record-amount {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.record-amount.consume {
+  color: #e34d59;
+}
+
+.record-amount.recharge {
+  color: #00a870;
+}
+
+/* 服务功能 */
+.services-section {
+  margin: 0 16px;
+}
+
+.services-grid {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.service-item {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.service-item:last-child {
+  border-bottom: none;
+}
+
+.service-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e7f3ff;
+  border-radius: 50%;
+  margin-right: 12px;
+}
+
+.service-info {
+  flex: 1;
+}
+
+.service-name {
+  font-size: 15px;
+  color: #333;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.service-desc {
+  font-size: 12px;
+  color: #666;
+}
+
+/* 常用地点 */
+.locations-section {
+  margin: 0 16px;
+}
+
+.locations-list {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.location-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.location-item:last-child {
+  border-bottom: none;
+}
+
+.location-info {
+  flex: 1;
+}
+
+.location-name {
+  font-size: 15px;
+  color: #333;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.location-stats {
+  display: flex;
+  gap: 16px;
+}
+
+.visit-count, .total-amount {
+  font-size: 12px;
+  color: #666;
+}
+
+.location-indicator {
+  display: flex;
+  align-items: center;
+}
+
+.amount-circle {
+  background: #e7f3ff;
+  color: #0052d9;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* 悬浮按钮 */
+.fab-container {
+  position: fixed;
+  bottom: 30px;
+  right: 20px;
+  z-index: 1000;
+}
+
+.fab-button {
+  width: 56px;
+  height: 56px;
+  background: #0052d9;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(0, 82, 217, 0.4);
+}
+
+.fab-button:active {
+  transform: scale(0.95);
 } 

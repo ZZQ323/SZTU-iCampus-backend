@@ -530,7 +530,7 @@ class EventStream {
 
     this.streamManager.connect(
       'events',
-      `${baseURL}/api/events/stream`,
+      `${baseURL}/api/v1/events/stream`,
       (data) => {
         if (data.update_type === 'participant_change') {
           this.participantChangeCount++

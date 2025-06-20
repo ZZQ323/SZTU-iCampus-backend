@@ -62,7 +62,7 @@ Page({
       const baseURL = getApp().globalData.baseURL
       const response = await new Promise((resolve, reject) => {
         wx.request({
-          url: `${baseURL}/api/events`,
+          url: `${baseURL}/api/v1/events`,
           method: 'GET',
           success: resolve,
           fail: reject

@@ -1,108 +1,121 @@
-<!-- 首页 -->
+<!-- SZTU-iCampus 首页 -->
 <view class="page">
+  <!-- 自定义导航栏 -->
   <view class="bblank"></view>
-  <!-- 顶部用户卡片 -->
+
+  <!-- 用户信息卡片 -->
   <view class="user-card">
-    <view class="user-info">
-      <image src="../../assets/test/man.png" class="user-avatar" mode="aspectFill"></image>
-      <view class="user-details">
-        <view class="user-name">{{userInfo.name || '点击登录'}}</view>
-        <view class="user-id">{{userInfo.studentId || '未登录'}}</view>
+    <view class="user-left">
+      <view class="user-avatar">
+        <image src="{{homeData.user_info.avatar}}" mode="aspectFill"></image>
+      </view>
+      <view class="user-info">
+        <view class="user-name">{{homeData.user_info.name}}</view>
+        <view class="user-id">学号：{{homeData.user_info.student_id}}</view>
+        <view class="user-college">{{homeData.user_info.college}}</view>
       </view>
     </view>
-    <view class="user-actions">
-      <button wx:if="{{!userInfo.name}}" size="mini" class="custom-btn login-btn" bindtap="navigateToLogin">登录</button>
-      <button wx:if="{{userInfo.name}}" size="mini" class="custom-btn logout-btn" bindtap="onLogout">退出</button>
-      <button wx:if="{{userInfo.isAdmin}}" size="mini" class="custom-btn admin-btn" bindtap="navigateToAdmin">管理</button>
+    <view class="user-stats">
+      <view class="stat-item">
+        <text class="stat-number">{{homeData.today_stats.courses}}</text>
+        <text class="stat-label">今日课程</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-number">{{homeData.today_stats.library_books}}</text>
+        <text class="stat-label">在借图书</text>
+      </view>
     </view>
   </view>
 
-  <!-- 快捷服务网格 -->
-  <view class="section">
-    <view class="section-title">校园服务</view>
-    <view class="service-grid">
+  <!-- 快捷功能网格 -->
+  <view class="quick-section">
+    <view class="section-title">快捷服务</view>
+    <view class="quick-grid">
       <view 
-        wx:for="{{quickServices}}" 
-        wx:key="title"
-        class="service-item" 
-        bindtap="navigateToService"
-        data-item="{{item}}"
+        class="grid-item" 
+        wx:for="{{homeData.quick_actions}}" 
+        wx:key="name"
+        bindtap="navigateTo" 
+        data-url="{{item.path}}"
       >
-        <view class="service-icon-text">{{item.icon}}</view>
-        <text class="service-text">{{item.title}}</text>
+        <view class="grid-icon-wrapper">
+          <image src="/assets/icons/{{item.icon}}.png" class="grid-icon"></image>
+        </view>
+        <text class="grid-text">{{item.name}}</text>
       </view>
+    </view>
+  </view>
+
+  <!-- 今日课表 -->
+  <view class="section" wx:if="{{homeData.today_schedule.length > 0}}">
+    <view class="section-header">
+      <text class="section-title">今日课表</text>
+      <text class="section-more" bindtap="navigateTo" data-url="/pages/schedule/schedule">查看全部</text>
+    </view>
+    <view class="schedule-container">
+      <view 
+        class="schedule-item {{item.status}}" 
+        wx:for="{{homeData.today_schedule}}" 
+        wx:key="id"
+      >
+        <view class="schedule-time">
+          <text class="time-text">{{item.time}}</text>
+          <view class="status-dot" wx:if="{{item.status === 'current'}}"></view>
+        </view>
+        <view class="schedule-info">
+          <text class="course-name">{{item.course_name}}</text>
+          <text class="course-detail">{{item.teacher}} · {{item.location}}</text>
+        </view>
+        <view class="schedule-status" wx:if="{{item.status === 'current'}}">
+          <text class="status-text">进行中</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空课表提示 -->
+  <view class="section" wx:else>
+    <view class="section-header">
+      <text class="section-title">今日课表</text>
+    </view>
+    <view class="empty-schedule">
+      <image src="/assets/icons/schedule.png" class="empty-icon"></image>
+      <text class="empty-text">今天没有课程安排</text>
+      <text class="empty-tip">享受美好的一天吧！</text>
     </view>
   </view>
 
   <!-- 最新公告 -->
   <view class="section">
     <view class="section-header">
-      <view class="section-title">最新公告</view>
-      <t-button theme="light" size="small" bindtap="navigateToAnnouncements">查看更多</t-button>
+      <text class="section-title">最新公告</text>
+      <text class="section-more" bindtap="navigateTo" data-url="/pages/announcements/announcements">更多</text>
     </view>
-    <t-cell-group wx:if="{{announcements.length > 0}}">
-      <t-cell 
-        wx:for="{{announcements}}" 
-        wx:key="id"
-        title="{{item.title}}"
-        description="{{item.department}} · {{item.date}}"
-        arrow
-        bindtap="viewAnnouncementDetail"
-        data-announcement="{{item}}"
-      ></t-cell>
-    </t-cell-group>
-    <view wx:else class="empty-state">
-      <text>暂无公告</text>
-    </view>
-  </view>
-
-  <!-- 流式数据状态 -->
-  <view class="stream-status" wx:if="{{streamStatus.isConnected}}">
-    <text class="status-text">🌊 实时数据已连接</text>
-    <text class="status-detail">{{streamStatus.connectionTime}}</text>
-  </view>
-
-  <!-- 后勤联系电话 -->
-  <view class="section contact-section">
-    <view class="section-title">后勤联系电话</view>
-    <view class="contact-grid">
+    <view class="announcement-list">
       <view 
-        wx:for="{{contactInfo}}" 
-        wx:key="name"
-        class="contact-item"
+        class="announcement-item" 
+        wx:for="{{homeData.announcements}}" 
+        wx:key="id" 
+        bindtap="navigateToAnnouncement" 
+        data-id="{{item.id}}"
       >
-        <view class="contact-header">
-          <view class="contact-icon">{{item.icon}}</view>
-          <view class="contact-details">
-            <view class="contact-name">{{item.name}}</view>
-            <view class="contact-category">{{item.category}}</view>
+        <view class="announcement-header">
+          <text class="announcement-title">{{item.title}}</text>
+          <view class="announcement-badges">
+            <text class="urgent-badge" wx:if="{{item.urgent}}">紧急</text>
+            <text class="category-badge">{{item.category}}</text>
           </view>
         </view>
-        <view class="contact-phone">{{item.phone}}</view>
-        <view class="contact-actions">
-          <view 
-            class="action-btn call-btn" 
-            bindtap="makePhoneCall"
-            data-phone="{{item.phone}}"
-            data-name="{{item.name}}"
-          >
-            📞 拨打
-          </view>
-          <view 
-            class="action-btn copy-btn" 
-            bindtap="copyPhoneNumber"
-            data-phone="{{item.phone}}"
-            data-name="{{item.name}}"
-          >
-            📋 复制
-          </view>
+        <view class="announcement-meta">
+          <text class="announcement-department">{{item.department}}</text>
+          <text class="announcement-date">{{item.date}}</text>
         </view>
       </view>
     </view>
-    <view class="contact-footer">
-      <text class="footer-tip">💡 紧急情况请拨打保卫处电话</text>
-    </view>
   </view>
+
+  <!-- 底部安全距离 -->
+  <view class="safe-area-bottom"></view>
 </view>
 
 <!-- 公告详情弹窗 -->

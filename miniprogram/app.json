@@ -7,7 +7,6 @@
     "pages/schedule/schedule",
     "pages/admin/admin",
     "pages/address_book/address_book",
-    "pages/notifications/notifications",
     "pages/events/events",
     "pages/grades/grades",
     "pages/exams/exams",
