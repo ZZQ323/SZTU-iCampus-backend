@@ -1,226 +1,285 @@
-# SZTU-iCampus Backend
+# SZTU-iCampus 微信小程序项目
 
-深圳技术大学校园服务小程序后端API服务
+## 项目概述
 
-## 已实现功能
+开发一个微信小程序，作为校园内各种Web服务的统一入口，利用流式处理技术实时加载内容，保证数据的安全性和隐私性，同时不占用服务器存储资源。
 
-- 用户认证与授权
-- 校园公告、部门通知
-- 课表查询与管理
-- 活动日历
-- 成绩查询
-- 考试安排与倒计时
-- 校园卡服务
-- 图书馆服务（借阅、座位预约、图书荐购）
-- 图形化自定义课表
-- 通讯录服务
-- **🔧 管理员系统**（新增）
-  - 用户权限管理
-  - 公告和通知管理
-  - 系统统计查看
-  - 管理员权限控制
+功能包括：校园公告、课表查询、部门通知、活动日历等。
 
-## 待实现功能
+## 技术架构
 
-## 技术栈
-
-- 后端：FastAPI
-- 数据库：Alembic+ SQLAlchemy + Pydantic + SQLite/PostgreSQL
-- JWT认证
-- 前端：miniprogramme+tdesign
-
-## 开发环境设置
-
-1. 创建虚拟环境：
-```bash
-python -m venv venv
-venv\Scripts\activate  # Windows
-conda activate icamp # anaconda
-```
-
-2. 安装依赖：
-```bash
-pip install -r requirements.txt
-```
-
-3. 初始化数据库：
-```bash
-python -m setup_db.py
-```
-
-4. 运行开发服务器：
-```bash
-uvicorn main:app --reload
-```
-
-5. 使用postman或者其他工具保证路由正常；
-
-
-## API文档
-
-启动服务器后访问：
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+- **前端**: 微信小程序 + TDesign-MiniProgram UI组件库
+- **后端**: FastAPI框架
+- **数据服务**: 独立的数据库服务（胶水层设计）
+- **数据库**: PostgreSQL
+- **流式处理**: SSE (Server-Sent Events)
 
 ## 项目结构
 
 ```
-backend/
-├── alembic/              # 数据库迁移
-├── app/
-│   ├── api/             # API路由
-│   ├── core/            # 核心配置（配置、安全、队列），被所有层调用
-│   ├── crud/            # CRUD操作存取封装
-│   ├── db/              # 数据库
-│   ├── models/          # SQLAlchemy 使用 ORM 模型
-│   └── schemas/         # Pydantic 模型，做数据验证用的
-├── tests/               # 测试
-├── requirements.txt     # 依赖
-└── README.md           # 文档
+SZTU-iCampus/
+├── backend/                    # 胶水层后端服务
+│   ├── app/                   # FastAPI应用
+│   ├── main.py               # 主程序入口
+│   └── requirements.txt      # 依赖文件
+├── data-service/              # 独立数据库服务 ⭐ 新增
+│   ├── models/               # 数据模型（25张表）
+│   ├── generators/           # Mock数据生成器
+│   ├── scripts/             # 初始化脚本
+│   ├── main.py              # 数据服务主程序
+│   ├── config.py            # 配置文件
+│   ├── database.py          # 数据库连接
+│   └── requirements.txt     # 依赖文件
+├── miniprogram/              # 微信小程序前端
+│   ├── pages/               # 页面文件
+│   ├── components/          # 组件文件
+│   └── utils/              # 工具函数
+└── README.md               # 项目说明
 ```
 
-## 部署
+## 数据服务实现 🚀
 
-1. 设置环境变量：
+### 架构设计特点
+
+✅ **胶水层设计**: 数据服务与业务逻辑分离，不占用存储资源  
+✅ **25张核心数据表**: 覆盖人员、课程、科研、资产、图书、财务、权限等全校园业务  
+✅ **真实数据模型**: 基于SZTU实际业务需求设计，包含完整编号系统  
+✅ **Mock数据生成**: 支持生成大量真实的中文测试数据  
+✅ **API接口**: RESTful API + 流式推送（SSE）  
+✅ **权限控制**: 基于角色的细粒度权限管理  
+✅ **数据脱敏**: 自动处理敏感信息（手机号、身份证等）  
+
+### 数据模型概览
+
+#### 核心实体（25张表）
+| 类别 | 表名 | 说明 |
+|------|------|------|
+| 人员系统 | persons, classes | 统一人员管理、班级管理 |
+| 组织架构 | colleges, majors, departments, locations | 学院-专业-部门-地点体系 |
+| 课程体系 | courses, course_instances, grades, grade_statistics | 课程基础信息与开课实例分离 |
+| 科研系统 | research_projects, research_applications, paper_library | 项目申请到成果发表全流程 |
+| 资产管理 | assets | 6大类校园资产管理 |
+| 图书馆 | books, borrow_records | 完整借阅管理系统 |
+| 财务系统 | transactions, campus_cards | 校园卡消费流水管理 |
+| 权限管理 | network_permissions, system_access, platform_configs | 网络使用、多平台登录、审计日志 |
+
+#### 编号系统设计
+- **学院编码**: C001-C013（13个学院）
+- **专业编码**: 基于国标代码，覆盖理工经管文等全学科
+- **学生学号**: 年份(4位)+专业编码(4位)+班级号(2位)+学生序号(2位)
+- **教职工工号**: 年份(4位)+专业编号(4位)+序号(2位)
+- **建筑编码**: C1-C5(教学)、D1-D3(经管)、E0-E3(实验)、L1-L3(图书馆)、S1-S10(宿舍)
+
+### 快速开始 🚀
+
+#### 🎯 一键部署（推荐）
+
+使用我们提供的自动化部署脚本，零配置启动整个系统：
+
+**Linux/macOS:**
 ```bash
-export SECRET_KEY="your-secret-key"
-export DATABASE_URL="postgresql://user:password@localhost/dbname"
+# 克隆项目
+git clone <repository-url>
+cd SZTU-iCampus
+
+# 赋予执行权限并部署
+chmod +x deploy.sh
+./deploy.sh
 ```
 
-2. 运行生产服务器：
+**Windows:**
+```cmd
+# 克隆项目
+git clone <repository-url>
+cd SZTU-iCampus
+
+# 运行部署脚本
+deploy.bat
+```
+
+🎉 **部署完成！访问服务:**
+- 胶水层: http://localhost:8000
+- 数据服务: http://localhost:8001  
+- API文档: http://localhost:8000/docs
+
+#### 🐳 Docker Compose 部署
+
 ```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+# 启动所有服务（PostgreSQL + Redis + 数据服务 + 胶水层）
+docker-compose up -d
+
+# 查看服务状态
+docker-compose ps
+
+# 查看实时日志
+docker-compose logs -f glue-layer data-service
+
+# 停止服务
+docker-compose down
 ```
 
-## 根目录
+#### 🔧 手动开发部署
 
-```
-./
-├── .git/                    # Git版本控制目录
-├── README.md               # 项目主文档，包含项目说明和使用指南
-├── miniprogram/            # 微信小程序前端代码
-├── backend/                # FastAPI后端代码
-├── QUICK_START.md          # 快速启动指南
-├── .gitignore              # Git忽略文件配置
-├── clean.bat               # Windows环境清理脚本
-├── project.config.json     # 微信小程序项目配置文件
-└── project.private.config.json  # 微信小程序私有配置文件
+1. **启动数据服务**
+```bash
+cd data-service
+conda create -n dataservice python=3.11
+conda activate dataservice
+pip install -r requirements.txt
+python main.py
 ```
 
-## 前端目录 (miniprogram/)
-
-```
-miniprogram/
-├── project.config.json     # 小程序项目配置
-├── project.private.config.json  # 小程序私有配置
-├── utils/                  # 工具函数目录
-│   └── stream.js          # 流式数据处理管理器
-├── pages/                  # 页面文件目录
-│   ├── index/             # 首页
-│   ├── events/            # 活动页面
-│   └── ...                # 其他页面
-├── components/            # 可复用组件目录
-├── assets/                # 静态资源目录（图片等）
-├── miniprogram_npm/       # 小程序npm包目录
-├── node_modules/          # Node.js依赖包目录
-├── app.wxss              # 全局样式文件
-├── app.json              # 小程序全局配置
-├── app.js                # 小程序入口文件
-└── sitemap.json          # 小程序站点地图配置
+2. **启动胶水层**
+```bash
+cd backend
+conda activate icamp
+pip install -r requirements.txt
+uvicorn main:app --reload
 ```
 
-## 后端目录 (backend/)
+#### 📡 服务地址
 
-```
-backend/
-├── main.py               # FastAPI主程序入口
-├── sztu_icampus.db       # SQLite数据库文件
-├── setup_db.py           # 数据库初始化脚本
-├── run.py                # 服务器启动脚本
-├── app/                  # 应用核心代码目录
-│   ├──api/	    接口路由和分组,接口大门
-│      ├──v1/	    版本号分组
-│      └──deps.py	    依赖项
-│   ├──core/	全局配置、安全,大脑和保险箱
-│   ├──crud/	数据库操作封装,数据库工具箱
-│   ├──db/	    数据库连接、模型注册,数据库入口和注册处
-│   ├──models/	数据库表结构定义,表的蓝图
-│   ├──schemas/	接口数据格式和校验,数据说明书
-│   ├──utils.py	工具函数,小工具
-│   └──queue.py	异步消息队列,消息中转站
-├── init.bat              # Windows环境初始化脚本
-├── requirements.txt      # Python依赖包列表
-├── alembic/              # 数据库迁移工具目录
-└── alembic.ini           # Alembic配置文件
+| 服务 | 地址 | 说明 |
+|------|------|------|
+| 🌐 胶水层 | http://localhost:8000 | 主要业务逻辑层 |
+| 🗄️ 数据服务 | http://localhost:8001 | 数据库服务层 |
+| 📚 API文档 | http://localhost:8000/docs | 胶水层API文档 |
+| 📖 数据文档 | http://localhost:8001/docs | 数据服务API文档 |
+| 🗃️ PostgreSQL | localhost:5432 | 数据库 |
+| 💾 Redis | localhost:6379 | 缓存服务 |
+
+#### 🛠️ 部署脚本命令
+
+**Linux/macOS:**
+```bash
+./deploy.sh [deploy|status|logs|restart|stop|clean|update]
 ```
 
-## 🔧 管理员功能使用说明
-
-### 1. 管理员权限设置
-管理员权限通过数据库中的 `is_admin` 字段控制：
-```sql
--- 设置用户为管理员
-UPDATE users SET is_admin = true WHERE student_id = 'YOUR_STUDENT_ID';
+**Windows:**
+```cmd
+deploy.bat [deploy|status|logs|restart|stop|clean|update]
 ```
 
-### 2. 管理员功能入口
-- 管理员用户登录后，在首页用户信息卡片右上角会显示金色的"🔧 管理"按钮
-- 点击该按钮即可进入管理员中心
+**命令说明:**
+- `deploy` - 部署整个系统（默认）
+- `status` - 查看服务状态
+- `logs` - 查看实时日志
+- `restart` - 重启服务
+- `stop` - 停止服务
+- `clean` - 清理环境
+- `update` - 更新系统
 
-### 3. 管理员功能列表
-- **👥 用户管理**: 查看所有用户，可以设置/取消管理员权限
-- **📢 公告管理**: 查看和删除校园公告
-- **📋 通知管理**: 查看和删除部门通知
-- **📊 系统统计**: 查看用户数量、管理员数量、公告数量等统计信息
+### 配置说明
 
-### 4. 权限保护
-- 所有管理员API都有权限验证，非管理员用户无法访问
-- 管理员页面会自动检查用户权限，非管理员会被重定向
+#### 数据库配置
+```python
+DATABASE_CONFIG = {
+    "host": "localhost",
+    "port": 5432,
+    "database": "sztu_campus",
+    "username": "postgres",
+    "password": "password"
+}
+```
 
-### 5. API端点
-- `GET /api/admin/stats` - 获取系统统计
-- `GET /api/admin/users` - 获取用户列表
-- `POST /api/admin/users/{user_id}/toggle-admin` - 切换用户管理员状态
-- `GET /api/admin/announcements` - 获取公告列表
-- `DELETE /api/admin/announcements/{id}` - 删除公告
-- `GET /api/admin/notices` - 获取通知列表
-- `DELETE /api/admin/notices/{id}` - 删除通知
+#### Mock数据配置
+```python
+MOCK_CONFIG = {
+    "colleges": 13,                    # 学院数量
+    "majors_per_college": 6,           # 每学院专业数
+    "classes_per_major": 4,            # 每专业班级数
+    "students_per_class": 35,          # 每班学生数
+    "teachers_per_college": 50,        # 每学院教师数
+    "books_count": 50000,              # 图书总数
+}
+```
 
-## 🔄 新增API端点
+### Docker部署
 
-### 考试管理 (Exams)
-- `GET /api/v1/exams/` - 获取考试列表
-- `GET /api/v1/exams/{exam_id}` - 获取考试详情
-- `GET /api/v1/exams/countdown/{exam_id}` - 获取考试倒计时
+```bash
+# 构建镜像
+cd data-service
+docker build -t sztu-dataservice .
 
-### 图书馆服务 (Library) 
-- `GET /api/v1/library/borrow-info` - 获取借阅信息
-- `GET /api/v1/library/search` - 图书搜索
-- `GET /api/v1/library/seats` - 获取座位信息
-- `POST /api/v1/library/seat-reservation` - 预约座位
-- `GET /api/v1/library/reservations` - 获取预约记录
-- `POST /api/v1/library/recommend` - 图书荐购
-- `GET /api/v1/library/recommendations` - 获取荐购记录
-- `POST /api/v1/library/renew` - 图书续借
+# 运行容器
+docker run -d -p 8001:8001 \
+  -e DATABASE_URL=postgresql://postgres:password@host.docker.internal:5432/sztu_campus \
+  sztu-dataservice
+```
 
-### 课表管理 (Schedule)
-- `GET /api/v1/schedule/grid/{week_number}` - 获取指定周课表网格
-- `GET /api/v1/schedule/current-week` - 获取当前周课表
-- `POST /api/v1/schedule/` - 创建新课程
-- `GET /api/v1/schedule/time-slots/info` - 获取时间段信息
+## 开发进度
 
-## 贡献
+### ✅ 已完成
 
-欢迎提交Issue和Pull Request！
+#### 第二步：数据服务实现
+1. **数据模型设计**: 25张核心数据表完整设计
+2. **数据服务实现**: 独立的FastAPI数据服务
+3. **Mock数据生成**: 真实中文数据生成器
+4. **API接口**: RESTful API + 流式推送
+5. **容器化部署**: Docker配置完成
+6. **权限控制**: 基于角色的权限管理
+7. **数据脱敏**: 敏感信息自动处理
 
-## 许可证
+#### 第三步：胶水层重构与容器化 🚀 NEW
+1. **数据服务客户端**: 无缝集成数据服务，支持Mock/Real开关
+2. **Redis缓存机制**: 多级缓存提升性能，自动过期和清理
+3. **流式推送优化**: SSE事件驱动推送，心跳检测和重连机制
+4. **胶水层容器化**: 完整的Docker配置和健康检查
+5. **一键部署脚本**: 自动化部署脚本，支持多种部署模式
+6. **Docker Compose**: 统一管理所有服务（数据库、缓存、服务层）
+7. **监控和日志**: 结构化日志、服务监控和健康检查
+8. **配置管理**: 环境变量配置、动态开关切换
 
-MIT 
+### 🚧 进行中（第四步）
 
-## 参考
+1. **微信小程序前端**: 完整的前端界面开发
+2. **真实数据对接**: 替换Mock数据为真实接口
+3. **性能优化**: 大规模数据处理优化
+4. **安全加固**: 完善的身份验证和授权
 
-[坑：ssh: connect to host github.com port 22: Connection refused - 无忌的文章 - 知乎](https://zhuanlan.zhihu.com/p/521340971)
+### 📋 计划中
 
-[全网最全面详细的Cursor使用教程，让开发变成聊天一样容易](https://blog.csdn.net/m0_68116052/article/details/142832657?fromshare=blogdetail&sharetype=blogdetail&sharerId=142832657&sharerefer=PC&sharesource=Shadowfight323&sharefrom=from_link)
+1. **生产环境部署**: K8s部署、监控告警、备份策略
+2. **前端完善**: 微信小程序全功能实现
+3. **数据同步**: 与现有系统的数据同步机制
+4. **压力测试**: 性能测试和优化
 
-[解决 Cursor 连接失败的小技巧 - 一个导航的文章 - 知乎](https://zhuanlan.zhihu.com/p/1907071064191771454)
+## API密钥
+
+开发环境API密钥: `sztu-data-service-key-2024`
+
+所有需要认证的接口都需要传入此参数：
+```
+GET /stats?api_key=sztu-data-service-key-2024
+```
+
+## 项目特色
+
+🎯 **最小信息呈现原则**: 只传输必要数据，支持流式推送  
+🏗️ **胶水层架构**: 后端与数据库服务分离，灵活可扩展  
+🔐 **安全传输**: 完整的权限控制和数据脱敏机制  
+🌊 **流式处理**: SSE实时推送，支持增量更新  
+🎨 **配置驱动**: Mock/Real API一键切换  
+📊 **真实数据**: 基于SZTU实际业务需求设计  
+
+## 注意事项
+
+1. **首次运行**: 需要先启动数据服务，再启动胶水层后端
+2. **数据库**: 确保PostgreSQL服务正常运行
+3. **端口占用**: 数据服务默认使用8001端口，胶水层使用8000端口
+4. **日志文件**: 日志保存在`data-service/logs/`目录下
+5. **Mock数据**: 生成大量数据时可能需要较长时间，建议后台运行
+
+## 贡献指南
+
+1. Fork 项目
+2. 创建特性分支
+3. 提交更改
+4. 推送到分支
+5. 创建 Pull Request
+
+---
+
+**项目状态**: 🟢 活跃开发中  
+**最后更新**: 2024年12月  
+**技术栈**: FastAPI + 微信小程序 + PostgreSQL + Redis

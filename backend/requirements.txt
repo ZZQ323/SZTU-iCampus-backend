@@ -1,12 +1,23 @@
-fastapi>=0.95.0
-uvicorn>=0.15.0,<0.16.0
-sqlalchemy>=1.4.0,<1.5.0
-pydantic>=2.0.0
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+sqlalchemy==2.0.23
+pydantic==2.5.0
 pydantic-settings>=2.0.0
-python-jose>=3.3.0,<3.4.0
-passlib>=1.7.4,<1.8.0
-python-multipart>=0.0.5,<0.0.6
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.6
 bcrypt>=3.2.0,<3.3.0
 requests>=2.31.0
 email-validator>=2.0.0
-alembic>=1.10.0
+alembic==1.13.0
+
+# 数据服务集成依赖
+httpx==0.25.2
+redis==5.0.1
+
+# 日志系统
+loguru==0.7.2
+
+# 开发工具
+pytest==7.4.3
+pytest-asyncio==0.21.1
