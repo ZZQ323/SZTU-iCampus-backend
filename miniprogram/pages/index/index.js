@@ -1,81 +1,26 @@
 // SZTU-iCampus 首页逻辑
+const app = getApp()
+
 Page({
   data: {
+    userInfo: null,
+    isLoggedIn: false,
     homeData: {
       user_info: {
-        name: "张三",
-        student_id: "20241001001",
+        name: "未登录",
+        student_id: "",
         avatar: "/assets/test/man.png",
-        college: "计算机学院",
-        unread_count: 3
+        college: "",
+        unread_count: 0
       },
-      quick_actions: [
-        {name: "课表查询", icon: "schedule", path: "/pages/schedule/schedule"},
-        {name: "成绩查询", icon: "Grade", path: "/pages/grades/grades"},
-        {name: "图书馆", icon: "Library", path: "/pages/library/library"},
-        {name: "校园卡", icon: "wallet", path: "/pages/campus-card/campus-card"},
-        {name: "考试安排", icon: "examination", path: "/pages/exams/exams"},
-        {name: "活动报名", icon: "event", path: "/pages/events/events"},
-        {name: "通讯录", icon: "message", path: "/pages/address_book/address_book"},
-        {name: "通知中心", icon: "notification", path: "/pages/announcements/announcements"}
-      ],
-      today_schedule: [
-        {
-          id: 1,
-          course_name: "数据结构与算法",
-          teacher: "李教授",
-          time: "08:30-10:10",
-          location: "C2-301",
-          status: "upcoming"
-        },
-        {
-          id: 2,
-          course_name: "软件工程",
-          teacher: "王教授",
-          time: "10:30-12:10",
-          location: "C2-305",
-          status: "current"
-        },
-        {
-          id: 3,
-          course_name: "数据库原理",
-          teacher: "张教授",
-          time: "14:30-16:10",
-          location: "C2-302",
-          status: "upcoming"
-        }
-      ],
-      announcements: [
-        {
-          id: 1,
-          title: "关于2024年寒假放假安排的通知",
-          department: "教务处",
-          date: "2024-12-18",
-          urgent: true,
-          category: "教学"
-        },
-        {
-          id: 2,
-          title: "深圳技术大学第十二届运动会开幕式通知",
-          department: "体育部",
-          date: "2024-12-17",
-          urgent: false,
-          category: "活动"
-        },
-        {
-          id: 3,
-          title: "图书馆系统维护通知",
-          department: "图书馆",
-          date: "2024-12-16",
-          urgent: false,
-          category: "服务"
-        }
-      ],
+      quick_actions: [],
+      today_schedule: [],
+      announcements: [],
       today_stats: {
-        courses: 4,
-        completed_courses: 1,
-        library_books: 2,
-        announcements: 5
+        courses: 0,
+        completed_courses: 0,
+        library_books: 0,
+        announcements: 0
       }
     },
     loading: false,
@@ -91,79 +36,82 @@ Page({
    */
   onLoad() {
     console.log('首页加载');
-    console.log('当前快捷功能数据:', this.data.homeData.quick_actions);
-    this.loadHomeData();
+    this.checkLoginStatus();
   },
 
   /**
    * 页面显示时
    */
   onShow() {
-    // 每次显示时刷新数据
-    this.refreshData();
-    this.checkQuickActions();
+    // 每次显示时检查登录状态并刷新数据
+    this.checkLoginStatus();
   },
 
   /**
-   * 检查快捷功能数据
+   * 检查登录状态
    */
-  checkQuickActions() {
-    console.log('=== 快捷功能数据检查 ===');
-    const quickActions = this.data.homeData.quick_actions;
-    console.log('快捷功能数组:', quickActions);
-    console.log('数组长度:', quickActions ? quickActions.length : 0);
+  checkLoginStatus() {
+    const token = wx.getStorageSync('token');
+    const userInfo = wx.getStorageSync('userInfo');
     
-    if (quickActions && quickActions.length > 0) {
-      quickActions.forEach((item, index) => {
-        console.log(`第${index + 1}个功能:`, {
-          name: item.name,
-          icon: item.icon,
-          path: item.path
-        });
+    if (token && userInfo) {
+      // 已登录
+      this.setData({
+        isLoggedIn: true,
+        userInfo: userInfo
       });
+      console.log('用户已登录:', userInfo);
+      this.loadUserHomeData(userInfo);
     } else {
-      console.error('快捷功能数据为空或未定义');
+      // 未登录
+      this.setData({
+        isLoggedIn: false,
+        userInfo: null
+      });
+      console.log('用户未登录');
+      this.loadGuestHomeData();
     }
-    console.log('=== 检查结束 ===');
   },
 
   /**
-   * 下拉刷新
+   * 加载已登录用户的首页数据
    */
-  onPullDownRefresh() {
-    this.loadHomeData().finally(() => {
-      wx.stopPullDownRefresh();
-    });
-  },
-
-  /**
-   * 加载首页数据
-   */
-  async loadHomeData() {
+  async loadUserHomeData(userInfo) {
     try {
       this.setData({ loading: true });
-      
-      // 这里应该调用后端API获取数据
-      // const res = await wx.request({
-      //   url: 'http://localhost:8000/api/v1/simple/home',
-      //   method: 'GET',
-      //   header: {
-      //     'Authorization': 'Bearer ' + wx.getStorageSync('token')
-      //   }
-      // });
-      // 
-      // if (res.data.success) {
-      //   this.setData({
-      //     homeData: res.data.data
-      //   });
-      // }
 
-      // 模拟API调用延迟
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // 根据用户类型设置快捷操作
+      const quickActions = this.getQuickActionsByUserType(userInfo.person_type);
       
-      console.log('首页数据加载完成');
+      // 设置用户信息
+      const userData = {
+        name: userInfo.name,
+        student_id: userInfo.student_id || userInfo.employee_id || userInfo.login_id,
+        avatar: "/assets/test/man.png",
+        college: userInfo.college_name || '深圳技术大学',
+        major: userInfo.major_name || '',
+        class_name: userInfo.class_name || '',
+        person_type: userInfo.person_type,
+        unread_count: 0 // TODO: 从API获取
+      };
+
+      // TODO: 调用后端API获取用户相关数据
+      // 这里先使用模拟数据
+      const homeData = {
+        user_info: userData,
+        quick_actions: quickActions,
+        today_schedule: await this.getTodaySchedule(userInfo),
+        announcements: await this.getAnnouncements(userInfo),
+        today_stats: await this.getTodayStats(userInfo)
+      };
+
+      this.setData({
+        homeData: homeData
+      });
+
+      console.log('用户首页数据加载完成:', homeData);
     } catch (error) {
-      console.error('加载首页数据失败:', error);
+      console.error('加载用户首页数据失败:', error);
       wx.showToast({
         title: '加载失败',
         icon: 'error'
@@ -174,27 +122,236 @@ Page({
   },
 
   /**
-   * 刷新数据
+   * 加载访客模式首页数据
    */
-  async refreshData() {
-    // 静默刷新，不显示loading
-    try {
-      // 这里可以调用API获取最新数据
-      console.log('静默刷新数据');
-    } catch (error) {
-      console.error('刷新数据失败:', error);
+  loadGuestHomeData() {
+    const guestData = {
+      user_info: {
+        name: "访客用户",
+        student_id: "",
+        avatar: "/assets/test/man.png",
+        college: "深圳技术大学",
+        unread_count: 0
+      },
+      quick_actions: [
+        {name: "登录", icon: "home", action: "login"},
+        {name: "校园地图", icon: "notification", path: "/pages/campus-map/campus-map"},
+        {name: "联系我们", icon: "message", action: "contact"}
+      ],
+      today_schedule: [],
+      announcements: [
+        {
+          id: 1,
+          title: "欢迎使用SZTU iCampus",
+          department: "系统",
+          date: "2024-12-21",
+          urgent: false,
+          category: "系统"
+        }
+      ],
+      today_stats: {
+        courses: 0,
+        completed_courses: 0,
+        library_books: 0,
+        announcements: 1
+      }
+    };
+
+    this.setData({
+      homeData: guestData
+    });
+  },
+
+  /**
+   * 根据用户类型获取快捷操作
+   */
+  getQuickActionsByUserType(personType) {
+    const baseActions = [
+      {name: "通知中心", icon: "notification", path: "/pages/announcements/announcements"},
+      {name: "通讯录", icon: "message", path: "/pages/address_book/address_book"}
+    ];
+
+    switch (personType) {
+      case 'student':
+        return [
+          {name: "课表查询", icon: "schedule", path: "/pages/schedule/schedule"},
+          {name: "成绩查询", icon: "Grade", path: "/pages/grades/grades"},
+          {name: "图书馆", icon: "Library", path: "/pages/library/library"},
+          {name: "校园卡", icon: "wallet", path: "/pages/campus-card/campus-card"},
+          {name: "考试安排", icon: "examination", path: "/pages/exams/exams"},
+          {name: "活动报名", icon: "event", path: "/pages/events/events"},
+          ...baseActions
+        ];
+      
+      case 'teacher':
+      case 'assistant_teacher':
+        return [
+          {name: "我的课程", icon: "schedule", path: "/pages/my-courses/my-courses"},
+          {name: "成绩管理", icon: "Grade", path: "/pages/grade-management/grade-management"},
+          {name: "学生管理", icon: "message", path: "/pages/student-management/student-management"},
+          {name: "课程资料", icon: "Library", path: "/pages/course-materials/course-materials"},
+          {name: "考试管理", icon: "examination", path: "/pages/exam-management/exam-management"},
+          ...baseActions
+        ];
+      
+      case 'admin':
+        return [
+          {name: "系统管理", icon: "home", path: "/pages/admin/admin"},
+          {name: "用户管理", icon: "message", path: "/pages/user-management/user-management"},
+          {name: "课程管理", icon: "schedule", path: "/pages/course-management/course-management"},
+          {name: "成绩管理", icon: "Grade", path: "/pages/grade-management/grade-management"},
+          {name: "数据统计", icon: "examination", path: "/pages/statistics/statistics"},
+          {name: "系统设置", icon: "notification", path: "/pages/system-settings/system-settings"},
+          ...baseActions
+        ];
+      
+      case 'guest':
+      default:
+        return [
+          {name: "登录", icon: "home", action: "login"},
+          {name: "校园介绍", icon: "notification", path: "/pages/campus-intro/campus-intro"},
+          {name: "联系我们", icon: "message", action: "contact"}
+        ];
     }
   },
 
   /**
-   * 通用页面跳转
+   * 获取今日课表（模拟）
+   */
+  async getTodaySchedule(userInfo) {
+    if (userInfo.person_type === 'student') {
+      return [
+        {
+          id: 1,
+          course_name: "高等数学A",
+          teacher: "张教授",
+          time: "08:30-10:10",
+          location: "C1-101",
+          status: "upcoming"
+        },
+        {
+          id: 2,
+          course_name: "程序设计基础",
+          teacher: "李教授",
+          time: "10:30-12:10",
+          location: "C1-102",
+          status: "current"
+        }
+      ];
+    } else if (userInfo.person_type === 'teacher') {
+      return [
+        {
+          id: 1,
+          course_name: "软件工程",
+          class_name: "软工2024-1班",
+          time: "10:30-12:10",
+          location: "C1-305",
+          status: "upcoming"
+        }
+      ];
+    }
+    return [];
+  },
+
+  /**
+   * 获取公告信息（模拟）
+   */
+  async getAnnouncements(userInfo) {
+    return [
+      {
+        id: 1,
+        title: "关于期末考试安排的通知",
+        department: "教务处",
+        date: "2024-12-21",
+        urgent: true,
+        category: "教学"
+      },
+      {
+        id: 2,
+        title: "图书馆寒假开放时间通知",
+        department: "图书馆",
+        date: "2024-12-20",
+        urgent: false,
+        category: "服务"
+      }
+    ];
+  },
+
+  /**
+   * 获取今日统计（模拟）
+   */
+  async getTodayStats(userInfo) {
+    if (userInfo.person_type === 'student') {
+      return {
+        courses: 4,
+        completed_courses: 1,
+        library_books: 2,
+        announcements: 5
+      };
+    } else if (userInfo.person_type === 'teacher') {
+      return {
+        courses: 2,
+        completed_courses: 0,
+        students: 58,
+        announcements: 3
+      };
+    } else if (userInfo.person_type === 'admin') {
+      return {
+        total_users: 63460,
+        active_sessions: 1250,
+        system_alerts: 2,
+        announcements: 8
+      };
+    }
+    return {
+      courses: 0,
+      completed_courses: 0,
+      library_books: 0,
+      announcements: 0
+    };
+  },
+
+  /**
+   * 下拉刷新
+   */
+  onPullDownRefresh() {
+    this.checkLoginStatus();
+    setTimeout(() => {
+      wx.stopPullDownRefresh();
+    }, 1000);
+  },
+
+  /**
+   * 通用页面跳转和操作处理
    */
   navigateTo(e) {
     console.log('点击快捷按钮，事件对象:', e);
     const url = e.currentTarget.dataset.url;
-    console.log('获取到的URL:', url);
+    const action = e.currentTarget.dataset.action;
+    
+    console.log('获取到的URL:', url, 'Action:', action);
+    
+    // 处理特殊操作
+    if (action) {
+      this.handleSpecialAction(action);
+      return;
+    }
     
     if (url) {
+      // 检查是否需要登录
+      if (!this.data.isLoggedIn && this.isProtectedPage(url)) {
+        wx.showModal({
+          title: '需要登录',
+          content: '该功能需要登录后才能使用，是否前往登录？',
+          success: (res) => {
+            if (res.confirm) {
+              this.goToLogin();
+            }
+          }
+        });
+        return;
+      }
+
       // 定义 tabBar 页面列表
       const tabBarPages = [
         '/pages/index/index',
@@ -241,12 +398,58 @@ Page({
         });
       }
     } else {
-      console.error('URL为空，无法跳转');
+      console.error('URL和Action都为空，无法执行操作');
       wx.showToast({
-        title: '页面地址错误',
+        title: '操作无效',
         icon: 'none'
       });
     }
+  },
+
+  /**
+   * 处理特殊操作
+   */
+  handleSpecialAction(action) {
+    switch (action) {
+      case 'login':
+        this.goToLogin();
+        break;
+      case 'contact':
+        wx.showModal({
+          title: '联系我们',
+          content: '邮箱: support@sztu.edu.cn\n电话: 0755-23256054',
+          showCancel: false
+        });
+        break;
+      default:
+        wx.showToast({
+          title: '功能开发中',
+          icon: 'none'
+        });
+    }
+  },
+
+  /**
+   * 检查是否为受保护页面
+   */
+  isProtectedPage(url) {
+    const protectedPages = [
+      '/pages/schedule/schedule',
+      '/pages/grades/grades',
+      '/pages/campus-card/campus-card',
+      '/pages/exams/exams',
+      '/pages/library/library'
+    ];
+    return protectedPages.includes(url);
+  },
+
+  /**
+   * 前往登录页面
+   */
+  goToLogin() {
+    wx.navigateTo({
+      url: '/pages/login/login'
+    });
   },
 
   /**
@@ -270,14 +473,82 @@ Page({
    * 打开通知中心
    */
   openNotifications() {
-    wx.navigateTo({
-      url: '/pages/notifications/notifications',
+    if (!this.data.isLoggedIn) {
+      this.goToLogin();
+      return;
+    }
+    
+    wx.switchTab({
+      url: '/pages/announcements/announcements',
       fail: (err) => {
         console.error('打开通知中心失败:', err);
         wx.showToast({
           title: '页面暂未开放',
           icon: 'none'
         });
+      }
+    });
+  },
+
+  /**
+   * 用户头像点击 - 显示用户菜单
+   */
+  onUserAvatarTap() {
+    if (!this.data.isLoggedIn) {
+      this.goToLogin();
+      return;
+    }
+
+    const userInfo = this.data.userInfo;
+    const menuItems = ['个人资料', '账号设置', '退出登录'];
+    
+    wx.showActionSheet({
+      itemList: menuItems,
+      success: (res) => {
+        switch (res.tapIndex) {
+          case 0:
+            // 个人资料
+            wx.navigateTo({
+              url: '/pages/profile/profile'
+            });
+            break;
+          case 1:
+            // 账号设置
+            wx.navigateTo({
+              url: '/pages/settings/settings'
+            });
+            break;
+          case 2:
+            // 退出登录
+            this.logout();
+            break;
+        }
+      }
+    });
+  },
+
+  /**
+   * 退出登录
+   */
+  logout() {
+    wx.showModal({
+      title: '确认退出',
+      content: '确定要退出登录吗？',
+      success: (res) => {
+        if (res.confirm) {
+          // 清除登录信息
+          wx.removeStorageSync('token');
+          wx.removeStorageSync('userInfo');
+          app.globalData.userInfo = null;
+          
+          // 重新检查登录状态
+          this.checkLoginStatus();
+          
+          wx.showToast({
+            title: '已退出登录',
+            icon: 'success'
+          });
+        }
       }
     });
   },
@@ -301,13 +572,6 @@ Page({
    */
   onUnload() {
     console.log('首页卸载');
-  },
-
-  /**
-   * 页面相关事件处理函数--监听用户滑动
-   */
-  onPageScroll(e) {
-    // 可以在这里处理滚动事件，比如改变导航栏样式
   },
 
   /**
@@ -338,7 +602,6 @@ Page({
     this.setData({
       showDialog: false
     });
-    // 可以在这里添加跳转到公告详情页面的逻辑
   },
 
   /**

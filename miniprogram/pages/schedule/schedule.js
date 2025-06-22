@@ -2,6 +2,10 @@ const app = getApp()
 
 Page({
   data: {
+    // 用户状态
+    userInfo: null,
+    isLoggedIn: false,
+    
     // 当前状态
     currentWeek: 1,
     currentSemester: '2024-2025-1',
@@ -53,32 +57,7 @@ Page({
     ],
     
     // 今日课程
-    todayCourses: [
-      {
-        id: 1,
-        course_name: "数据结构与算法",
-        teacher: "李教授",
-        time: "08:30-10:10",
-        location: "C2-301",
-        status: "upcoming"
-      },
-      {
-        id: 2,
-        course_name: "软件工程",
-        teacher: "王教授",
-        time: "10:30-12:10",
-        location: "C2-305",
-        status: "current"
-      },
-      {
-        id: 3,
-        course_name: "数据库原理",
-        teacher: "张教授",
-        time: "14:30-16:10",
-        location: "C2-302",
-        status: "upcoming"
-      }
-    ],
+    todayCourses: [],
     
     // 周次选择器
     weekRange: [
@@ -112,166 +91,245 @@ Page({
     
     // 周课程统计
     weekSummary: {
-      totalCourses: 18,
-      requiredCourses: 12,
-      electiveCourses: 4,
-      practicalCourses: 2
+      totalCourses: 0,
+      requiredCourses: 0,
+      electiveCourses: 0,
+      practicalCourses: 0
     }
   },
 
   onLoad() {
     console.log('课表页面加载');
-    this.initializeSchedule();
-    this.setTodayAsDefault();
+    this.checkLoginStatus();
   },
 
   onShow() {
-    this.updateSelectedDayCourses();
+    this.checkLoginStatus();
+  },
+
+  /**
+   * 检查登录状态
+   */
+  checkLoginStatus() {
+    const token = wx.getStorageSync('token');
+    const userInfo = wx.getStorageSync('userInfo');
+    
+    if (token && userInfo) {
+      this.setData({
+        isLoggedIn: true,
+        userInfo: userInfo
+      });
+      console.log('用户已登录:', userInfo);
+      this.initializeSchedule();
+      this.setTodayAsDefault();
+    } else {
+      this.setData({
+        isLoggedIn: false,
+        userInfo: null
+      });
+      this.showLoginPrompt();
+    }
+  },
+
+  /**
+   * 显示登录提示
+   */
+  showLoginPrompt() {
+    wx.showModal({
+      title: '需要登录',
+      content: '查看课表需要先登录，是否前往登录？',
+      success: (res) => {
+        if (res.confirm) {
+          wx.navigateTo({
+            url: '/pages/login/login'
+          });
+        } else {
+          wx.switchTab({
+            url: '/pages/index/index'
+          });
+        }
+      }
+    });
   },
 
   initializeSchedule() {
-    // 模拟课表数据
-    const mockSchedule = {
-      monday: [
-        {
-          id: 1,
-          course_name: "数据结构与算法",
-          teacher: "李教授",
-          time: "08:30-10:10",
-          time_slot: "1-2",
-          location: "C2-301",
-          course_type: "required",
-          weeks: "1-16周",
-          status: "upcoming",
-          note: "请携带笔记本电脑"
-        },
-        {
-          id: 2,
-          course_name: "软件工程",
-          teacher: "王教授", 
-          time: "10:30-12:10",
-          time_slot: "3-4",
-          location: "C2-305",
-          course_type: "required",
-          weeks: "1-16周",
-          status: "upcoming"
-        },
-        {
-          id: 3,
-          course_name: "数据库原理",
-          teacher: "张教授",
-          time: "14:30-16:10", 
-          time_slot: "7-8",
-          location: "C2-302",
-          course_type: "required",
-          weeks: "1-16周",
-          status: "upcoming"
-        }
-      ],
-      tuesday: [
-        {
-          id: 4,
-          course_name: "计算机网络",
-          teacher: "陈教授",
-          time: "08:30-10:10",
-          time_slot: "1-2", 
-          location: "B3-201",
-          course_type: "required",
-          weeks: "1-16周",
-          status: "upcoming"
-        },
-        {
-          id: 5,
-          course_name: "人工智能导论",
-          teacher: "刘教授",
-          time: "14:30-16:10",
-          time_slot: "7-8",
-          location: "A1-105",
-          course_type: "elective",
-          weeks: "1-16周", 
-          status: "upcoming"
-        }
-      ],
-      wednesday: [
-        {
-          id: 6,
-          course_name: "操作系统",
-          teacher: "赵教授",
-          time: "08:30-10:10",
-          time_slot: "1-2",
-          location: "C2-303",
-          course_type: "required",
-          weeks: "1-16周",
-          status: "current",
-          note: "今日有随堂测验"
-        },
-        {
-          id: 7,
-          course_name: "编译原理",
-          teacher: "孙教授",
-          time: "10:30-12:10",
-          time_slot: "3-4",
-          location: "C2-306",
-          course_type: "required",
-          weeks: "1-16周",
-          status: "finished"
-        }
-      ],
-      thursday: [
-        {
-          id: 8,
-          course_name: "算法设计与分析",
-          teacher: "钱教授",
-          time: "08:30-10:10",
-          time_slot: "1-2",
-          location: "C2-304",
-          course_type: "required",
-          weeks: "1-16周",
-          status: "upcoming"
-        },
-        {
-          id: 9,
-          course_name: "移动应用开发",
-          teacher: "周教授",
-          time: "14:30-16:10",
-          time_slot: "7-8",
-          location: "D1-301",
-          course_type: "elective",
-          weeks: "1-16周",
-          status: "upcoming"
-        }
-      ],
-      friday: [
-        {
-          id: 10,
-          course_name: "软件测试",
-          teacher: "吴教授",
-          time: "08:30-10:10",
-          time_slot: "1-2",
-          location: "C2-307",
-          course_type: "required",
-          weeks: "1-16周",
-          status: "upcoming"
-        },
-        {
-          id: 11,
-          course_name: "项目实训",
-          teacher: "郑教授",
-          time: "14:30-17:00",
-          time_slot: "7-9",
-          location: "实训室A",
-          course_type: "practical",
-          weeks: "1-16周",
-          status: "upcoming",
-          note: "分组进行项目开发"
-        }
-      ],
-      saturday: [],
-      sunday: []
-    };
+    if (!this.data.userInfo) {
+      return;
+    }
+
+    const userType = this.data.userInfo.person_type;
+    let mockSchedule = {};
+
+    if (userType === 'student') {
+      // 学生课表
+      mockSchedule = {
+        monday: [
+          {
+            id: 1,
+            course_name: "高等数学A",
+            teacher: "张教授",
+            time: "08:30-10:10",
+            time_slot: "1-2",
+            location: "C2-301",
+            course_type: "required",
+            weeks: "1-16周",
+            status: "upcoming",
+            note: "请携带教材"
+          },
+          {
+            id: 2,
+            course_name: "程序设计基础",
+            teacher: "李教授",
+            time: "10:30-12:10",
+            time_slot: "3-4",
+            location: "C2-305",
+            course_type: "required",
+            weeks: "1-16周",
+            status: "upcoming"
+          }
+        ],
+        tuesday: [
+          {
+            id: 3,
+            course_name: "英语",
+            teacher: "王教授",
+            time: "08:30-10:10",
+            time_slot: "1-2",
+            location: "B3-201",
+            course_type: "required",
+            weeks: "1-16周",
+            status: "upcoming"
+          }
+        ],
+        wednesday: [
+          {
+            id: 4,
+            course_name: "体育",
+            teacher: "赵教练",
+            time: "14:00-15:40",
+            time_slot: "5-6",
+            location: "体育馆",
+            course_type: "required",
+            weeks: "1-16周",
+            status: "upcoming"
+          }
+        ],
+        thursday: [],
+        friday: [],
+        saturday: [],
+        sunday: []
+      };
+    } else if (userType === 'teacher' || userType === 'assistant_teacher') {
+      // 教师课表
+      mockSchedule = {
+        monday: [
+          {
+            id: 1,
+            course_name: "软件工程",
+            class_name: "软工2024-1班",
+            time: "08:30-10:10",
+            time_slot: "1-2",
+            location: "C2-301",
+            course_type: "required",
+            weeks: "1-16周",
+            status: "upcoming",
+            student_count: 58
+          },
+          {
+            id: 2,
+            course_name: "软件工程",
+            class_name: "软工2024-2班",
+            time: "10:30-12:10",
+            time_slot: "3-4",
+            location: "C2-305",
+            course_type: "required",
+            weeks: "1-16周",
+            status: "upcoming",
+            student_count: 56
+          }
+        ],
+        tuesday: [],
+        wednesday: [
+          {
+            id: 3,
+            course_name: "数据库原理",
+            class_name: "计科2024-1班",
+            time: "14:00-15:40",
+            time_slot: "5-6",
+            location: "C3-201",
+            course_type: "required",
+            weeks: "1-16周",
+            status: "upcoming",
+            student_count: 62
+          }
+        ],
+        thursday: [],
+        friday: [],
+        saturday: [],
+        sunday: []
+      };
+    } else {
+      // 管理员等其他角色没有课表
+      mockSchedule = {
+        monday: [],
+        tuesday: [],
+        wednesday: [],
+        thursday: [],
+        friday: [],
+        saturday: [],
+        sunday: []
+      };
+      
+      // 显示提示信息
+      wx.showToast({
+        title: '您的身份无课表安排',
+        icon: 'none',
+        duration: 2000
+      });
+    }
 
     this.setData({
       'scheduleData.schedule': mockSchedule
+    });
+
+    // 计算课程统计
+    this.calculateWeekSummary();
+  },
+
+  /**
+   * 计算周课程统计
+   */
+  calculateWeekSummary() {
+    const schedule = this.data.scheduleData.schedule;
+    let totalCourses = 0;
+    let requiredCourses = 0;
+    let electiveCourses = 0;
+    let practicalCourses = 0;
+
+    Object.values(schedule).forEach(dayCourses => {
+      dayCourses.forEach(course => {
+        totalCourses++;
+        switch (course.course_type) {
+          case 'required':
+            requiredCourses++;
+            break;
+          case 'elective':
+            electiveCourses++;
+            break;
+          case 'practical':
+            practicalCourses++;
+            break;
+        }
+      });
+    });
+
+    this.setData({
+      weekSummary: {
+        totalCourses,
+        requiredCourses,
+        electiveCourses,
+        practicalCourses
+      }
     });
   },
 
@@ -339,24 +397,30 @@ Page({
   },
 
   onPullDownRefresh() {
+    this.checkLoginStatus();
     this.loadScheduleData().finally(() => {
       wx.stopPullDownRefresh();
     });
   },
 
   async loadScheduleData() {
+    if (!this.data.isLoggedIn) {
+      return;
+    }
+
     try {
       this.setData({ loading: true });
       
-      // 这里应该调用后端API获取课表数据
+      // TODO: 调用后端API获取课表数据
+      // const token = wx.getStorageSync('token');
       // const res = await wx.request({
-      //   url: 'http://localhost:8000/api/v1/schedule',
+      //   url: 'http://localhost:8000/api/v1/simple/schedule',
       //   method: 'GET',
       //   data: {
       //     week: this.data.scheduleData.week_info.current_week
       //   },
       //   header: {
-      //     'Authorization': 'Bearer ' + wx.getStorageSync('token')
+      //     'Authorization': 'Bearer ' + token
       //   }
       // });
       

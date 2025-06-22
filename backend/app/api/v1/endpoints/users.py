@@ -1,99 +1,46 @@
-from typing import Any, List
-from fastapi import APIRouter, Body, Depends, HTTPException
-from fastapi.encoders import jsonable_encoder
-from pydantic import EmailStr
-from sqlalchemy.orm import Session
+"""
+用户管理相关API接口
+"""
 
-from app import crud, models, schemas
-from app.api import deps
-from app.core.config import settings
+from typing import Any, List
+from fastapi import APIRouter, Depends, HTTPException
+from app.schemas.msg import Msg
+from app.api.deps import get_current_user, CurrentUser
 
 router = APIRouter()
 
-@router.get("/", response_model=List[schemas.User])
-def read_users(
-    db: Session = Depends(deps.get_db),
-    skip: int = 0,
-    limit: int = 100,
-    current_user: models.User = Depends(deps.get_current_active_superuser),
-) -> Any:
-    """
-    获取所有用户
-    """
-    users = crud.user.get_multi(db, skip=skip, limit=limit)
-    return users
-
-@router.post("/", response_model=schemas.User)
-def create_user(
-    *,
-    db: Session = Depends(deps.get_db),
-    user_in: schemas.UserCreate,
-    current_user: models.User = Depends(deps.get_current_active_superuser),
-) -> Any:
-    """
-    创建新用户
-    """
-    user = crud.user.get_by_student_id(db, student_id=user_in.student_id)
-    if user:
-        raise HTTPException(
-            status_code=400,
-            detail="该学号已被注册",
-        )
-    user = crud.user.get_by_email(db, email=user_in.email)
-    if user:
-        raise HTTPException(
-            status_code=400,
-            detail="该邮箱已被注册",
-        )
-    user = crud.user.create(db, obj_in=user_in)
-    return user
-
-@router.put("/me", response_model=schemas.User)
-def update_user_me(
-    *,
-    db: Session = Depends(deps.get_db),
-    password: str = Body(None),
-    full_name: str = Body(None),
-    email: EmailStr = Body(None),
-    current_user: models.User = Depends(deps.get_current_active_user),
-) -> Any:
-    """
-    更新当前用户信息
-    """
-    current_user_data = jsonable_encoder(current_user)
-    user_in = schemas.UserUpdate(**current_user_data)
-    if password is not None:
-        user_in.password = password
-    if full_name is not None:
-        user_in.full_name = full_name
-    if email is not None:
-        user_in.email = email
-    user = crud.user.update(db, db_obj=current_user, obj_in=user_in)
-    return user
-
-@router.get("/me", response_model=schemas.User)
+@router.get("/me", summary="获取当前用户信息")
 def read_user_me(
-    current_user: models.User = Depends(deps.get_current_active_user),
+    current_user: CurrentUser,
 ) -> Any:
     """
     获取当前用户信息
     """
     return current_user
 
-@router.get("/{user_id}", response_model=schemas.User)
-def read_user_by_id(
-    user_id: int,
-    current_user: models.User = Depends(deps.get_current_active_user),
-    db: Session = Depends(deps.get_db),
+@router.get("/profile", summary="获取用户资料")
+def get_user_profile(
+    current_user: CurrentUser,
 ) -> Any:
     """
-    通过ID获取用户信息
+    获取用户详细资料
     """
-    user = crud.user.get(db, id=user_id)
-    if user == current_user:
-        return user
-    if not crud.user.is_superuser(current_user):
-        raise HTTPException(
-            status_code=400, detail="The user doesn't have enough privileges"
-        )
-    return user 
+    # 返回简化的用户资料信息
+    return {
+        "person_id": current_user["person_id"],
+        "name": current_user["name"],
+        "person_type": current_user["person_type"],
+        "email": current_user.get("email"),
+        "phone": current_user.get("phone"),
+        "college_name": current_user.get("college_name"),
+        "major_name": current_user.get("major_name"),
+        "class_name": current_user.get("class_name")
+    }
+
+@router.get("/", summary="用户管理功能")
+def user_management_placeholder() -> Msg:
+    """
+    用户管理功能占位符
+    后续可扩展为完整的用户管理功能
+    """
+    return Msg(msg="用户管理功能开发中...") 

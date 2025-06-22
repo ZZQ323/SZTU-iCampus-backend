@@ -1,15 +1,6 @@
 <view class="exams-container">
   <!-- 自定义导航栏 -->
-  <view class="custom-navbar">
-    <view class="navbar-left" bindtap="onBack">
-      <t-icon name="chevron-left" size="24" color="#333" />
-    </view>
-    <view class="navbar-title">📝 考试安排</view>
-    <view class="navbar-right">
-      <t-icon name="calendar" size="20" color="#666" bindtap="onToggleCalendar" />
-      <t-icon name="notification" size="20" color="#666" bindtap="onReminderSettings" />
-    </view>
-  </view>
+  <custom-navbar title="考试安排" showBack="{{true}}" background="{{'#2E8B57'}}"></custom-navbar>
 
   <!-- 考试统计卡片 -->
   <view class="stats-section">

@@ -4,7 +4,7 @@
   height:2vh;
 }
 .page {
-  background: rgb(196, 193, 235);
+  background: #ADD8E6;
   min-height: 100vh;
   display: flex;
   flex-direction: column;

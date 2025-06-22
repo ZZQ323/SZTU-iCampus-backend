@@ -1,7 +1,7 @@
 <!-- 课表页面 -->
 <view class="page">
   <!-- 自定义导航栏 -->
-  <custom-navbar title="课表查询" background="#0052d9" color="#ffffff"></custom-navbar>
+  <custom-navbar title="课表查询" background="#778899" color="#ffffff"></custom-navbar>
   
   <!-- 周次选择器 -->
   <view class="week-selector">

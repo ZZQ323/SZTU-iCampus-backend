@@ -48,9 +48,9 @@ class College(BaseModel):
     
     # 关联关系
     majors = relationship("Major", back_populates="college")
-    persons = relationship("Person", back_populates="college")
-    classes = relationship("Class", back_populates="college")
-    departments = relationship("Department", back_populates="college")
+    persons = relationship("Person", foreign_keys="Person.college_id", back_populates="college")
+    classes = relationship("Class", foreign_keys="Class.college_id", back_populates="college")
+    departments = relationship("Department", foreign_keys="Department.college_id", back_populates="college")
     dean = relationship("Person", foreign_keys=[dean_id])
     vice_dean = relationship("Person", foreign_keys=[vice_dean_id])
     secretary = relationship("Person", foreign_keys=[secretary_id])
@@ -106,10 +106,10 @@ class Major(BaseModel):
     ranking = Column(String(50), nullable=True, comment="专业排名")
     
     # 关联关系
-    college = relationship("College", back_populates="majors")
-    persons = relationship("Person", back_populates="major")
-    classes = relationship("Class", back_populates="major")
-    courses = relationship("Course", back_populates="major")
+    college = relationship("College", foreign_keys=[college_id], back_populates="majors")
+    persons = relationship("Person", foreign_keys="Person.major_id", back_populates="major")
+    classes = relationship("Class", foreign_keys="Class.major_id", back_populates="major")
+    courses = relationship("Course", foreign_keys="Course.major_id", back_populates="major")
     director = relationship("Person", foreign_keys=[director_id])
     
     # 索引
@@ -158,8 +158,8 @@ class Department(BaseModel):
     responsibilities = Column(JSON, default=list, comment="职责列表")
     
     # 关联关系
-    college = relationship("College", back_populates="departments")
-    persons = relationship("Person", back_populates="department")
+    college = relationship("College", foreign_keys=[college_id], back_populates="departments")
+    persons = relationship("Person", foreign_keys="Person.department_id", back_populates="department")
     head = relationship("Person", foreign_keys=[head_id])
     deputy_head = relationship("Person", foreign_keys=[deputy_head_id])
     parent_department = relationship("Department", remote_side=[department_id])
@@ -254,7 +254,7 @@ class RoomOccupation(BaseModel):
     # 关联信息
     location_id = Column(String(20), ForeignKey("locations.location_id"), nullable=False, comment="地点")
     course_instance_id = Column(String(20), ForeignKey("course_instances.instance_id"), nullable=True, comment="课程实例")
-    event_id = Column(String(20), ForeignKey("events.event_id"), nullable=True, comment="活动")
+    event_id = Column(String(20), nullable=True, comment="活动ID（暂不关联）")
     
     # 时间信息
     start_time = Column(DateTime, nullable=False, comment="开始时间")

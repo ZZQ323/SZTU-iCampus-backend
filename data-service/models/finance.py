@@ -72,7 +72,7 @@ class CampusCard(BaseModel):
     replacement_card_id = Column(String(20), nullable=True, comment="补办新卡号")
     
     # 关联关系
-    holder = relationship("Person")
+    holder = relationship("Person", foreign_keys=[holder_id])
     transactions = relationship("Transaction", back_populates="campus_card")
     
     # 索引
@@ -197,7 +197,7 @@ class Transaction(BaseModel):
     user_agent = Column(String(200), nullable=True, comment="用户代理")
     
     # 关联关系
-    person = relationship("Person")
+    person = relationship("Person", foreign_keys=[person_id])
     campus_card = relationship("CampusCard", back_populates="transactions")
     location = relationship("Location")
     

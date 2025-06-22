@@ -2,6 +2,10 @@ const app = getApp()
 
 Page({
   data: {
+    // 用户状态
+    userInfo: null,
+    isLoggedIn: false,
+    
     adminInfo: {
       name: '系统管理员',
       avatar: ''
@@ -37,79 +41,223 @@ Page({
   },
 
   onLoad() {
-    this.checkAdminPermission()
-    this.initializeData()
+    this.checkLoginStatus()
   },
 
   onShow() {
-    this.fetchData()
+    this.checkLoginStatus()
+  },
+
+  /**
+   * 检查登录状态和管理员权限
+   */
+  checkLoginStatus() {
+    const token = wx.getStorageSync('token');
+    const userInfo = wx.getStorageSync('userInfo');
+    
+    if (!token || !userInfo) {
+      this.showLoginPrompt();
+      return false;
+    }
+
+    this.setData({
+      isLoggedIn: true,
+      userInfo: userInfo
+    });
+
+    return this.checkAdminPermission();
+  },
+
+  /**
+   * 显示登录提示
+   */
+  showLoginPrompt() {
+    wx.showModal({
+      title: '需要登录',
+      content: '访问管理员页面需要先登录，是否前往登录？',
+      success: (res) => {
+        if (res.confirm) {
+          wx.navigateTo({
+            url: '/pages/login/login'
+          });
+        } else {
+          wx.switchTab({
+            url: '/pages/index/index'
+          });
+        }
+      }
+    });
+    return false;
   },
 
   // 检查管理员权限
   checkAdminPermission() {
-    const userInfo = wx.getStorageSync('userInfo')
+    const userInfo = this.data.userInfo;
     
-    if (!userInfo || !userInfo.is_admin) {
+    // 检查是否为管理员身份
+    const adminTypes = ['admin', 'department_head', 'dean', 'major_director'];
+    const isAdmin = adminTypes.includes(userInfo.person_type);
+    
+    if (!isAdmin) {
       wx.showModal({
         title: '权限不足',
-        content: '您没有管理员权限，无法访问此页面',
-        showCancel: false,
-        success: () => {
-          wx.navigateBack()
+        content: `您的身份是"${this.getPersonTypeName(userInfo.person_type)}"，没有管理员权限，无法访问此页面。`,
+        showCancel: true,
+        cancelText: '返回首页',
+        confirmText: '确定',
+        success: (res) => {
+          if (res.cancel) {
+            wx.switchTab({
+              url: '/pages/index/index'
+            });
+          } else {
+            wx.navigateBack();
+          }
         }
-      })
-      return false
+      });
+      return false;
     }
     
+    // 设置管理员信息
     this.setData({
       adminInfo: {
         name: userInfo.name || '管理员',
-        avatar: userInfo.avatar || ''
+        avatar: userInfo.avatar || '',
+        type: userInfo.person_type,
+        typeName: this.getPersonTypeName(userInfo.person_type),
+        college: userInfo.college_name,
+        department: userInfo.department_name
       }
-    })
+    });
+
+    // 初始化数据
+    this.initializeData();
+    this.fetchData();
     
-    return true
+    return true;
+  },
+
+  /**
+   * 获取人员类型中文名称
+   */
+  getPersonTypeName(personType) {
+    const typeNames = {
+      'admin': '系统管理员',
+      'department_head': '部门主管',
+      'dean': '院长',
+      'major_director': '专业主任',
+      'student': '学生',
+      'teacher': '教师',
+      'assistant_teacher': '助教',
+      'counselor': '辅导员',
+      'class_advisor': '班主任',
+      'librarian': '图书管理员'
+    };
+    return typeNames[personType] || '未知身份';
   },
 
   // 初始化数据
   initializeData() {
-    // 生成最近操作记录
-    const recentActions = [
-      {
-        id: 1,
-        icon: '👤',
-        action: '添加了新用户 张三',
-        time: '2分钟前',
-        status: 'success',
-        statusText: '成功'
-      },
-      {
-        id: 2,
-        icon: '📢',
-        action: '发布了新公告"期末考试安排"',
-        time: '10分钟前',
-        status: 'success',
-        statusText: '成功'
-      },
-      {
-        id: 3,
-        icon: '⚙️',
-        action: '修改了系统设置',
-        time: '30分钟前',
-        status: 'success',
-        statusText: '成功'
-      },
-      {
-        id: 4,
-        icon: '🗑️',
-        action: '删除了过期通知',
-        time: '1小时前',
-        status: 'warning',
-        statusText: '已处理'
-      }
-    ]
+    const userType = this.data.userInfo.person_type;
     
-    this.setData({ recentActions })
+    // 根据管理员类型生成不同的操作记录
+    let recentActions = [];
+    
+    if (userType === 'admin') {
+      recentActions = [
+        {
+          id: 1,
+          icon: '👤',
+          action: '添加了新用户 张三',
+          time: '2分钟前',
+          status: 'success',
+          statusText: '成功'
+        },
+        {
+          id: 2,
+          icon: '📢',
+          action: '发布了新公告"期末考试安排"',
+          time: '10分钟前',
+          status: 'success',
+          statusText: '成功'
+        },
+        {
+          id: 3,
+          icon: '⚙️',
+          action: '修改了系统设置',
+          time: '30分钟前',
+          status: 'success',
+          statusText: '成功'
+        },
+        {
+          id: 4,
+          icon: '🗑️',
+          action: '删除了过期通知',
+          time: '1小时前',
+          status: 'warning',
+          statusText: '已处理'
+        }
+      ];
+    } else if (userType === 'dean') {
+      recentActions = [
+        {
+          id: 1,
+          icon: '📋',
+          action: '审批了教师申请',
+          time: '5分钟前',
+          status: 'success',
+          statusText: '已批准'
+        },
+        {
+          id: 2,
+          icon: '📊',
+          action: '查看了学院统计数据',
+          time: '20分钟前',
+          status: 'info',
+          statusText: '已查看'
+        },
+        {
+          id: 3,
+          icon: '📝',
+          action: '发布了学院通知',
+          time: '1小时前',
+          status: 'success',
+          statusText: '已发布'
+        }
+      ];
+    } else if (userType === 'department_head') {
+      recentActions = [
+        {
+          id: 1,
+          icon: '👥',
+          action: '处理了部门事务',
+          time: '10分钟前',
+          status: 'success',
+          statusText: '已处理'
+        },
+        {
+          id: 2,
+          icon: '📄',
+          action: '审核了部门报告',
+          time: '30分钟前',
+          status: 'success',
+          statusText: '已审核'
+        }
+      ];
+    } else {
+      recentActions = [
+        {
+          id: 1,
+          icon: '📋',
+          action: '查看了管理数据',
+          time: '15分钟前',
+          status: 'info',
+          statusText: '已查看'
+        }
+      ];
+    }
+    
+    this.setData({ recentActions });
   },
 
   // 获取统计数据
@@ -133,15 +281,54 @@ Page({
 
   // 获取统计数据
   async fetchStats() {
-    // 模拟API调用
+    // 根据管理员类型返回不同的统计数据
+    const userType = this.data.userInfo.person_type;
+    
     return new Promise((resolve) => {
       setTimeout(() => {
-        resolve({
-          userCount: 156,
-          adminCount: 5,
-          announcementCount: 23,
-          noticeCount: 45
-        })
+        let stats = {};
+        
+        if (userType === 'admin') {
+          // 系统管理员可以看到全局数据
+          stats = {
+            userCount: 63460,
+            adminCount: 20,
+            announcementCount: 156,
+            noticeCount: 89,
+            activeUsers: 1250,
+            systemLoad: '23%'
+          };
+        } else if (userType === 'dean') {
+          // 院长看到学院数据
+          stats = {
+            userCount: 2800, // 学院人数
+            adminCount: 5,   // 学院管理员
+            announcementCount: 23,
+            noticeCount: 45,
+            facultyCount: 120,
+            studentCount: 2680
+          };
+        } else if (userType === 'department_head') {
+          // 部门主管看到部门数据
+          stats = {
+            userCount: 450,  // 部门人数
+            adminCount: 2,   // 部门管理员
+            announcementCount: 12,
+            noticeCount: 28,
+            staffCount: 25,
+            activeProjects: 8
+          };
+        } else {
+          // 其他类型的管理员
+          stats = {
+            userCount: 156,
+            adminCount: 1,
+            announcementCount: 5,
+            noticeCount: 12
+          };
+        }
+        
+        resolve(stats);
       }, 1000)
     })
   },
@@ -230,6 +417,16 @@ Page({
   },
 
   addNewAdmin() {
+    const userType = this.data.userInfo.person_type;
+    
+    if (userType !== 'admin') {
+      wx.showToast({
+        title: '只有系统管理员可以添加管理员',
+        icon: 'none'
+      });
+      return;
+    }
+    
     wx.showToast({
       title: '添加管理员功能开发中',
       icon: 'none'
@@ -281,6 +478,16 @@ Page({
 
   // 系统管理
   viewSystemLogs() {
+    const userType = this.data.userInfo.person_type;
+    
+    if (userType !== 'admin') {
+      wx.showToast({
+        title: '只有系统管理员可以查看系统日志',
+        icon: 'none'
+      });
+      return;
+    }
+
     wx.showActionSheet({
       itemList: ['查看登录日志', '查看操作日志', '查看错误日志', '清理日志'],
       success: (res) => {
@@ -296,6 +503,16 @@ Page({
   },
 
   showSystemSettings() {
+    const userType = this.data.userInfo.person_type;
+    
+    if (userType !== 'admin') {
+      wx.showToast({
+        title: '只有系统管理员可以修改系统设置',
+        icon: 'none'
+      });
+      return;
+    }
+
     wx.showActionSheet({
       itemList: ['系统配置', '安全设置', '备份设置', '邮件设置'],
       success: (res) => {
@@ -308,6 +525,16 @@ Page({
   },
 
   showDataBackup() {
+    const userType = this.data.userInfo.person_type;
+    
+    if (userType !== 'admin') {
+      wx.showToast({
+        title: '只有系统管理员可以执行数据备份',
+        icon: 'none'
+      });
+      return;
+    }
+
     wx.showActionSheet({
       itemList: ['立即备份', '恢复数据', '备份历史', '自动备份设置'],
       success: (res) => {
@@ -359,6 +586,7 @@ Page({
 
   // 刷新数据
   onPullDownRefresh() {
+    this.checkLoginStatus();
     this.fetchData().then(() => {
       wx.stopPullDownRefresh()
       wx.showToast({

@@ -1021,6 +1021,8 @@ gym - 体育馆
 ```
 
 ### 2. 用户认证响应
+
+#### 微信小程序登录认证
 ```json
 {
   "status": 0,
@@ -1035,6 +1037,7 @@ gym - 体育馆
       "person_type": "student",
       "college_name": "计算机学院",
       "major_name": "软件工程",
+      "wechat_bound": true,          // 是否已绑定微信账号
       "permissions": {
         "read": ["own_data", "public_announcements"],
         "write": ["own_profile"],
@@ -1044,6 +1047,37 @@ gym - 体育馆
   }
 }
 ```
+
+#### 微信号绑定机制说明
+
+**绑定策略**：
+- **可选绑定**: 微信号不是必需字段，用户可以选择绑定或不绑定
+- **登录后绑定**: 支持用户首次使用时通过学号/工号登录，然后选择绑定微信
+- **自动绑定**: 当用户通过微信小程序登录时，系统自动关联微信OpenID
+- **解绑重绑**: 支持用户解绑当前微信号并重新绑定新的微信号
+
+**绑定流程**：
+1. 用户通过微信小程序授权获取OpenID
+2. 系统检查该OpenID是否已绑定账号
+3. 如已绑定，直接登录；如未绑定，提示用户输入学号/工号进行绑定
+4. 绑定成功后，用户可通过微信一键登录
+
+**数据结构**：
+```json
+{
+  "person_id": "P2024001",
+  "wechat_openid": "wx_123456_202408090101",  // 微信OpenID，可为null
+  "wechat_bound_date": "2024-09-01T10:00:00Z", // 绑定时间，可为null
+  "wechat_nickname": "小明同学",               // 微信昵称（可选）
+  "login_method": "wechat",                   // 登录方式：wechat/password/both
+}
+```
+
+**API接口**：
+- `POST /auth/wechat/login` - 微信登录
+- `POST /auth/wechat/bind` - 绑定微信号
+- `POST /auth/wechat/unbind` - 解绑微信号
+- `GET /auth/wechat/status` - 查询绑定状态
 
 ### 3. 课表查询响应
 ```json

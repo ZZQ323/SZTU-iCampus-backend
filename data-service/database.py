@@ -312,8 +312,77 @@ class DatabaseManager:
         """
         logger.info("Initializing database...")
         create_database()
+        
+        # 清空现有数据
+        self.clear_all_data()
+        
         create_tables()
         logger.info("Database initialization completed")
+    
+    def clear_all_data(self):
+        """
+        清空所有表的数据但保留表结构
+        """
+        logger.info("Clearing all existing data...")
+        db = SessionLocal()
+        try:
+            # 导入所有模型
+            from models import (
+                person, organization, course, research, 
+                asset, library, finance, permission
+            )
+            
+            # 获取所有表名（按依赖关系逆序删除）
+            tables_to_clear = [
+                'device_registrations',
+                'workflow_instances', 
+                'audit_logs',
+                'platform_configs',
+                'system_access',
+                'network_permissions',
+                'transactions',
+                'campus_cards',
+                'borrow_records',
+                'books',
+                'assets',
+                'paper_library',
+                'research_applications',
+                'research_projects',
+                'grade_statistics',
+                'grades',
+                'course_instances',
+                'courses',
+                'room_occupations',
+                'locations',
+                'classes',
+                'departments',
+                'majors',
+                'colleges',
+                'persons'
+            ]
+            
+            # 清空每个表的数据
+            for table_name in tables_to_clear:
+                try:
+                    if is_sqlite:
+                        db.execute(text(f"DELETE FROM {table_name}"))
+                    else:
+                        db.execute(text(f"TRUNCATE TABLE {table_name} CASCADE"))
+                    logger.info(f"Cleared table: {table_name}")
+                except Exception as e:
+                    # 如果表不存在就跳过
+                    logger.debug(f"Table {table_name} not found or error: {e}")
+                    continue
+            
+            db.commit()
+            logger.info("All existing data cleared successfully")
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error clearing data: {e}")
+            raise
+        finally:
+            db.close()
     
     def reset(self):
         """

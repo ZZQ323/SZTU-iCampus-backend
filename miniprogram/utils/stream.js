@@ -1,592 +1,604 @@
 /**
- * SZTU iCampus 流式数据管理器 - 企业级解决方案
- * 核心优势：智能缓存 + 增量更新 + 优雅降级 + 用户感知优化
+ * 流式推送和增量同步工具
+ * 实现缓存管理、增量同步、事件处理
  */
 
 class StreamManager {
   constructor() {
-    this.streams = new Map()
-      // 每个流有唯一的 streamId 作为键。
-    this.eventBus = new Map()
-      // 管理和触发事件回调
-    this.isConnected = false
-      // 是否有活跃的连接
-    this.reconnectAttempts = 0
-      // 当前已经尝试了的重连次数
-    this.maxReconnectAttempts = 5
-      // 最大重连尝试次数
-    this.reconnectDelay = 1000
-      // 重连延时，每次重连会增加等待时间。
-
-    // 流式数据缓存，使用 Map 存储数据，并进行过期管理
-    this.dataCache = new Map()
-    // 缓存过期时间（5分钟），缓存超过此时间会被清理。
-    this.cacheExpiry = 5 * 60 * 1000 // 5分钟缓存
-
-    // 性能统计
-    this.stats = {
-      cacheHits: 0, // 记录缓存命中
-      cacheMisses: 0, // 缓存未命中
-      streamConnections: 0, // 连接次数
-      dataReceived: 0, // 接收的数据量
-      lastUpdate: null // 上次更新的ID？
-    }
+    this.isOnline = true;
+    this.eventSource = null;
+    this.lastSyncTime = null;
+    this.eventHandlers = new Map();
+    this.reconnectTimer = null;
+    this.reconnectInterval = 5000; // 5秒重连间隔
+    this.maxReconnectAttempts = 10;
+    this.reconnectAttempts = 0;
+    
+    // 缓存配置
+    this.cacheKeys = {
+      EVENTS: 'sztu_events_cache',
+      LAST_SYNC: 'sztu_last_sync_time',
+      USER_DATA: 'sztu_user_data_cache',
+      ANNOUNCEMENTS: 'sztu_announcements_cache',
+      GRADES: 'sztu_grades_cache',
+      TRANSACTIONS: 'sztu_transactions_cache',
+      SCHEDULE: 'sztu_schedule_cache'
+    };
+    
+    this.init();
   }
-
+  
   /**
-   *  智能连接流式数据源
+   * 初始化流式管理器
    */
-  connect(streamId, url, onData, onError) {
-    /**
-     * 连接到指定流数据源。如果流已存在，先断开旧的连接
-     */
-    if (this.streams.has(streamId)) {
-      console.log(`[StreamManager]  流 ${streamId} 已存在，先断开旧连接`)
-      this.disconnect(streamId)
-    }
-
-    console.log(`[StreamManager] 🌊 连接流式数据源: ${streamId}`)
-    console.log(`[StreamManager] 📡 数据源地址: ${url}`)
-
-    // 优雅降级：网络检查
-    this.checkNetworkAndConnect(streamId, url, onData, onError)
+  init() {
+    console.log('🚀 StreamManager 初始化');
+    
+    // 监听网络状态变化
+    wx.onNetworkStatusChange((res) => {
+      this.handleNetworkChange(res);
+    });
+    
+    // 应用启动时立即同步
+    this.syncOnAppStart();
   }
-
+  
   /**
-   * 网络状态检查与优雅降级
-    * 检查网络类型，若无网络则启用离线模式；
-    * 若网络为慢速（2G/3G），则启用省流模式；
-    * 否则，尝试建立连接
+   * 应用启动时的同步逻辑
    */
-  checkNetworkAndConnect(streamId, url, onData, onError) {
-    const networkType = wx.getNetworkType()
-
-    networkType.then(res => {
-      console.log(`[StreamManager] 📶 网络类型: ${res.networkType}`)
-
-      if (res.networkType === 'none') {
-        console.log(`[StreamManager] ⚠️ 无网络连接，启用离线模式`)
-        this.handleOfflineMode(streamId, onData)
-        return
-      }
-
-      // 根据网络类型调整策略
-      const isSlowNetwork = ['2g', '3g'].includes(res.networkType)
-      if (isSlowNetwork) {
-        console.log(`[StreamManager] 🐌 检测到慢速网络，优化传输策略`)
-        wx.showToast({
-          title: '📶 网络较慢，已启用省流模式',
-          icon: 'none',
-          duration: 2000
-        })
-      }
-
-      this.establishConnection(streamId, url, onData, onError, isSlowNetwork)
-    })
-  }
-
-  /**
-   *  建立实际连接
-   */
-  establishConnection(streamId, url, onData, onError, isSlowNetwork = false) {
-    const requestTask = wx.request({
-      url: url,
-      method: 'GET',
-      enableChunked: true,
-      responseType: 'text',
-      timeout: isSlowNetwork ? 30000 : 15000, // 慢网络延长超时
-      success: (res) => {
-        console.log(`[StreamManager] ✅ 流 ${streamId} 连接成功`)
-        this.isConnected = true
-        this.reconnectAttempts = 0
-        this.stats.streamConnections++
-
-        // 用户体验：连接成功提示
-        wx.showToast({
-          title: '🌊 实时数据已连接',
-          icon: 'none',
-          duration: 1500
-        })
-
-        // 轻微震动反馈
-        wx.vibrateShort({
-          type: 'light'
-        })
-      },
-      fail: (err) => {
-        console.error(`[StreamManager] ❌ 流 ${streamId} 连接失败:`, err)
-        this.isConnected = false
-
-        // 🔄 智能重连策略
-        if (onError) onError(err)
-        this.handleConnectionFailure(streamId, url, onData, onError, isSlowNetwork)
-      }
-    })
-
-    // 数据接收处理
-    requestTask.onChunkReceived((res) => {
-      const decoder = new TextDecoder()
-      const chunk = decoder.decode(res.data)
-
-      if (chunk.trim()) {
-        console.log(`[StreamManager] 📥 收到 ${streamId} 数据块`)
-        this.stats.dataReceived++
-        this.stats.lastUpdate = new Date()
-
-        this.processStreamData(chunk, onData, streamId)
-      }
-    })
-
-    this.streams.set(streamId, requestTask)
-    return requestTask
-  }
-
-  /**
-   *  智能数据处理 + 缓存策略
-   */
-  processStreamData(streamData, onData, streamId) {
+  async syncOnAppStart() {
     try {
-      const lines = streamData.split('\n')
-
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const jsonData = line.substring(6).trim()
-          if (jsonData) {
-            try {
-              const data = JSON.parse(jsonData)
-              console.log(`[StreamManager] 🔄 处理 ${streamId} 数据:`, data.title || data.type || 'unknown')
-
-              // 🚀 智能缓存：缓存重要数据
-              if (data.id && (data.title || data.course_name)) {
-                this.cacheData(streamId, data.id, data)
-              }
-
-              // 🎯 用户体验：不同类型数据的差异化反馈
-              this.provideUserFeedback(data, streamId)
-
-              if (onData) onData(data)
-
-            } catch (parseError) {
-              console.warn(`[StreamManager] ⚠️ JSON解析错误:`, parseError)
-            }
-          }
-        }
+      // 1. 立即展示缓存数据
+      this.loadCachedData();
+      
+      // 2. 检查网络状态
+      const networkInfo = await this.getNetworkStatus();
+      this.isOnline = networkInfo.isConnected;
+      
+      if (this.isOnline) {
+        // 3. 在线时启动增量同步和流式连接
+        await this.startIncrementalSync();
+        this.connectEventStream();
+      } else {
+        console.log('📱 离线模式 - 仅显示缓存数据');
       }
+      
     } catch (error) {
-      console.error(`[StreamManager] ❌ 数据处理错误:`, error)
+      console.error('启动同步失败:', error);
     }
   }
-
+  
   /**
-   *  差异化用户反馈
+   * 加载缓存数据
    */
-  provideUserFeedback(data, streamId) {
-    // 不同类型数据的差异化体验
-    if (data.stream_type === 'realtime_push') {
-      // 实时推送数据 - 强烈反馈
-      wx.vibrateShort({ type: 'heavy' })
-
-    } else if (data.update_type === 'participant_change') {
-      // 参与人数变化 - 轻微反馈
-      wx.vibrateShort({ type: 'light' })
-
-    } else if (data.type === 'push_success') {
-      // 推送成功反馈 - 无震动，仅日志
-      console.log(`[StreamManager] ✅ ${data.message}`)
+  loadCachedData() {
+    try {
+      const cachedEvents = wx.getStorageSync(this.cacheKeys.EVENTS) || [];
+      const cachedAnnouncements = wx.getStorageSync(this.cacheKeys.ANNOUNCEMENTS) || [];
+      const cachedGrades = wx.getStorageSync(this.cacheKeys.GRADES) || [];
+      const cachedTransactions = wx.getStorageSync(this.cacheKeys.TRANSACTIONS) || [];
+      
+      console.log(`📂 加载缓存数据: ${cachedEvents.length}事件, ${cachedAnnouncements.length}公告, ${cachedGrades.length}成绩, ${cachedTransactions.length}交易`);
+      
+      // 触发数据更新事件，让各页面显示缓存数据
+      this.emitEvent('cache_loaded', {
+        events: cachedEvents,
+        announcements: cachedAnnouncements,
+        grades: cachedGrades,
+        transactions: cachedTransactions
+      });
+      
+    } catch (error) {
+      console.error('加载缓存数据失败:', error);
     }
   }
-
+  
   /**
-   *  智能数据缓存
+   * 启动增量同步
    */
-  cacheData(streamId, dataId, data) {
-    const cacheKey = `${streamId}_${dataId}`
-    const cacheEntry = {
-      data: data,
-      timestamp: Date.now(),
-      accessCount: 1
-    }
-
-    // 检查是否已缓存
-    if (this.dataCache.has(cacheKey)) {
-      this.stats.cacheHits++
-      // 更新访问次数
-      const existing = this.dataCache.get(cacheKey)
-      existing.accessCount++
-      existing.timestamp = Date.now() // 刷新缓存时间
-    } else {
-      this.stats.cacheMisses++
-      this.dataCache.set(cacheKey, cacheEntry)
-    }
-
-    // 🧹 缓存清理：定期清理过期缓存
-    this.cleanupExpiredCache()
-  }
-
-  /**
-   *  缓存清理机制
-   */
-  cleanupExpiredCache() {
-    const now = Date.now()
-    let cleanedCount = 0
-
-    for (const [key, entry] of this.dataCache.entries()) {
-      if (now - entry.timestamp > this.cacheExpiry) {
-        this.dataCache.delete(key)
-        cleanedCount++
+  async startIncrementalSync() {
+    try {
+      // 获取最后同步时间
+      this.lastSyncTime = wx.getStorageSync(this.cacheKeys.LAST_SYNC) || 
+                          new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(); // 默认24小时前
+      
+      console.log(`🔄 开始增量同步 (自 ${this.lastSyncTime})`);
+      
+      // 调用增量同步API
+      const token = wx.getStorageSync('access_token');
+      if (!token) {
+        console.log('⚠️ 未登录用户，仅同步公开事件');
+        return this.syncPublicEvents();
       }
-    }
-
-    if (cleanedCount > 0) {
-      console.log(`[StreamManager] 🧹 清理了 ${cleanedCount} 个过期缓存`)
-    }
-  }
-
-  /**
-   *  离线模式处理
-   */
-  handleOfflineMode(streamId, onData) {
-    console.log(`[StreamManager] 📴 进入离线模式`)
-
-    // 用户体验：离线提示
-    wx.showModal({
-      title: '📴 网络连接中断',
-      content: '当前无网络连接，将为您提供缓存数据。网络恢复后将自动重新连接实时数据。',
-      showCancel: false,
-      confirmText: '知道了',
-      confirmColor: '#0052d9'
-    })
-
-    // 智能降级：提供缓存数据
-    const cachedData = this.getCachedDataForStream(streamId)
-    if (cachedData.length > 0) {
-      console.log(`[StreamManager] 📦 提供 ${cachedData.length} 条缓存数据`)
-
-      cachedData.forEach((data, index) => {
-        setTimeout(() => {
-          const offlineData = {
-            ...data,
-            isOfflineData: true,
-            cacheTime: new Date(Date.now() - Math.random() * 3600000).toISOString()
-          }
-          if (onData) onData(offlineData)
-        }, index * 100) // 模拟流式传输
-      })
-
-      wx.showToast({
-        title: `📦 已加载${cachedData.length}条缓存数据`,
-        icon: 'none',
-        duration: 2000
-      })
-    }
-  }
-
-  /**
-   * 获取指定流的缓存数据
-   */
-  getCachedDataForStream(streamId) {
-    const cachedData = []
-    const prefix = `${streamId}_`
-
-    for (const [key, entry] of this.dataCache.entries()) {
-      if (key.startsWith(prefix)) {
-        cachedData.push(entry.data)
-      }
-    }
-
-    // 按时间倒序排列
-    return cachedData.sort((a, b) =>
-      new Date(b.created_at || b.timestamp) - new Date(a.created_at || a.timestamp)
-    )
-  }
-
-  /**
-   *  连接失败处理
-   */
-  handleConnectionFailure(streamId, url, onData, onError, isSlowNetwork) {
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      this.reconnectAttempts++
-      const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1)
-
-      console.log(`[StreamManager] 🔄 ${delay}ms后尝试重连 ${streamId} (${this.reconnectAttempts}/${this.maxReconnectAttempts})`)
-
-      // 🎯 用户体验：重连进度提示
-      wx.showToast({
-        title: `🔄 重连中... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`,
-        icon: 'none',
-        duration: delay
-      })
-
-      setTimeout(() => {
-        this.establishConnection(streamId, url, onData, onError, isSlowNetwork)
-      }, delay)
-    } else {
-      console.error(`[StreamManager] ❌ 流 ${streamId} 重连失败，启用离线模式`)
-
-      wx.showModal({
-        title: '⚠️ 连接失败',
-        content: '实时数据连接失败，已切换至离线模式。您可以继续浏览缓存数据。',
-        showCancel: true,
-        cancelText: '继续离线',
-        confirmText: '重试连接',
-        confirmColor: '#0052d9',
-        success: (res) => {
-          if (res.confirm) {
-            // 重置重连计数，重新尝试
-            this.reconnectAttempts = 0
-            this.checkNetworkAndConnect(streamId, url, onData, onError)
-          } else {
-            // 进入离线模式
-            this.handleOfflineMode(streamId, onData)
-          }
+      
+      const response = await this.request({
+        url: '/stream/sync',
+        method: 'GET',
+        data: {
+          since: this.lastSyncTime
+        },
+        header: {
+          'Authorization': `Bearer ${token}`
         }
-      })
-    }
-  }
-
-  /**
-   *  断开流连接
-   */
-  disconnect(streamId) {
-    const stream = this.streams.get(streamId)
-    if (stream) {
-      stream.abort()
-      this.streams.delete(streamId)
-      console.log(`[StreamManager] 🔌 已断开流: ${streamId}`)
-    }
-  }
-
-  /**
-   * 🚫 断开所有流连接
-   */
-  disconnectAll() {
-    console.log(`[StreamManager] 🚫 断开所有流连接`)
-    for (const [streamId, stream] of this.streams) {
-      stream.abort()
-    }
-    this.streams.clear()
-    this.isConnected = false
-  }
-
-  /**
-   * 📡 事件总线
-   */
-  on(event, callback) {
-    if (!this.eventBus.has(event)) {
-      this.eventBus.set(event, [])
-    }
-    this.eventBus.get(event).push(callback)
-  }
-
-  emit(event, data) {
-    const callbacks = this.eventBus.get(event)
-    if (callbacks) {
-      callbacks.forEach(callback => callback(data))
-    }
-  }
-
-  off(event, callback) {
-    const callbacks = this.eventBus.get(event)
-    if (callbacks) {
-      const index = callbacks.indexOf(callback)
-      if (index > -1) {
-        callbacks.splice(index, 1)
+      });
+      
+      if (response.status === 0) {
+        await this.processIncrementalData(response.data.events);
+        
+        // 更新同步时间
+        this.updateLastSyncTime(response.data.sync_timestamp);
+        
+        console.log(`✅ 增量同步完成: ${response.data.count} 个新事件`);
       }
+      
+    } catch (error) {
+      console.error('增量同步失败:', error);
     }
   }
 
   /**
-   * 📊 获取性能统计
+   * 同步公开事件（未登录用户）
    */
-  getConnectionStatus() {
-    return {
-      isConnected: this.isConnected,
-      activeStreams: this.streams.size,
-      reconnectAttempts: this.reconnectAttempts,
-      cacheSize: this.dataCache.size,
-      cacheHitRate: this.stats.cacheHits + this.stats.cacheMisses > 0 ?
-        (this.stats.cacheHits / (this.stats.cacheHits + this.stats.cacheMisses) * 100).toFixed(1) + '%' : '0%',
-      totalConnections: this.stats.streamConnections,
-      dataReceived: this.stats.dataReceived,
-      lastUpdate: this.stats.lastUpdate
+  async syncPublicEvents() {
+    try {
+      const response = await this.request({
+        url: '/stream/sync/guest',
+        method: 'GET',
+        data: {
+          since: this.lastSyncTime
+        }
+      });
+      
+      if (response.status === 0) {
+        await this.processIncrementalData(response.data.events, true);
+        this.updateLastSyncTime(response.data.sync_timestamp);
+        console.log(`✅ 公开事件同步完成: ${response.data.count} 个新事件`);
+      }
+      
+    } catch (error) {
+      console.error('公开事件同步失败:', error);
     }
   }
 
   /**
-   * 🧹 清理所有缓存
+   * 处理增量数据
+   */
+  async processIncrementalData(newEvents, isPublicOnly = false) {
+    if (!newEvents || newEvents.length === 0) {
+      return;
+    }
+    
+    // 按事件类型分类处理
+    const eventsByType = this.groupEventsByType(newEvents);
+    
+    // 更新各类数据缓存
+    for (const [eventType, events] of Object.entries(eventsByType)) {
+      await this.updateCacheByEventType(eventType, events);
+    }
+    
+    // 触发UI更新事件
+    this.emitEvent('incremental_sync', {
+      newEvents: newEvents,
+      eventsByType: eventsByType,
+      isPublicOnly: isPublicOnly
+    });
+  }
+  
+  /**
+   * 按事件类型分组
+   */
+  groupEventsByType(events) {
+    const grouped = {};
+    
+    events.forEach(event => {
+      const type = event.event_type;
+      if (!grouped[type]) {
+        grouped[type] = [];
+      }
+      grouped[type].push(event);
+    });
+    
+    return grouped;
+  }
+  
+  /**
+   * 根据事件类型更新缓存
+   */
+  async updateCacheByEventType(eventType, events) {
+    try {
+      switch (eventType) {
+        case 'announcement':
+        case 'notice':
+        case 'system_message':
+          await this.updateAnnouncementsCache(events);
+          break;
+          
+        case 'grade_update':
+          await this.updateGradesCache(events);
+          break;
+          
+        case 'transaction':
+          await this.updateTransactionsCache(events);
+          break;
+          
+        case 'course_change':
+          await this.updateScheduleCache(events);
+          break;
+          
+        case 'library_reminder':
+          await this.updateLibraryCache(events);
+          break;
+          
+        default:
+          // 通用事件缓存
+          await this.updateEventsCache(events);
+      }
+      
+    } catch (error) {
+      console.error(`更新 ${eventType} 缓存失败:`, error);
+    }
+  }
+
+  /**
+   * 更新公告缓存
+   */
+  async updateAnnouncementsCache(events) {
+    const cached = wx.getStorageSync(this.cacheKeys.ANNOUNCEMENTS) || [];
+    
+    events.forEach(event => {
+      const announcement = {
+        id: event.event_id,
+        title: event.data.title,
+        content: event.data.content,
+        department: event.data.department,
+        timestamp: event.timestamp,
+        urgent: event.data.urgent || false,
+        category: event.data.category || 'general'
+      };
+      
+      // 避免重复
+      const existing = cached.find(item => item.id === announcement.id);
+      if (!existing) {
+        cached.unshift(announcement); // 新消息在前
+      }
+    });
+    
+    // 保持缓存大小限制
+    if (cached.length > 100) {
+      cached.splice(100);
+    }
+    
+    wx.setStorageSync(this.cacheKeys.ANNOUNCEMENTS, cached);
+  }
+  
+  /**
+   * 更新成绩缓存
+   */
+  async updateGradesCache(events) {
+    const cached = wx.getStorageSync(this.cacheKeys.GRADES) || [];
+    
+    events.forEach(event => {
+      const grade = {
+        id: event.event_id,
+        course_name: event.data.course_name,
+        score: event.data.score,
+        grade_level: event.data.grade_level,
+        semester: event.data.semester,
+        timestamp: event.timestamp,
+        is_new: true // 标记为新成绩
+      };
+      
+      // 检查是否已存在相同课程的成绩
+      const existingIndex = cached.findIndex(item => 
+        item.course_name === grade.course_name && 
+        item.semester === grade.semester
+      );
+      
+      if (existingIndex >= 0) {
+        // 更新现有成绩
+        cached[existingIndex] = grade;
+    } else {
+        // 添加新成绩
+        cached.unshift(grade);
+      }
+    });
+    
+    wx.setStorageSync(this.cacheKeys.GRADES, cached);
+  }
+  
+  /**
+   * 更新交易缓存
+   */
+  async updateTransactionsCache(events) {
+    const cached = wx.getStorageSync(this.cacheKeys.TRANSACTIONS) || [];
+    
+    events.forEach(event => {
+      const transaction = {
+        id: event.event_id,
+        amount: event.data.amount,
+        location: event.data.location,
+        balance: event.data.balance,
+        time: event.data.time,
+        timestamp: event.timestamp,
+        is_new: true // 标记为新交易
+      };
+      
+      // 避免重复
+      const existing = cached.find(item => item.id === transaction.id);
+      if (!existing) {
+        cached.unshift(transaction);
+      }
+    });
+    
+    // 保持缓存大小限制（最近200条交易）
+    if (cached.length > 200) {
+      cached.splice(200);
+    }
+    
+    wx.setStorageSync(this.cacheKeys.TRANSACTIONS, cached);
+  }
+  
+  /**
+   * 更新课表缓存
+   */
+  async updateScheduleCache(events) {
+    const cached = wx.getStorageSync(this.cacheKeys.SCHEDULE) || {};
+    
+    events.forEach(event => {
+      const courseChange = {
+        id: event.event_id,
+        course_name: event.data.course_name,
+        teacher: event.data.teacher,
+        change_type: event.data.change_type,
+        old_schedule: event.data.old_schedule,
+        new_schedule: event.data.new_schedule,
+        reason: event.data.reason,
+        effective_date: event.data.effective_date,
+        timestamp: event.timestamp
+      };
+      
+      // 更新课表变更记录
+      if (!cached.changes) {
+        cached.changes = [];
+      }
+      cached.changes.unshift(courseChange);
+      
+      // 标记需要刷新课表
+      cached.needs_refresh = true;
+      cached.last_change = event.timestamp;
+    });
+    
+    wx.setStorageSync(this.cacheKeys.SCHEDULE, cached);
+  }
+  
+  /**
+   * 更新图书馆缓存
+   */
+  async updateLibraryCache(events) {
+    const cached = wx.getStorageSync('sztu_library_cache') || [];
+    
+    events.forEach(event => {
+      const libraryReminder = {
+        id: event.event_id,
+        book_title: event.data.book_title,
+        due_date: event.data.due_date,
+        days_left: event.data.days_left,
+        fine_amount: event.data.fine_amount,
+        action_required: event.data.action_required,
+        timestamp: event.timestamp,
+        is_new: true
+      };
+      
+      // 避免重复
+      const existing = cached.find(item => item.id === libraryReminder.id);
+      if (!existing) {
+        cached.unshift(libraryReminder);
+      }
+    });
+    
+    // 保持缓存大小限制
+    if (cached.length > 50) {
+      cached.splice(50);
+    }
+    
+    wx.setStorageSync('sztu_library_cache', cached);
+  }
+  
+  /**
+   * 更新通用事件缓存
+   */
+  async updateEventsCache(events) {
+    const cached = wx.getStorageSync(this.cacheKeys.EVENTS) || [];
+    
+    events.forEach(event => {
+      // 避免重复
+      const existing = cached.find(item => item.event_id === event.event_id);
+      if (!existing) {
+        cached.unshift(event);
+      }
+    });
+    
+    // 保持缓存大小限制
+    if (cached.length > 300) {
+      cached.splice(300);
+    }
+    
+    wx.setStorageSync(this.cacheKeys.EVENTS, cached);
+  }
+  
+  /**
+   * 连接事件流（当前为模拟实现）
+   */
+  connectEventStream() {
+    console.log('🔗 模拟连接事件流');
+    // 注意：真实的微信小程序环境可能需要使用WebSocket或长轮询
+    // 这里为了简化，暂时只是模拟连接状态
+  }
+  
+  /**
+   * 处理网络状态变化
+   */
+  async handleNetworkChange(networkInfo) {
+    const wasOnline = this.isOnline;
+    this.isOnline = networkInfo.isConnected;
+    
+    console.log(`🌐 网络状态变化: ${wasOnline ? '在线' : '离线'} -> ${this.isOnline ? '在线' : '离线'}`);
+    
+    if (!wasOnline && this.isOnline) {
+      // 从离线转为在线：启动增量同步
+      console.log('🔄 网络恢复，启动增量同步...');
+      await this.startIncrementalSync();
+      this.connectEventStream();
+      
+    } else if (wasOnline && !this.isOnline) {
+      // 从在线转为离线：进入离线模式
+      console.log('📱 网络断开，进入离线模式');
+    }
+    
+    // 通知应用网络状态变化
+    this.emitEvent('network_change', {
+      isOnline: this.isOnline,
+      wasOnline: wasOnline
+    });
+  }
+  
+  /**
+   * 获取网络状态
+   */
+  getNetworkStatus() {
+    return new Promise((resolve) => {
+      wx.getNetworkType({
+        success: (res) => {
+          resolve({
+            networkType: res.networkType,
+            isConnected: res.networkType !== 'none'
+          });
+        },
+        fail: () => {
+          resolve({
+            networkType: 'unknown',
+            isConnected: false
+          });
+        }
+      });
+    });
+  }
+  
+  /**
+   * 更新最后同步时间
+   */
+  updateLastSyncTime(timestamp) {
+    this.lastSyncTime = timestamp;
+    wx.setStorageSync(this.cacheKeys.LAST_SYNC, timestamp);
+  }
+  
+  /**
+   * 通用请求方法
+   */
+  request(options) {
+    const baseUrl = getApp().globalData.apiBaseUrl || 'http://localhost:8000';
+    
+    return new Promise((resolve, reject) => {
+      wx.request({
+        url: `${baseUrl}/api/v1${options.url}`,
+        method: options.method || 'GET',
+        data: options.data,
+        header: {
+          'Content-Type': 'application/json',
+          ...options.header
+        },
+            success: (res) => {
+          if (res.statusCode === 200) {
+            resolve(res.data);
+        } else {
+            reject(new Error(`HTTP ${res.statusCode}: ${res.data?.msg || 'Unknown error'}`));
+          }
+        },
+        fail: reject
+      });
+    });
+  }
+  
+  /**
+   * 事件发射器
+   */
+  emitEvent(eventName, data) {
+    const handlers = this.eventHandlers.get(eventName) || [];
+    handlers.forEach(handler => {
+      try {
+        handler(data);
+      } catch (error) {
+        console.error(`事件处理器错误 [${eventName}]:`, error);
+      }
+    });
+  }
+  
+  /**
+   * 注册事件监听器
+   */
+  addEventListener(eventName, handler) {
+    if (!this.eventHandlers.has(eventName)) {
+      this.eventHandlers.set(eventName, []);
+    }
+    this.eventHandlers.get(eventName).push(handler);
+  }
+  
+  /**
+   * 移除事件监听器
+   */
+  removeEventListener(eventName, handler) {
+    const handlers = this.eventHandlers.get(eventName) || [];
+    const index = handlers.indexOf(handler);
+    if (index > -1) {
+      handlers.splice(index, 1);
+    }
+  }
+  
+  /**
+   * 手动触发增量同步
+   */
+  async manualSync() {
+    console.log('🔄 手动触发增量同步');
+    await this.startIncrementalSync();
+  }
+  
+  /**
+   * 清除缓存
    */
   clearCache() {
-    const size = this.dataCache.size
-    this.dataCache.clear()
-    console.log(`[StreamManager] 🧹 清理了所有缓存 (${size} 条)`)
-
-    wx.showToast({
-      title: `🧹 清理了${size}条缓存`,
-      icon: 'none',
-      duration: 1500
-    })
+    Object.values(this.cacheKeys).forEach(key => {
+      wx.removeStorageSync(key);
+    });
+    console.log('🗑️ 缓存已清除');
   }
-}
-
-/**
- * 📢 公告流式数据管理 - 优化版
- */
-class AnnouncementStream {
-  constructor() {
-    this.streamManager = new StreamManager()
-    this.isActive = false
-    this.lastAnnouncementId = 0
-  }
-
-  start(onNewAnnouncement) {
-    if (this.isActive) {
-      console.log('[AnnouncementStream] 📢 公告流已激活')
-      return
-    }
-
-    console.log('[AnnouncementStream] 🚀 启动公告实时推送')
-    const baseURL = getApp().globalData.baseURL
-
-    this.streamManager.connect(
-      'announcements',
-      `${baseURL}/api/announcements/stream`,
-      (data) => {
-        console.log('[AnnouncementStream] 📨 收到新公告:', data.title)
-
-        // 智能去重：避免重复推送
-        if (data.id && data.id <= this.lastAnnouncementId) {
-          console.log('[AnnouncementStream] 🔄 跳过重复公告')
-          return
-        }
-
-        if (data.id) {
-          this.lastAnnouncementId = data.id
-        }
-
-        // 🚀 差异化处理：实时推送 vs 初始数据
-        if (data.stream_type === 'realtime_push') {
-          // 实时推送的公告 - 强提醒
-          wx.showModal({
-            title: '📢 新公告推送',
-            content: `${data.title}\n\n来自：${data.department}`,
-            showCancel: true,
-            cancelText: '稍后查看',
-            confirmText: '立即查看',
-            confirmColor: '#0052d9',
-            success: (res) => {
-              if (res.confirm && onNewAnnouncement) {
-                onNewAnnouncement(data)
-              }
-            }
-          })
-        } else {
-          // 初始数据 - 静默处理
-          if (onNewAnnouncement) onNewAnnouncement(data)
-        }
-      },
-      (error) => {
-        console.error('[AnnouncementStream] ❌ 公告流错误:', error)
-      }
-    )
-
-    this.isActive = true
-  }
-
-  stop() {
-    console.log('[AnnouncementStream] 🛑 停止公告实时推送')
-    this.streamManager.disconnect('announcements')
-    this.isActive = false
-  }
-
+  
   /**
-   * 📊 获取公告流统计
+   * 获取缓存统计
    */
-  getStats() {
-    return {
-      ...this.streamManager.getConnectionStatus(),
-      lastAnnouncementId: this.lastAnnouncementId
-    }
-  }
-}
-
-/**
- * 🎯 活动流式数据管理 - 优化版
- */
-class EventStream {
-  constructor() {
-    this.streamManager = new StreamManager()
-    this.isActive = false
-    this.participantChangeCount = 0
-  }
-
-  start(onEventUpdate) {
-    if (this.isActive) {
-      console.log('[EventStream] 🎯 活动流已激活')
-      return
-    }
-
-    console.log('[EventStream] 🚀 启动活动实时更新')
-    const baseURL = getApp().globalData.baseURL
-
-    this.streamManager.connect(
-      'events',
-      `${baseURL}/api/v1/events/stream`,
-      (data) => {
-        if (data.update_type === 'participant_change') {
-          this.participantChangeCount++
-          console.log(`[EventStream] 👥 活动 "${data.title}" 参与人数: ${data.current_participants}/${data.max_participants}`)
-
-          // 🎯 用户体验：参与人数变化的动画效果提示
-          const changePercent = ((data.current_participants / data.max_participants) * 100).toFixed(1)
-          wx.showToast({
-            title: `👥 ${data.current_participants}/${data.max_participants} (${changePercent}%)`,
-            icon: 'none',
-            duration: 2000
-          })
-
-        } else if (data.stream_type === 'initial') {
-          console.log('[EventStream] 📥 接收初始活动数据:', data.title)
-        } else {
-          console.log('[EventStream] 🎯 收到活动更新:', data.title)
-        }
-
-        if (onEventUpdate) onEventUpdate(data)
-      },
-      (error) => {
-        console.error('[EventStream] ❌ 活动流错误:', error)
+  getCacheStats() {
+    const stats = {};
+    Object.entries(this.cacheKeys).forEach(([name, key]) => {
+      try {
+        const data = wx.getStorageSync(key);
+        stats[name] = {
+          exists: !!data,
+          size: data ? JSON.stringify(data).length : 0,
+          count: Array.isArray(data) ? data.length : (data ? 1 : 0)
+        };
+      } catch (error) {
+        stats[name] = { exists: false, size: 0, count: 0, error: error.message };
       }
-    )
-
-    this.isActive = true
-  }
-
-  stop() {
-    console.log('[EventStream] 🛑 停止活动实时更新')
-    this.streamManager.disconnect('events')
-    this.isActive = false
-  }
-
-  /**
-   * 📊 获取活动流统计
-   */
-  getStats() {
-    return {
-      ...this.streamManager.getConnectionStatus(),
-      participantChanges: this.participantChangeCount
-    }
+    });
+    
+    return stats;
   }
 }
 
 // 创建全局实例
-const streamManager = new StreamManager()
-const announcementStream = new AnnouncementStream()
-const eventStream = new EventStream()
+const streamManager = new StreamManager();
 
+// 导出
 module.exports = {
   StreamManager,
-  AnnouncementStream,
-  EventStream,
-  streamManager,
-  announcementStream,
-  eventStream
-} 
+  streamManager
+}; 

@@ -67,7 +67,7 @@ class NetworkPermission(BaseModel):
     login_count = Column(Integer, default=0, comment="登录次数")
     
     # 关联关系
-    person = relationship("Person")
+    person = relationship("Person", foreign_keys=[person_id])
     device_registrations = relationship("DeviceRegistration", back_populates="network_permission")
     
     # 索引
@@ -163,7 +163,7 @@ class SystemAccess(BaseModel):
     device_binding = Column(Boolean, default=False, comment="是否绑定设备")
     
     # 关联关系
-    person = relationship("Person")
+    person = relationship("Person", foreign_keys=[person_id])
     approver = relationship("Person", foreign_keys=[approved_by])
     
     # 索引
@@ -241,7 +241,7 @@ class PlatformConfig(BaseModel):
     last_sync_time = Column(DateTime, nullable=True, comment="最后同步时间")
     
     # 关联关系
-    person = relationship("Person")
+    person = relationship("Person", foreign_keys=[person_id])
     
     # 索引
     __table_args__ = (
@@ -288,7 +288,7 @@ class DeviceRegistration(BaseModel):
     data_usage_mb = Column(Integer, default=0, comment="数据使用量（MB）")
     
     # 关联关系
-    person = relationship("Person")
+    person = relationship("Person", foreign_keys=[person_id])
     network_permission = relationship("NetworkPermission", back_populates="device_registrations")
     
     # 索引
@@ -345,7 +345,7 @@ class AuditLog(BaseModel):
     is_sensitive = Column(Boolean, default=False, comment="是否敏感操作")
     
     # 关联关系
-    person = relationship("Person")
+    person = relationship("Person", foreign_keys=[person_id])
     
     # 索引
     __table_args__ = (
@@ -394,7 +394,7 @@ class WorkflowInstance(BaseModel):
     result_comments = Column(Text, nullable=True, comment="结果备注")
     
     # 关联关系
-    applicant = relationship("Person")
+    applicant = relationship("Person", foreign_keys=[applicant_id])
     
     # 索引
     __table_args__ = (

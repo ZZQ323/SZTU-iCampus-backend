@@ -4,9 +4,9 @@
 }
 
 .exams-container {
-  background: #f5f7fa;
   min-height: 100vh;
   padding-bottom: 20px;
+  background-color: rgba(108, 202, 139, 0.835);
 }
 
 .exam-type-selector {
@@ -80,12 +80,11 @@
   background: white;
   border-bottom: 1px solid #eee;
   position: sticky;
-  top: 0;
+  top: 10vh;
   z-index: 100;
 }
 
 .navbar-left {
-  width: 40px;
   height: 40px;
   display: flex;
   align-items: center;

@@ -1,6 +1,7 @@
 <!-- 公告页面 -->
 <view class="page">
   <view class="bblank"></view>
+  <custom-navbar title="校园公告" showBack="{{true}}" background="{{'#668B8B'}}"></custom-navbar>
   
   <!-- 顶部搜索栏 -->
   <view class="search-header">

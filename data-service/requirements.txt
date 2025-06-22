@@ -6,6 +6,7 @@ pydantic_settings
 
 sqlalchemy>=2.0,<2.1
 psycopg[binary]
+psycopg2
 alembic>=1.12,<2.0
 asyncpg>=0.29,<0.30
 
@@ -24,3 +25,4 @@ redis>=5.0,<6.0
 celery>=5.3,<6.0
 
 prometheus-client>=0.19,<0.20
+pypinyin

@@ -1,4 +1,7 @@
 {
   "navigationBarTitleText": "校园卡",
-  "usingComponents": {}
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "custom-navbar": "/components/custom-navbar/custom-navbar"
+  }
 } 

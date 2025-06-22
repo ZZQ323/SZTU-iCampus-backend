@@ -84,10 +84,10 @@ class Person(BaseModel):
     id_photo_url = Column(String(200), nullable=True, comment="证件照URL")
     
     # 关联关系
-    college = relationship("College", back_populates="persons")
-    major = relationship("Major", back_populates="persons")
-    department = relationship("Department", back_populates="persons")
-    class_ = relationship("Class", back_populates="students")
+    college = relationship("College", foreign_keys=[college_id], back_populates="persons")
+    major = relationship("Major", foreign_keys=[major_id], back_populates="persons")
+    department = relationship("Department", foreign_keys=[department_id], back_populates="persons")
+    class_ = relationship("Class", foreign_keys=[class_id], back_populates="students")
     
     # 索引
     __table_args__ = (
@@ -177,9 +177,9 @@ class Class(BaseModel):
     class_description = Column(Text, nullable=True, comment="班级简介")
     
     # 关联关系
-    major = relationship("Major", back_populates="classes")
-    college = relationship("College", back_populates="classes")
-    students = relationship("Person", back_populates="class_")
+    major = relationship("Major", foreign_keys=[major_id], back_populates="classes")
+    college = relationship("College", foreign_keys=[college_id], back_populates="classes")
+    students = relationship("Person", foreign_keys="Person.class_id", back_populates="class_")
     class_advisor = relationship("Person", foreign_keys=[class_advisor_id])
     counselor = relationship("Person", foreign_keys=[counselor_id])
     

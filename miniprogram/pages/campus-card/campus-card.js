@@ -2,11 +2,10 @@ const app = getApp()
 
 Page({
   data: {
-    userInfo: {
-      name: '张三',
-      studentId: '2024001',
-      avatar: '/assets/test/man.png'
-    },
+    // 用户状态
+    userInfo: null,
+    isLoggedIn: false,
+    
     cardInfo: {
       balance: '0.00',
       cardNumber: '2024000000',
@@ -44,17 +43,61 @@ Page({
 
   onLoad() {
     console.log('[校园卡] 💳 页面加载')
-    this.loadAllData()
+    this.checkLoginStatus()
   },
 
   onShow() {
     console.log('[校园卡] 页面显示')
-    this.refreshCardInfo()
+    this.checkLoginStatus()
+  },
+
+  /**
+   * 检查登录状态
+   */
+  checkLoginStatus() {
+    const token = wx.getStorageSync('token');
+    const userInfo = wx.getStorageSync('userInfo');
+    
+    if (token && userInfo) {
+      this.setData({
+        isLoggedIn: true,
+        userInfo: userInfo
+      });
+      console.log('[校园卡] 用户已登录:', userInfo);
+      this.loadAllData();
+    } else {
+      this.setData({
+        isLoggedIn: false,
+        userInfo: null
+      });
+      this.showLoginPrompt();
+    }
+  },
+
+  /**
+   * 显示登录提示
+   */
+  showLoginPrompt() {
+    wx.showModal({
+      title: '需要登录',
+      content: '查看校园卡需要先登录，是否前往登录？',
+      success: (res) => {
+        if (res.confirm) {
+          wx.navigateTo({
+            url: '/pages/login/login'
+          });
+        } else {
+          wx.switchTab({
+            url: '/pages/index/index'
+          });
+        }
+      }
+    });
   },
 
   onPullDownRefresh() {
     console.log('[校园卡] 🔄 下拉刷新')
-    this.loadAllData()
+    this.checkLoginStatus()
     
     setTimeout(() => {
       wx.stopPullDownRefresh()
@@ -67,6 +110,9 @@ Page({
 
   // 加载所有数据
   loadAllData() {
+    if (!this.data.isLoggedIn) {
+      return;
+    }
     this.loadCardInfo()
     this.loadRecentRecords()
     this.loadSpendingStats()
@@ -79,18 +125,34 @@ Page({
 
   // 加载校园卡信息
   loadCardInfo() {
+    if (!this.data.userInfo) {
+      return;
+    }
+
     this.setData({ loading: true })
     
-    const userInfo = wx.getStorageSync('userInfo')
-    const studentId = userInfo?.studentId || '2024001'
+    const userInfo = this.data.userInfo;
+    const cardNumber = userInfo.student_id || userInfo.employee_id || userInfo.login_id;
     
     // 模拟API请求
     setTimeout(() => {
+      // 根据用户类型生成不同的余额
+      let balance = '156.78'; // 默认余额
+      if (userInfo.person_type === 'student') {
+        balance = (Math.random() * 500 + 50).toFixed(2); // 学生50-550元
+      } else if (userInfo.person_type === 'teacher') {
+        balance = (Math.random() * 200 + 100).toFixed(2); // 教师100-300元
+      } else if (userInfo.person_type === 'admin') {
+        balance = (Math.random() * 100 + 200).toFixed(2); // 管理员200-300元
+      }
+
       const mockCardInfo = {
-        balance: '156.78',
-        cardNumber: '2024001234',
+        balance: balance,
+        cardNumber: cardNumber,
         status: 'normal',
-        lastUpdateTime: new Date().toLocaleString()
+        lastUpdateTime: new Date().toLocaleString(),
+        ownerName: userInfo.name,
+        ownerType: userInfo.person_type
       }
       
       this.setData({
@@ -98,9 +160,9 @@ Page({
         loading: false
       })
       
-      // 检查余额不足提醒
-      const balance = parseFloat(mockCardInfo.balance)
-      if (balance < 20) {
+      // 检查余额不足提醒（仅针对学生和教师）
+      const balanceNum = parseFloat(mockCardInfo.balance)
+      if ((userInfo.person_type === 'student' || userInfo.person_type === 'teacher') && balanceNum < 20) {
         wx.showModal({
           title: '💳 余额不足提醒',
           content: `您的校园卡余额仅剩${mockCardInfo.balance}元，建议及时充值。`,
@@ -120,58 +182,116 @@ Page({
 
   // 加载近期消费记录
   loadRecentRecords() {
-    const mockRecords = [
-      {
-        id: 1,
-        location: '第一食堂',
-        time: '2024-06-20 12:30:15',
-        amount: '-15.00',
-        balance: '156.78',
-        type: 'consume',
-        category: 'dining',
-        description: '午餐消费'
-      },
-      {
-        id: 2,
-        location: '图书馆打印室',
-        time: '2024-06-20 10:45:22',
-        amount: '-2.50',
-        balance: '171.78',
-        type: 'consume',
-        category: 'printing',
-        description: '打印费用'
-      },
-      {
-        id: 3,
-        location: '充值机',
-        time: '2024-06-19 18:20:10',
-        amount: '+50.00',
-        balance: '174.28',
-        type: 'recharge',
-        category: 'recharge',
-        description: '支付宝充值'
-      },
-      {
-        id: 4,
-        location: '第二食堂',
-        time: '2024-06-19 18:15:33',
-        amount: '-18.50',
-        balance: '124.28',
-        type: 'consume',
-        category: 'dining',
-        description: '晚餐消费'
-      },
-      {
-        id: 5,
-        location: '超市',
-        time: '2024-06-19 15:30:45',
-        amount: '-12.80',
-        balance: '142.78',
-        type: 'consume',
-        category: 'shopping',
-        description: '日用品购买'
-      }
-    ]
+    if (!this.data.userInfo) {
+      return;
+    }
+
+    const userType = this.data.userInfo.person_type;
+    let mockRecords = [];
+
+    if (userType === 'student') {
+      // 学生消费记录：主要是食堂、超市、图书馆
+      mockRecords = [
+        {
+          id: 1,
+          location: '第一食堂',
+          time: '2024-06-20 12:30:15',
+          amount: '-15.50',
+          balance: '156.78',
+          type: 'consume',
+          category: 'dining',
+          description: '午餐消费'
+        },
+        {
+          id: 2,
+          location: '图书馆打印室',
+          time: '2024-06-20 10:45:22',
+          amount: '-2.50',
+          balance: '171.78',
+          type: 'consume',
+          category: 'printing',
+          description: '打印费用'
+        },
+        {
+          id: 3,
+          location: '充值机',
+          time: '2024-06-19 18:20:10',
+          amount: '+50.00',
+          balance: '174.28',
+          type: 'recharge',
+          category: 'recharge',
+          description: '支付宝充值'
+        },
+        {
+          id: 4,
+          location: '第二食堂',
+          time: '2024-06-19 18:15:33',
+          amount: '-18.50',
+          balance: '124.28',
+          type: 'consume',
+          category: 'dining',
+          description: '晚餐消费'
+        }
+      ];
+    } else if (userType === 'teacher' || userType === 'assistant_teacher') {
+      // 教师消费记录：食堂、咖啡、打印等
+      mockRecords = [
+        {
+          id: 1,
+          location: '教师餐厅',
+          time: '2024-06-20 12:00:00',
+          amount: '-25.00',
+          balance: '275.50',
+          type: 'consume',
+          category: 'dining',
+          description: '午餐消费'
+        },
+        {
+          id: 2,
+          location: '咖啡厅',
+          time: '2024-06-20 09:30:15',
+          amount: '-18.00',
+          balance: '300.50',
+          type: 'consume',
+          category: 'coffee',
+          description: '咖啡消费'
+        },
+        {
+          id: 3,
+          location: '打印服务中心',
+          time: '2024-06-19 16:20:10',
+          amount: '-12.00',
+          balance: '318.50',
+          type: 'consume',
+          category: 'printing',
+          description: '打印课件'
+        }
+      ];
+    } else {
+      // 管理员等其他人员的记录较少
+      mockRecords = [
+        {
+          id: 1,
+          location: '行政餐厅',
+          time: '2024-06-20 12:30:00',
+          amount: '-30.00',
+          balance: '270.00',
+          type: 'consume',
+          category: 'dining',
+          description: '工作餐'
+        },
+        {
+          id: 2,
+          location: '充值机',
+          time: '2024-06-18 09:00:00',
+          amount: '+100.00',
+          balance: '300.00',
+          type: 'recharge',
+          category: 'recharge',
+          description: '银行卡充值'
+        }
+      ];
+    }
     
     // 计算今日和本月消费
     const today = new Date().toDateString()
@@ -205,26 +325,72 @@ Page({
 
   // 加载消费统计
   loadSpendingStats() {
-    const mockStats = {
-      daily: [
-        { date: '6.16', amount: 25.5 },
-        { date: '6.17', amount: 31.2 },
-        { date: '6.18', amount: 18.8 },
-        { date: '6.19', amount: 42.1 },
-        { date: '6.20', amount: 17.5 }
-      ],
-      categories: [
-        { name: '餐饮', amount: 89.5, percentage: 65, color: '#0052d9' },
-        { name: '购物', amount: 28.3, percentage: 20, color: '#00a870' },
-        { name: '打印', amount: 12.8, percentage: 10, color: '#ff9500' },
-        { name: '其他', amount: 6.5, percentage: 5, color: '#e34d59' }
-      ],
-      locations: [
-        { name: '第一食堂', count: 15, amount: 245.6 },
-        { name: '第二食堂', count: 8, amount: 156.3 },
-        { name: '超市', count: 5, amount: 67.9 },
-        { name: '图书馆', count: 12, amount: 24.5 }
-      ]
+    if (!this.data.userInfo) {
+      return;
+    }
+
+    const userType = this.data.userInfo.person_type;
+    let mockStats = {};
+
+    if (userType === 'student') {
+      mockStats = {
+        daily: [
+          { date: '6.16', amount: 25.5 },
+          { date: '6.17', amount: 31.2 },
+          { date: '6.18', amount: 18.8 },
+          { date: '6.19', amount: 42.1 },
+          { date: '6.20', amount: 17.5 }
+        ],
+        categories: [
+          { name: '餐饮', amount: 89.5, percentage: 65, color: '#0052d9' },
+          { name: '购物', amount: 28.3, percentage: 20, color: '#00a870' },
+          { name: '打印', amount: 12.8, percentage: 10, color: '#ff9500' },
+          { name: '其他', amount: 6.5, percentage: 5, color: '#e34d59' }
+        ],
+        locations: [
+          { name: '第一食堂', count: 15, amount: 245.6 },
+          { name: '第二食堂', count: 8, amount: 156.3 },
+          { name: '超市', count: 5, amount: 67.9 },
+          { name: '图书馆', count: 12, amount: 24.5 }
+        ]
+      };
+    } else if (userType === 'teacher' || userType === 'assistant_teacher') {
+      mockStats = {
+        daily: [
+          { date: '6.16', amount: 45.0 },
+          { date: '6.17', amount: 38.5 },
+          { date: '6.18', amount: 52.3 },
+          { date: '6.19', amount: 41.2 },
+          { date: '6.20', amount: 43.0 }
+        ],
+        categories: [
+          { name: '餐饮', amount: 125.0, percentage: 55, color: '#0052d9' },
+          { name: '咖啡茶饮', amount: 68.0, percentage: 30, color: '#00a870' },
+          { name: '打印复印', amount: 24.0, percentage: 10, color: '#ff9500' },
+          { name: '其他', amount: 11.0, percentage: 5, color: '#e34d59' }
+        ],
+        locations: [
+          { name: '教师餐厅', count: 12, amount: 320.0 },
+          { name: '咖啡厅', count: 8, amount: 156.0 },
+          { name: '打印中心', count: 3, amount: 36.0 }
+        ]
+      };
+    } else {
+      mockStats = {
+        daily: [
+          { date: '6.16', amount: 30.0 },
+          { date: '6.17', amount: 25.0 },
+          { date: '6.18', amount: 35.0 },
+          { date: '6.19', amount: 28.0 },
+          { date: '6.20', amount: 30.0 }
+        ],
+        categories: [
+          { name: '餐饮', amount: 148.0, percentage: 100, color: '#0052d9' }
+        ],
+        locations: [
+          { name: '行政餐厅', count: 5, amount: 148.0 }
+        ]
+      };
     }
     
     this.setData({
@@ -234,6 +400,11 @@ Page({
 
   // 充值功能
   onRecharge() {
+    if (!this.data.isLoggedIn) {
+      this.showLoginPrompt();
+      return;
+    }
+
     wx.showActionSheet({
       itemList: this.data.rechargeOptions.filter(option => option.enabled).map(option => `${option.name} - ${option.desc}`),
       success: (res) => {

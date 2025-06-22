@@ -67,11 +67,38 @@
   overflow: hidden;
   margin-right: 24rpx;
   border: 4rpx solid #667eea;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.user-avatar:active {
+  transform: scale(0.95);
 }
 
 .user-avatar image {
   width: 100%;
   height: 100%;
+}
+
+/* 登录提示覆盖层 */
+.login-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 60rpx;
+}
+
+.login-text {
+  color: white;
+  font-size: 20rpx;
+  font-weight: bold;
 }
 
 .user-info {
@@ -97,6 +124,12 @@
 }
 
 .user-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.stat-items {
   display: flex;
   flex-direction: column;
   gap: 16rpx;
@@ -185,6 +218,33 @@
   color: #2c3e50;
   text-align: center;
   line-height: 1.2;
+}
+
+/* 登录提示 */
+.login-prompt {
+  margin-top: 32rpx;
+  padding: 32rpx;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 20rpx;
+  text-align: center;
+  border: 2rpx dashed rgba(255, 255, 255, 0.3);
+}
+
+.prompt-text {
+  display: block;
+  color: white;
+  font-size: 28rpx;
+  margin-bottom: 20rpx;
+  opacity: 0.9;
+}
+
+.login-btn {
+  padding: 16rpx 32rpx;
+  font-size: 28rpx;
+  background: white;
+  color: #667eea;
+  border-radius: 25rpx;
+  border: none;
 }
 
 /* 通用section */
@@ -392,6 +452,60 @@
 .announcement-date {
   font-size: 24rpx;
   color: #95a5a6;
+}
+
+/* 功能推荐（未登录时显示） */
+.feature-section {
+  margin: 32rpx;
+}
+
+.feature-list {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 20rpx;
+  overflow: hidden;
+  backdrop-filter: blur(10rpx);
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  padding: 32rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.feature-item:last-child {
+  border-bottom: none;
+}
+
+.feature-icon {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 20rpx;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36rpx;
+  margin-right: 24rpx;
+}
+
+.feature-content {
+  flex: 1;
+}
+
+.feature-title {
+  display: block;
+  font-size: 28rpx;
+  color: #2c3e50;
+  font-weight: 500;
+  margin-bottom: 8rpx;
+}
+
+.feature-desc {
+  display: block;
+  font-size: 24rpx;
+  color: #7f8c8d;
+  line-height: 1.4;
 }
 
 /* 底部安全距离 */

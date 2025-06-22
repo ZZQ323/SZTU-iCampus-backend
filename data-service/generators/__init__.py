@@ -4,11 +4,7 @@ Mock数据生成器包
 """
 
 from .base_generator import MockDataGenerator
-from .person_generator import PersonGenerator
-from .course_generator import CourseGenerator
 
 __all__ = [
-    "MockDataGenerator",
-    "PersonGenerator", 
-    "CourseGenerator"
+    "MockDataGenerator"
 ] 

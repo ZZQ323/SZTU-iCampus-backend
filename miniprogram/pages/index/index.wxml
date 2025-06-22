@@ -6,30 +6,85 @@
   <!-- 用户信息卡片 -->
   <view class="user-card">
     <view class="user-left">
-      <view class="user-avatar">
+      <view class="user-avatar" bindtap="onUserAvatarTap">
         <image src="{{homeData.user_info.avatar}}" mode="aspectFill"></image>
+        <!-- 未登录状态显示登录提示 -->
+        <view class="login-overlay" wx:if="{{!isLoggedIn}}">
+          <text class="login-text">点击登录</text>
+        </view>
       </view>
       <view class="user-info">
         <view class="user-name">{{homeData.user_info.name}}</view>
-        <view class="user-id">学号：{{homeData.user_info.student_id}}</view>
-        <view class="user-college">{{homeData.user_info.college}}</view>
+        <!-- 根据用户类型显示不同信息 -->
+        <view class="user-id" wx:if="{{isLoggedIn && userInfo.person_type === 'student'}}">
+          学号：{{homeData.user_info.student_id}}
+        </view>
+        <view class="user-id" wx:elif="{{isLoggedIn && (userInfo.person_type === 'teacher' || userInfo.person_type === 'assistant_teacher')}}">
+          工号：{{homeData.user_info.student_id}}
+        </view>
+        <view class="user-id" wx:elif="{{isLoggedIn && userInfo.person_type === 'admin'}}">
+          管理员：{{homeData.user_info.student_id}}
+        </view>
+        <view class="user-id" wx:else>点击头像登录</view>
+        
+        <view class="user-college" wx:if="{{isLoggedIn}}">{{homeData.user_info.college}}</view>
+        <view class="user-college" wx:if="{{isLoggedIn && homeData.user_info.major}}">{{homeData.user_info.major}}</view>
       </view>
     </view>
     <view class="user-stats">
-      <view class="stat-item">
-        <text class="stat-number">{{homeData.today_stats.courses}}</text>
-        <text class="stat-label">今日课程</text>
+      <!-- 学生统计 -->
+      <view wx:if="{{userInfo.person_type === 'student'}}" class="stat-items">
+        <view class="stat-item">
+          <text class="stat-number">{{homeData.today_stats.courses}}</text>
+          <text class="stat-label">今日课程</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-number">{{homeData.today_stats.library_books}}</text>
+          <text class="stat-label">在借图书</text>
+        </view>
       </view>
-      <view class="stat-item">
-        <text class="stat-number">{{homeData.today_stats.library_books}}</text>
-        <text class="stat-label">在借图书</text>
+      <!-- 教师统计 -->
+      <view wx:elif="{{userInfo.person_type === 'teacher' || userInfo.person_type === 'assistant_teacher'}}" class="stat-items">
+        <view class="stat-item">
+          <text class="stat-number">{{homeData.today_stats.courses}}</text>
+          <text class="stat-label">今日课程</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-number">{{homeData.today_stats.students || 0}}</text>
+          <text class="stat-label">学生数</text>
+        </view>
+      </view>
+      <!-- 管理员统计 -->
+      <view wx:elif="{{userInfo.person_type === 'admin'}}" class="stat-items">
+        <view class="stat-item">
+          <text class="stat-number">{{homeData.today_stats.total_users || 0}}</text>
+          <text class="stat-label">用户总数</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-number">{{homeData.today_stats.active_sessions || 0}}</text>
+          <text class="stat-label">在线会话</text>
+        </view>
+      </view>
+      <!-- 访客统计 -->
+      <view wx:else class="stat-items">
+        <view class="stat-item">
+          <text class="stat-number">0</text>
+          <text class="stat-label">请登录</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-number">🎓</text>
+          <text class="stat-label">SZTU</text>
+        </view>
       </view>
     </view>
   </view>
 
   <!-- 快捷功能网格 -->
   <view class="quick-section">
-    <view class="section-title">快捷服务</view>
+    <view class="section-title">
+      <text wx:if="{{isLoggedIn}}">快捷服务</text>
+      <text wx:else>访客功能</text>
+    </view>
     <view class="quick-grid">
       <view 
         class="grid-item" 
@@ -37,6 +92,7 @@
         wx:key="name"
         bindtap="navigateTo" 
         data-url="{{item.path}}"
+        data-action="{{item.action}}"
       >
         <view class="grid-icon-wrapper">
           <image src="/assets/icons/{{item.icon}}.png" class="grid-icon"></image>
@@ -44,10 +100,18 @@
         <text class="grid-text">{{item.name}}</text>
       </view>
     </view>
+    
+    <!-- 未登录提示 -->
+    <view class="login-prompt" wx:if="{{!isLoggedIn}}">
+      <text class="prompt-text">🔐 登录后可使用更多功能</text>
+      <t-button size="small" theme="primary" bindtap="goToLogin" class="login-btn">
+        立即登录
+      </t-button>
+    </view>
   </view>
 
   <!-- 今日课表 -->
-  <view class="section" wx:if="{{homeData.today_schedule.length > 0}}">
+  <view class="section" wx:if="{{isLoggedIn && homeData.today_schedule.length > 0}}">
     <view class="section-header">
       <text class="section-title">今日课表</text>
       <text class="section-more" bindtap="navigateTo" data-url="/pages/schedule/schedule">查看全部</text>
@@ -64,7 +128,10 @@
         </view>
         <view class="schedule-info">
           <text class="course-name">{{item.course_name}}</text>
-          <text class="course-detail">{{item.teacher}} · {{item.location}}</text>
+          <text class="course-detail">
+            <text wx:if="{{item.teacher}}">{{item.teacher}} · {{item.location}}</text>
+            <text wx:else>{{item.class_name}} · {{item.location}}</text>
+          </text>
         </view>
         <view class="schedule-status" wx:if="{{item.status === 'current'}}">
           <text class="status-text">进行中</text>
@@ -74,7 +141,7 @@
   </view>
 
   <!-- 空课表提示 -->
-  <view class="section" wx:else>
+  <view class="section" wx:elif="{{isLoggedIn && homeData.today_schedule.length === 0}}">
     <view class="section-header">
       <text class="section-title">今日课表</text>
     </view>
@@ -109,6 +176,36 @@
         <view class="announcement-meta">
           <text class="announcement-department">{{item.department}}</text>
           <text class="announcement-date">{{item.date}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 功能推荐（未登录时显示） -->
+  <view class="section feature-section" wx:if="{{!isLoggedIn}}">
+    <view class="section-header">
+      <text class="section-title">功能特色</text>
+    </view>
+    <view class="feature-list">
+      <view class="feature-item">
+        <view class="feature-icon">📚</view>
+        <view class="feature-content">
+          <text class="feature-title">智能课表</text>
+          <text class="feature-desc">自动同步课程安排，提醒上课时间</text>
+        </view>
+      </view>
+      <view class="feature-item">
+        <view class="feature-icon">📊</view>
+        <view class="feature-content">
+          <text class="feature-title">成绩查询</text>
+          <text class="feature-desc">实时查看考试成绩和学分情况</text>
+        </view>
+      </view>
+      <view class="feature-item">
+        <view class="feature-icon">💳</view>
+        <view class="feature-content">
+          <text class="feature-title">校园卡</text>
+          <text class="feature-desc">查看余额、消费记录和充值</text>
         </view>
       </view>
     </view>

@@ -1,7 +1,7 @@
 <!-- 成绩查询页面 -->
 <view class="page">
   <!-- 自定义导航栏 -->
-  <custom-navbar title="成绩查询" showBack="{{true}}"></custom-navbar>
+  <custom-navbar title="成绩查询" showBack="{{true}}" background="{{'#2E8B57'}}"></custom-navbar>
   
   <!-- 学期选择器 -->
   <view class="semester-selector">

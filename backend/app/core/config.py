@@ -2,7 +2,9 @@
 核心配置文件
 """
 import os
+from pathlib import Path
 from typing import List, Optional
+from pydantic import validator, AnyHttpUrl
 from pydantic_settings import BaseSettings
 
 
@@ -10,8 +12,9 @@ class Settings(BaseSettings):
     """应用配置"""
     
     # 基础配置
-    APP_NAME: str = "SZTU-iCampus Glue Layer"
-    APP_VERSION: str = "2.0.0"
+    API_V1_STR: str = "/api/v1"
+    PROJECT_NAME: str = "SZTU-iCampus"
+    PROJECT_VERSION: str = "1.0.0"
     DEBUG: bool = True
     
     # 服务配置
@@ -19,16 +22,16 @@ class Settings(BaseSettings):
     PORT: int = 8000
     
     # 安全配置
-    SECRET_KEY: str = "sztu-icampus-secret-key-2024"
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "sztu-icamp-secret-key-2024-very-secure")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7天
     ALGORITHM: str = "HS256"
     
-    # 数据库配置（胶水层轻量级数据库）
-    DATABASE_URL: str = "sqlite:///./sztu_icampus.db"
+    # 数据库配置
+    DATABASE_PATH: str = os.getenv("DATABASE_PATH", "D:/ProjectStore/SZTU-iCampus/data-service/sztu_campus.db")
     
     # 数据服务配置 🚀 新增
     DATA_SERVICE_ENABLED: bool = True  # 数据服务开关
-    DATA_SERVICE_URL: str = "http://localhost:8001"  # 数据服务地址
+    DATA_SERVICE_URL: str = os.getenv("DATA_SERVICE_URL", "http://localhost:8001")
     DATA_SERVICE_API_KEY: str = "sztu-data-service-key-2024"  # API密钥
     DATA_SERVICE_TIMEOUT: int = 30  # 请求超时时间
     
@@ -45,23 +48,39 @@ class Settings(BaseSettings):
     SSE_RETRY_INTERVAL: int = 5000  # 客户端重连间隔（毫秒）
     
     # 日志配置
-    LOG_LEVEL: str = "INFO"
-    LOG_FILE: str = "logs/glue-layer.log"
+    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+    LOG_FILE: str = os.getenv("LOG_FILE", "logs/app.log")
     
     # CORS配置
-    BACKEND_CORS_ORIGINS: List[str] = [
+    BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = [
+        "http://localhost",
+        "http://localhost:8080",
         "http://localhost:3000",
-        "http://localhost:8080", 
-        "https://servicewechat.com",  # 微信小程序域名
+        "https://localhost",
+        "https://localhost:8080",
+        "https://localhost:3000",
     ]
     
+    @validator("BACKEND_CORS_ORIGINS", pre=True)
+    def assemble_cors_origins(cls, v):
+        if isinstance(v, str) and not v.startswith("["):
+            return [i.strip() for i in v.split(",")]
+        elif isinstance(v, (list, str)):
+            return v
+        raise ValueError(v)
+    
     # 微信小程序配置
-    WECHAT_APP_ID: str = ""
-    WECHAT_APP_SECRET: str = ""
+    WECHAT_APP_ID: Optional[str] = os.getenv("WECHAT_APP_ID")
+    WECHAT_APP_SECRET: Optional[str] = os.getenv("WECHAT_APP_SECRET")
     
     # 监控配置
     METRICS_ENABLED: bool = True
     HEALTH_CHECK_INTERVAL: int = 60  # 健康检查间隔（秒）
+    
+    # 文件上传配置
+    UPLOAD_PATH: str = os.getenv("UPLOAD_PATH", "uploads")
+    MAX_FILE_SIZE: int = 10 * 1024 * 1024  # 10MB
+    ALLOWED_FILE_TYPES: List[str] = ["jpg", "jpeg", "png", "gif", "pdf", "doc", "docx"]
     
     class Config:
         env_file = ".env"
@@ -111,4 +130,25 @@ SSE_EVENT_TYPES = {
     "course_change": "课程变更",
     "library_reminder": "图书到期提醒",
     "system_message": "系统消息",
-} 
+}
+
+# 确保必要的目录存在
+def ensure_directories():
+    """确保必要的目录存在"""
+    
+    # 创建日志目录
+    log_dir = Path(settings.LOG_FILE).parent
+    log_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 创建上传目录
+    upload_dir = Path(settings.UPLOAD_PATH)
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 检查数据库文件是否存在
+    db_path = Path(settings.DATABASE_PATH)
+    if not db_path.exists():
+        print(f"警告: 数据库文件不存在: {db_path}")
+        print("请确保数据服务已正确生成数据库文件")
+
+# 在导入时确保目录存在
+ensure_directories() 

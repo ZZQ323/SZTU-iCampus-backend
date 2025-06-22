@@ -7,42 +7,58 @@
     <view class="subtitle">深圳技术大学校园服务</view>
   </view>
 
-  <!-- 登录表单 -->
-  <view class="login-form">
-    <!-- 登录方式选择 -->
-    <view class="login-type-tabs">
-      <view 
-        class="tab-item {{loginType === 'student' ? 'active' : ''}}"
-        bindtap="onLoginTypeChange"
-        data-type="student"
-      >
-        学生登录
+  <!-- 微信授权步骤 -->
+  <view wx:if="{{loginType === 'wechat' && wechatLoginStep === 'auth'}}" class="login-form">
+    <view class="wechat-section">
+      <view class="wechat-avatar" wx:if="{{wechatInfo}}">
+        <image src="{{wechatInfo.avatarUrl}}" mode="aspectFill"/>
       </view>
-      <view 
-        class="tab-item {{loginType === 'admin' ? 'active' : ''}}"
-        bindtap="onLoginTypeChange"
-        data-type="admin"
-      >
-        管理员登录
+      
+      <view class="wechat-info" wx:if="{{wechatInfo}}">
+        <text class="nickname">{{wechatInfo.nickName}}</text>
+        <text class="tip">使用微信账号登录</text>
       </view>
-      <view 
-        class="tab-item {{loginType === 'guest' ? 'active' : ''}}"
-        bindtap="onLoginTypeChange"
-        data-type="guest"
-      >
-        快速体验
+      
+      <view class="wechat-welcome" wx:else>
+        <text class="welcome-text">👋 欢迎使用微信登录</text>
+        <text class="tip">安全便捷，一键登录</text>
       </view>
     </view>
 
-    <!-- 学生登录表单 -->
-    <view wx:if="{{loginType === 'student'}}" class="form-content">
+    <t-button 
+      theme="primary" 
+      size="large" 
+      block
+      loading="{{loading}}"
+      bindtap="onLogin"
+      class="wechat-login-btn"
+    >
+      <text wx:if="{{!loading}}">🚀 微信一键登录</text>
+      <text wx:else>登录中...</text>
+    </t-button>
+
+    <view class="other-login">
+      <text bindtap="onLoginTypeChange" data-type="password">使用账号密码登录</text>
+      <text>|</text>
+      <text bindtap="onLoginTypeChange" data-type="guest">快速体验</text>
+    </view>
+  </view>
+
+  <!-- 微信绑定步骤 -->
+  <view wx:if="{{loginType === 'wechat' && wechatLoginStep === 'bind'}}" class="login-form">
+    <view class="bind-header">
+      <text class="bind-title">绑定校园账号</text>
+      <text class="bind-tip">首次使用需要绑定您的校园账号</text>
+    </view>
+
+    <view class="form-content">
       <view class="input-group">
-        <text class="label">学号</text>
+        <text class="label">学号/工号</text>
         <input 
           class="input"
-          placeholder="请输入学号"
-          value="{{formData.studentId}}"
-          bindinput="onStudentIdInput"
+          placeholder="请输入学号或工号"
+          value="{{formData.loginId}}"
+          bindinput="onLoginIdInput"
         />
       </view>
       <view class="input-group">
@@ -57,15 +73,38 @@
       </view>
     </view>
 
-    <!-- 管理员登录表单 -->
-    <view wx:if="{{loginType === 'admin'}}" class="form-content">
+    <t-button 
+      theme="primary" 
+      size="large" 
+      block
+      loading="{{loading}}"
+      bindtap="onBindAccount"
+      class="bind-btn"
+    >
+      {{loading ? '绑定中...' : '绑定账号'}}
+    </t-button>
+
+    <view class="bind-actions">
+      <text bindtap="onBackToAuth">返回</text>
+      <text>|</text>
+      <text bindtap="onLoginTypeChange" data-type="password">直接账号登录</text>
+    </view>
+  </view>
+
+  <!-- 账号密码登录 -->
+  <view wx:if="{{loginType === 'password'}}" class="login-form">
+    <view class="login-type-tabs">
+      <view class="tab-item active">账号密码登录</view>
+    </view>
+
+    <view class="form-content">
       <view class="input-group">
-        <text class="label">管理员账号</text>
+        <text class="label">学号/工号</text>
         <input 
           class="input"
-          placeholder="请输入管理员账号"
-          value="{{formData.studentId}}"
-          bindinput="onStudentIdInput"
+          placeholder="请输入学号或工号"
+          value="{{formData.loginId}}"
+          bindinput="onLoginIdInput"
         />
       </view>
       <view class="input-group">
@@ -73,18 +112,41 @@
         <input 
           class="input"
           type="password"
-          placeholder="请输入管理员密码"
+          placeholder="请输入密码"
           value="{{formData.password}}"
           bindinput="onPasswordInput"
         />
       </view>
       <view class="tip">
-        <text>默认账号: admin / 密码: admin123</text>
+        <text>测试账号: 2025000001 / Admin001HP1dbd10</text>
       </view>
     </view>
 
-    <!-- 快速体验表单 -->
-    <view wx:if="{{loginType === 'guest'}}" class="form-content">
+    <t-button 
+      theme="primary" 
+      size="large" 
+      block
+      loading="{{loading}}"
+      bindtap="onLogin"
+      class="login-btn"
+    >
+      {{loading ? '登录中...' : '登录'}}
+    </t-button>
+
+    <view class="other-login">
+      <text bindtap="onLoginTypeChange" data-type="wechat">使用微信登录</text>
+      <text>|</text>
+      <text bindtap="onLoginTypeChange" data-type="guest">快速体验</text>
+    </view>
+  </view>
+
+  <!-- 快速体验登录 -->
+  <view wx:if="{{loginType === 'guest'}}" class="login-form">
+    <view class="login-type-tabs">
+      <view class="tab-item active">快速体验</view>
+    </view>
+
+    <view class="form-content">
       <view class="input-group">
         <text class="label">姓名</text>
         <input 
@@ -99,7 +161,6 @@
       </view>
     </view>
 
-    <!-- 登录按钮 -->
     <t-button 
       theme="primary" 
       size="large" 
@@ -108,15 +169,21 @@
       bindtap="onLogin"
       class="login-btn"
     >
-      {{loading ? '登录中...' : '登录'}}
+      {{loading ? '进入体验...' : '开始体验'}}
     </t-button>
 
-    <!-- 快速登录选项 -->
-    <view class="quick-actions">
-      <t-button theme="light" size="medium" bindtap="onQuickLogin">
-        一键登录（张三）
-      </t-button>
+    <view class="other-login">
+      <text bindtap="onLoginTypeChange" data-type="wechat">使用微信登录</text>
+      <text>|</text>
+      <text bindtap="onLoginTypeChange" data-type="password">账号登录</text>
     </view>
+  </view>
+
+  <!-- 快速登录选项 -->
+  <view class="quick-actions">
+    <t-button theme="light" size="medium" bindtap="onQuickLogin">
+      管理员快速登录
+    </t-button>
   </view>
 
   <!-- 底部信息 -->
