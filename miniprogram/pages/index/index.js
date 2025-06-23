@@ -1,5 +1,6 @@
 // SZTU-iCampus 首页逻辑
 const app = getApp()
+const API = require('../../utils/api')
 
 Page({
   data: {
@@ -216,99 +217,200 @@ Page({
   },
 
   /**
-   * 获取今日课表（模拟）
+   * 获取今日课表（真实API）
    */
   async getTodaySchedule(userInfo) {
-    if (userInfo.person_type === 'student') {
-      return [
-        {
-          id: 1,
-          course_name: "高等数学A",
-          teacher: "张教授",
-          time: "08:30-10:10",
-          location: "C1-101",
-          status: "upcoming"
-        },
-        {
-          id: 2,
-          course_name: "程序设计基础",
-          teacher: "李教授",
-          time: "10:30-12:10",
-          location: "C1-102",
-          status: "current"
-        }
-      ];
-    } else if (userInfo.person_type === 'teacher') {
-      return [
-        {
-          id: 1,
-          course_name: "软件工程",
-          class_name: "软工2024-1班",
-          time: "10:30-12:10",
-          location: "C1-305",
-          status: "upcoming"
-        }
-      ];
+    try {
+      if (userInfo.person_type === 'student') {
+        // 获取当前周课程表
+        const scheduleData = await API.getCurrentWeekSchedule();
+        
+        // 获取今天是周几
+        const today = new Date();
+        const weekday = today.getDay() || 7; // 周日为0，转换为7
+        
+        // 过滤出今天的课程
+        const todayCourses = scheduleData.courses || [];
+        const todaySchedule = todayCourses
+          .filter(course => course.weekday === weekday)
+          .map(course => ({
+            id: course.course_id,
+            course_name: course.course_name,
+            teacher: course.teacher_name,
+            time: `${course.start_time}-${course.end_time}`,
+            location: course.location,
+            status: this.getCourseStatus(course.start_time, course.end_time)
+          }))
+          .slice(0, 3); // 最多显示3条
+        
+        return todaySchedule;
+      } else if (userInfo.person_type === 'teacher') {
+        // 教师暂时返回空数组，后续可以实现教师课表
+        return [];
+      }
+      return [];
+    } catch (error) {
+      console.error('获取今日课表失败:', error);
+      return [];
     }
-    return [];
   },
 
   /**
-   * 获取公告信息（模拟）
+   * 判断课程状态
+   */
+  getCourseStatus(startTime, endTime) {
+    const now = new Date();
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+    
+    const [startHour, startMin] = startTime.split(':').map(Number);
+    const [endHour, endMin] = endTime.split(':').map(Number);
+    
+    const courseStart = startHour * 60 + startMin;
+    const courseEnd = endHour * 60 + endMin;
+    
+    if (currentTime < courseStart) {
+      return 'upcoming';
+    } else if (currentTime >= courseStart && currentTime <= courseEnd) {
+      return 'current';
+    } else {
+      return 'completed';
+    }
+  },
+
+  /**
+   * 获取公告信息（真实API）
    */
   async getAnnouncements(userInfo) {
-    return [
-      {
-        id: 1,
-        title: "关于期末考试安排的通知",
-        department: "教务处",
-        date: "2024-12-21",
-        urgent: true,
-        category: "教学"
-      },
-      {
-        id: 2,
-        title: "图书馆寒假开放时间通知",
-        department: "图书馆",
-        date: "2024-12-20",
-        urgent: false,
-        category: "服务"
-      }
-    ];
+    try {
+      // 获取最新的5条公告
+      const announcementsData = await API.getAnnouncements({
+        page: 1,
+        size: 5,
+        sort: 'publish_time',
+        order: 'desc'
+      });
+      
+      const announcements = announcementsData.announcements || [];
+      
+      return announcements.map(item => ({
+        id: item.announcement_id,
+        title: item.title,
+        department: item.department,
+        date: item.publish_time.split('T')[0], // 只取日期部分
+        urgent: item.is_urgent || item.priority === 'high',
+        category: item.category
+      }));
+    } catch (error) {
+      console.error('获取公告信息失败:', error);
+      // 出错时返回默认公告
+      return [
+        {
+          id: 'default_1',
+          title: "欢迎使用SZTU iCampus",
+          department: "系统",
+          date: new Date().toISOString().split('T')[0],
+          urgent: false,
+          category: "系统"
+        }
+      ];
+    }
   },
 
   /**
-   * 获取今日统计（模拟）
+   * 获取今日统计（真实API）
    */
   async getTodayStats(userInfo) {
-    if (userInfo.person_type === 'student') {
+    try {
+      if (userInfo.person_type === 'student') {
+        // 学生统计数据
+        const [scheduleData, borrowData, announcementData] = await Promise.allSettled([
+          API.getCurrentWeekSchedule(),
+          API.getBorrowRecords({ status: 'borrowed' }),
+          API.getAnnouncements({ page: 1, size: 1 })
+        ]);
+
+        // 计算今日课程数
+        const today = new Date();
+        const weekday = today.getDay() || 7;
+        const todayCourses = scheduleData.status === 'fulfilled' 
+          ? (scheduleData.value.courses || []).filter(course => course.weekday === weekday)
+          : [];
+
+        // 计算已完成课程数
+        const completedCourses = todayCourses.filter(course => 
+          this.getCourseStatus(course.start_time, course.end_time) === 'completed'
+        ).length;
+
+        return {
+          courses: todayCourses.length,
+          completed_courses: completedCourses,
+          library_books: borrowData.status === 'fulfilled' 
+            ? (borrowData.value.borrow_records || []).length 
+            : 0,
+          announcements: announcementData.status === 'fulfilled' 
+            ? (announcementData.value.total || 0)
+            : 0
+        };
+      } else if (userInfo.person_type === 'teacher') {
+        // 教师统计数据
+        return {
+          courses: 0, // 教师课程数量
+          completed_courses: 0,
+          students: 0, // 教师学生数量
+          announcements: 0
+        };
+      } else if (userInfo.person_type === 'admin') {
+        // 管理员统计数据
+        const adminStatsData = await API.getAdminStats();
+        
+        return {
+          total_users: adminStatsData.total_users || 63460,
+          active_sessions: adminStatsData.active_sessions || 0,
+          system_alerts: adminStatsData.system_alerts || 0,
+          announcements: adminStatsData.total_announcements || 0
+        };
+      }
+      
       return {
-        courses: 4,
-        completed_courses: 1,
-        library_books: 2,
-        announcements: 5
-      };
-    } else if (userInfo.person_type === 'teacher') {
-      return {
-        courses: 2,
+        courses: 0,
         completed_courses: 0,
-        students: 58,
-        announcements: 3
+        library_books: 0,
+        announcements: 0
       };
-    } else if (userInfo.person_type === 'admin') {
+    } catch (error) {
+      console.error('获取今日统计失败:', error);
+      
+      // 出错时返回默认值
+      if (userInfo.person_type === 'student') {
+        return {
+          courses: 0,
+          completed_courses: 0,
+          library_books: 0,
+          announcements: 0
+        };
+      } else if (userInfo.person_type === 'teacher') {
+        return {
+          courses: 0,
+          completed_courses: 0,
+          students: 0,
+          announcements: 0
+        };
+      } else if (userInfo.person_type === 'admin') {
+        return {
+          total_users: 0,
+          active_sessions: 0,
+          system_alerts: 0,
+          announcements: 0
+        };
+      }
+      
       return {
-        total_users: 63460,
-        active_sessions: 1250,
-        system_alerts: 2,
-        announcements: 8
+        courses: 0,
+        completed_courses: 0,
+        library_books: 0,
+        announcements: 0
       };
     }
-    return {
-      courses: 0,
-      completed_courses: 0,
-      library_books: 0,
-      announcements: 0
-    };
   },
 
   /**

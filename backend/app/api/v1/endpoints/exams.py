@@ -1,197 +1,245 @@
 """
-考试管理API端点
-提供考试信息查询、考试安排等功能
+考试接口
+提供考试查询、倒计时等功能
 """
+import sqlite3
+from datetime import datetime, timedelta
+from typing import Optional
+from fastapi import APIRouter, HTTPException, Query, Depends
+from app.api.deps import get_current_user
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
-from typing import List, Optional
-from datetime import datetime, date
+router = APIRouter()
 
-from app.api import deps
+def get_db_connection():
+    """获取数据库连接"""
+    conn = sqlite3.connect('../../data-service/sztu_campus.db')
+    conn.row_factory = sqlite3.Row
+    return conn
 
-router = APIRouter(tags=["exams"])
-
-@router.get("/")
+@router.get("/", summary="获取考试列表")
 async def get_exams(
-    student_id: str = Query("2024001", description="学生学号"),
-    exam_type: Optional[str] = Query(None, description="考试类型：final, midterm, makeup"),
     semester: Optional[str] = Query(None, description="学期"),
-    upcoming_only: bool = Query(False, description="仅显示即将开始的考试"),
-    skip: int = Query(0, ge=0, description="跳过记录数"),
-    limit: int = Query(50, ge=1, le=100, description="返回记录数"),
-    db: Session = Depends(deps.get_db)
+    status: Optional[str] = Query(None, description="考试状态"),
+    limit: int = Query(20, description="返回条数"),
+    offset: int = Query(0, description="偏移量"),
+    current_user = Depends(get_current_user)
 ):
-    """
-    获取考试列表
+    """获取考试列表"""
     
-    - **student_id**: 学生学号
-    - **exam_type**: 考试类型筛选
-    - **semester**: 学期筛选
-    - **upcoming_only**: 是否只显示即将开始的考试
-    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
     
-    # 模拟考试数据（实际应从数据库查询）
-    mock_exams = [
-        {
-            "id": 1,
-            "course_name": "高等数学A",
-            "course_code": "MATH001",
-            "exam_type": "final",
-            "exam_date": "2024-01-15",
-            "start_time": "14:30",
-            "end_time": "16:30",
-            "duration": 120,
-            "location": "教学楼A101",
-            "seat_number": "A001",
-            "teacher": "张教授",
-            "exam_form": "闭卷",
-            "total_score": 100,
-            "status": "scheduled"
-        },
-        {
-            "id": 2,
-            "course_name": "大学英语",
-            "course_code": "ENG001", 
-            "exam_type": "final",
-            "exam_date": "2024-01-16",
-            "start_time": "09:00",
-            "end_time": "11:00",
-            "duration": 120,
-            "location": "教学楼B203",
-            "seat_number": "B015",
-            "teacher": "李老师",
-            "exam_form": "闭卷",
-            "total_score": 100,
-            "status": "scheduled"
-        },
-        {
-            "id": 3,
-            "course_name": "计算机程序设计",
-            "course_code": "CS001",
-            "exam_type": "final", 
-            "exam_date": "2024-01-18",
-            "start_time": "14:30",
-            "end_time": "16:30",
-            "duration": 120,
-            "location": "实验楼C301",
-            "seat_number": "C024",
-            "teacher": "王副教授",
-            "exam_form": "上机",
-            "total_score": 100,
-            "status": "scheduled"
-        }
-    ]
-    
-    # 根据参数筛选
-    filtered_exams = mock_exams
-    
-    if exam_type:
-        filtered_exams = [e for e in filtered_exams if e["exam_type"] == exam_type]
-    
-    # 分页
-    total = len(filtered_exams)
-    exams = filtered_exams[skip:skip + limit]
-    
-    # 计算下一场考试
-    next_exam = None
-    current_date = datetime.now().date()
-    for exam in exams:
-        exam_date = datetime.strptime(exam["exam_date"], "%Y-%m-%d").date()
-        if exam_date >= current_date:
-            next_exam = exam
-            break
-    
-    return {
-        "code": 0,
-        "message": "success",
-        "data": {
-            "exams": exams,
-            "total": total,
-            "next_exam": next_exam,
-            "student_id": student_id
-        }
-    }
-
-@router.get("/{exam_id}")
-async def get_exam_detail(
-    exam_id: int,
-    db: Session = Depends(deps.get_db)
-):
-    """
-    获取考试详情
-    """
-    # 模拟数据
-    exam_detail = {
-        "id": exam_id,
-        "course_name": "高等数学A",
-        "course_code": "MATH001",
-        "exam_type": "final",
-        "exam_date": "2024-01-15",
-        "start_time": "14:30", 
-        "end_time": "16:30",
-        "duration": 120,
-        "location": "教学楼A101",
-        "seat_number": "A001",
-        "teacher": "张教授",
-        "exam_form": "闭卷",
-        "total_score": 100,
-        "status": "scheduled",
-        "requirements": [
-            "携带身份证和学生证",
-            "禁止携带手机等电子设备",
-            "考试用品：黑色签字笔、2B铅笔、橡皮擦",
-            "提前30分钟到达考场"
-        ],
-        "notes": "请准时参加考试，迟到15分钟不得入场。"
-    }
-    
-    return {
-        "code": 0,
-        "message": "success", 
-        "data": exam_detail
-    }
-
-@router.get("/countdown/{exam_id}")
-async def get_exam_countdown(
-    exam_id: int,
-    db: Session = Depends(deps.get_db)
-):
-    """
-    获取考试倒计时
-    """
-    # 模拟考试时间
-    exam_datetime = datetime(2024, 1, 15, 14, 30, 0)
-    current_datetime = datetime.now()
-    
-    diff = exam_datetime - current_datetime
-    
-    if diff.total_seconds() <= 0:
+    try:
+        person_id = current_user.get("person_id")
+        cursor.execute("SELECT student_id FROM persons WHERE person_id = ?", (person_id,))
+        student_info = cursor.fetchone()
+        
+        if not student_info or not student_info["student_id"]:
+            raise HTTPException(status_code=403, detail="仅限学生查询考试")
+        
+        student_id = student_info["student_id"]
+        
+        # 构建查询条件 - 通过选课记录获取考试信息
+        where_conditions = ["e.student_id = ?", "e.is_deleted = 0", "ci.is_deleted = 0"]
+        params = [student_id]
+        
+        if semester:
+            where_conditions.append("ci.semester = ?")
+            params.append(semester)
+        
+        where_clause = " AND ".join(where_conditions)
+        
+        # 查询考试列表
+        sql = f"""
+            SELECT ci.instance_id, ci.exam_date, ci.exam_location, ci.makeup_exam_date,
+                   c.course_id, c.course_name, c.course_code, c.credit_hours,
+                   ci.semester, ci.academic_year, ci.teacher_id,
+                   p.name as teacher_name,
+                   CASE 
+                       WHEN ci.exam_date IS NULL THEN 'not_scheduled'
+                       WHEN ci.exam_date > datetime('now') THEN 'upcoming'
+                       ELSE 'completed'
+                   END as exam_status
+            FROM enrollments e
+            JOIN course_instances ci ON e.course_instance_id = ci.instance_id
+            JOIN courses c ON ci.course_id = c.course_id
+            LEFT JOIN persons p ON ci.teacher_id = p.employee_id
+            WHERE {where_clause}
+            ORDER BY ci.exam_date ASC
+            LIMIT ? OFFSET ?
+        """
+        cursor.execute(sql, params + [limit, offset])
+        exams = [dict(row) for row in cursor.fetchall()]
+        
+        # 计算倒计时
+        for exam in exams:
+            if exam["exam_date"]:
+                exam_time = datetime.fromisoformat(exam["exam_date"])
+                now = datetime.now()
+                if exam_time > now:
+                    countdown = exam_time - now
+                    exam["countdown_days"] = countdown.days
+                    exam["countdown_hours"] = countdown.seconds // 3600
+                else:
+                    exam["countdown_days"] = 0
+                    exam["countdown_hours"] = 0
+        
         return {
             "code": 0,
             "message": "success",
             "data": {
-                "status": "started",
-                "message": "考试已开始"
+                "exams": exams,
+                "pagination": {
+                    "limit": limit,
+                    "offset": offset,
+                    "has_more": len(exams) == limit
+                }
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"数据库查询失败: {str(e)}")
+    finally:
+        conn.close()
+
+
+@router.get("/{exam_id}", summary="获取考试详情")
+async def get_exam_detail(
+    exam_id: str,
+    current_user = Depends(get_current_user)
+):
+    """获取考试详情"""
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # 查询考试详情
+        sql = """
+            SELECT ci.instance_id, ci.exam_date, ci.exam_location, ci.makeup_exam_date,
+                   c.course_id, c.course_name, c.course_code, c.credit_hours,
+                   ci.semester, ci.academic_year, ci.teacher_id,
+                   p.name as teacher_name, ci.class_start_date, ci.class_end_date,
+                   c.assessment_method, c.exam_form
+            FROM course_instances ci
+            JOIN courses c ON ci.course_id = c.course_id
+            LEFT JOIN persons p ON ci.teacher_id = p.employee_id
+            WHERE ci.instance_id = ? AND ci.is_deleted = 0
+        """
+        cursor.execute(sql, (exam_id,))
+        exam = cursor.fetchone()
+        
+        if not exam:
+            raise HTTPException(status_code=404, detail="考试不存在")
+        
+        exam_dict = dict(exam)
+        
+        # 计算详细倒计时
+        if exam_dict["exam_date"]:
+            exam_time = datetime.fromisoformat(exam_dict["exam_date"])
+            now = datetime.now()
+            if exam_time > now:
+                countdown = exam_time - now
+                exam_dict["countdown"] = {
+                    "days": countdown.days,
+                    "hours": countdown.seconds // 3600,
+                    "minutes": (countdown.seconds % 3600) // 60,
+                    "total_seconds": int(countdown.total_seconds())
+                }
+            else:
+                exam_dict["countdown"] = {
+                    "days": 0,
+                    "hours": 0,
+                    "minutes": 0,
+                    "total_seconds": 0
+                }
+        
+        return {
+            "code": 0,
+            "message": "success",
+            "data": exam_dict,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"数据库查询失败: {str(e)}")
+    finally:
+        conn.close()
+
+
+@router.get("/{exam_id}/countdown", summary="获取考试倒计时")
+async def get_exam_countdown(exam_id: str):
+    """获取考试倒计时"""
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # 查询考试时间
+        cursor.execute(
+            "SELECT exam_date, course_id FROM course_instances WHERE instance_id = ? AND is_deleted = 0",
+            (exam_id,)
+        )
+        exam = cursor.fetchone()
+        
+        if not exam:
+            raise HTTPException(status_code=404, detail="考试不存在")
+        
+        if not exam["exam_date"]:
+            return {
+                "code": 0,
+                "message": "success",
+                "data": {
+                    "exam_id": exam_id,
+                    "status": "not_scheduled",
+                    "message": "考试时间未安排"
+                },
+                "timestamp": datetime.now().isoformat()
             }
+        
+        exam_time = datetime.fromisoformat(exam["exam_date"])
+        now = datetime.now()
+        
+        if exam_time <= now:
+            status = "completed"
+            countdown_data = {
+                "days": 0,
+                "hours": 0,
+                "minutes": 0,
+                "seconds": 0,
+                "total_seconds": 0
+            }
+        else:
+            status = "upcoming"
+            countdown = exam_time - now
+            countdown_data = {
+                "days": countdown.days,
+                "hours": countdown.seconds // 3600,
+                "minutes": (countdown.seconds % 3600) // 60,
+                "seconds": countdown.seconds % 60,
+                "total_seconds": int(countdown.total_seconds())
+            }
+        
+        return {
+            "code": 0,
+            "message": "success",
+            "data": {
+                "exam_id": exam_id,
+                "exam_date": exam["exam_date"],
+                "status": status,
+                "countdown": countdown_data
+            },
+            "timestamp": datetime.now().isoformat()
         }
-    
-    days = diff.days
-    seconds = diff.seconds
-    hours = seconds // 3600
-    minutes = (seconds % 3600) // 60
-    seconds = seconds % 60
-    
-    return {
-        "code": 0,
-        "message": "success",
-        "data": {
-            "status": "countdown",
-            "days": days,
-            "hours": hours,
-            "minutes": minutes,
-            "seconds": seconds,
-            "total_seconds": int(diff.total_seconds()),
-            "formatted": f"{days}天{hours}小时{minutes}分{seconds}秒"
-        }
-    } 
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"数据库查询失败: {str(e)}")
+    finally:
+        conn.close() 

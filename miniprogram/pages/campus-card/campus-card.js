@@ -1,4 +1,5 @@
 const app = getApp()
+const API = require('../../utils/api')
 
 Page({
   data: {
@@ -124,48 +125,40 @@ Page({
   },
 
   // 加载校园卡信息
-  loadCardInfo() {
+  async loadCardInfo() {
     if (!this.data.userInfo) {
       return;
     }
 
     this.setData({ loading: true })
     
-    const userInfo = this.data.userInfo;
-    const cardNumber = userInfo.student_id || userInfo.employee_id || userInfo.login_id;
-    
-    // 模拟API请求
-    setTimeout(() => {
-      // 根据用户类型生成不同的余额
-      let balance = '156.78'; // 默认余额
-      if (userInfo.person_type === 'student') {
-        balance = (Math.random() * 500 + 50).toFixed(2); // 学生50-550元
-      } else if (userInfo.person_type === 'teacher') {
-        balance = (Math.random() * 200 + 100).toFixed(2); // 教师100-300元
-      } else if (userInfo.person_type === 'admin') {
-        balance = (Math.random() * 100 + 200).toFixed(2); // 管理员200-300元
-      }
-
-      const mockCardInfo = {
-        balance: balance,
-        cardNumber: cardNumber,
-        status: 'normal',
+    try {
+      // 调用真实API获取校园卡信息
+      const cardData = await API.getCampusCardInfo()
+      
+      const cardInfo = {
+        balance: cardData.card_info?.balance?.toFixed(2) || '0.00',
+        cardNumber: cardData.card_info?.card_number || this.data.userInfo.student_id || this.data.userInfo.employee_id,
+        status: cardData.card_info?.card_status || 'normal',
         lastUpdateTime: new Date().toLocaleString(),
-        ownerName: userInfo.name,
-        ownerType: userInfo.person_type
+        ownerName: this.data.userInfo.name,
+        ownerType: this.data.userInfo.person_type,
+        dailyLimit: cardData.card_info?.daily_limit || 300,
+        totalRecharge: cardData.card_info?.total_recharge || 0,
+        totalConsumption: cardData.card_info?.total_consumption || 0
       }
       
       this.setData({
-        cardInfo: mockCardInfo,
+        cardInfo: cardInfo,
         loading: false
       })
       
       // 检查余额不足提醒（仅针对学生和教师）
-      const balanceNum = parseFloat(mockCardInfo.balance)
-      if ((userInfo.person_type === 'student' || userInfo.person_type === 'teacher') && balanceNum < 20) {
+      const balanceNum = parseFloat(cardInfo.balance)
+      if ((this.data.userInfo.person_type === 'student' || this.data.userInfo.person_type === 'teacher') && balanceNum < 20) {
         wx.showModal({
           title: '💳 余额不足提醒',
-          content: `您的校园卡余额仅剩${mockCardInfo.balance}元，建议及时充值。`,
+          content: `您的校园卡余额仅剩${cardInfo.balance}元，建议及时充值。`,
           showCancel: true,
           cancelText: '稍后充值',
           confirmText: '立即充值',
@@ -177,225 +170,245 @@ Page({
           }
         })
       }
-    }, 800)
+    } catch (error) {
+      console.error('获取校园卡信息失败:', error)
+      this.setData({ loading: false })
+      
+      // 出错时显示默认信息
+      const defaultCardInfo = {
+        balance: '0.00',
+        cardNumber: this.data.userInfo.student_id || this.data.userInfo.employee_id || 'N/A',
+        status: 'normal',
+        lastUpdateTime: new Date().toLocaleString(),
+        ownerName: this.data.userInfo.name,
+        ownerType: this.data.userInfo.person_type
+      }
+      
+      this.setData({
+        cardInfo: defaultCardInfo
+      })
+      
+      wx.showToast({
+        title: '获取卡片信息失败',
+        icon: 'none'
+      })
+    }
   },
 
   // 加载近期消费记录
-  loadRecentRecords() {
+  async loadRecentRecords() {
     if (!this.data.userInfo) {
       return;
     }
 
-    const userType = this.data.userInfo.person_type;
-    let mockRecords = [];
+    try {
+      // 调用真实API获取消费记录
+      const transactionData = await API.getTransactions({
+        page: 1,
+        size: 20,
+        sort: 'transaction_time',
+        order: 'desc'
+      })
+      
+      // 转换数据格式
+      const recentRecords = (transactionData.transactions || []).map(item => ({
+        id: item.transaction_id,
+        location: item.merchant_name || item.location_name || '未知商户',
+        time: item.transaction_time,
+        amount: item.transaction_type === 'recharge' ? `+${item.amount}` : `-${item.amount}`,
+        balance: item.balance_after?.toFixed(2) || '0.00',
+        type: item.transaction_type === 'recharge' ? 'recharge' : 'consume',
+        category: this.mapTransactionCategory(item.category, item.merchant_name),
+        description: item.description || this.getDefaultDescription(item.transaction_type, item.merchant_name)
+      }))
+      
+      // 计算今日和本月消费
+      const today = new Date().toDateString()
+      const thisMonth = new Date().getMonth()
+      
+      let todaySpending = 0
+      let monthlySpending = 0
+      
+      recentRecords.forEach(record => {
+        const recordDate = new Date(record.time)
+        
+        if (record.type === 'consume') {
+          const amount = Math.abs(parseFloat(record.amount))
+          
+          if (recordDate.toDateString() === today) {
+            todaySpending += amount
+          }
+          
+          if (recordDate.getMonth() === thisMonth) {
+            monthlySpending += amount
+          }
+        }
+      })
+      
+      this.setData({
+        recentRecords: recentRecords,
+        todaySpending: todaySpending.toFixed(2),
+        monthlySpending: monthlySpending.toFixed(2)
+      })
+    } catch (error) {
+      console.error('获取消费记录失败:', error)
+      // 出错时使用空数组
+      this.setData({
+        recentRecords: [],
+        todaySpending: '0.00',
+        monthlySpending: '0.00'
+      })
+    }
+  },
 
-    if (userType === 'student') {
-      // 学生消费记录：主要是食堂、超市、图书馆
-      mockRecords = [
-        {
-          id: 1,
-          location: '第一食堂',
-          time: '2024-06-20 12:30:15',
-          amount: '-15.50',
-          balance: '156.78',
-          type: 'consume',
-          category: 'dining',
-          description: '午餐消费'
-        },
-        {
-          id: 2,
-          location: '图书馆打印室',
-          time: '2024-06-20 10:45:22',
-          amount: '-2.50',
-          balance: '171.78',
-          type: 'consume',
-          category: 'printing',
-          description: '打印费用'
-        },
-        {
-          id: 3,
-          location: '充值机',
-          time: '2024-06-19 18:20:10',
-          amount: '+50.00',
-          balance: '174.28',
-          type: 'recharge',
-          category: 'recharge',
-          description: '支付宝充值'
-        },
-        {
-          id: 4,
-          location: '第二食堂',
-          time: '2024-06-19 18:15:33',
-          amount: '-18.50',
-          balance: '124.28',
-          type: 'consume',
-          category: 'dining',
-          description: '晚餐消费'
-        }
-      ];
-    } else if (userType === 'teacher' || userType === 'assistant_teacher') {
-      // 教师消费记录：食堂、咖啡、打印等
-      mockRecords = [
-        {
-          id: 1,
-          location: '教师餐厅',
-          time: '2024-06-20 12:00:00',
-          amount: '-25.00',
-          balance: '275.50',
-          type: 'consume',
-          category: 'dining',
-          description: '午餐消费'
-        },
-        {
-          id: 2,
-          location: '咖啡厅',
-          time: '2024-06-20 09:30:15',
-          amount: '-18.00',
-          balance: '300.50',
-          type: 'consume',
-          category: 'coffee',
-          description: '咖啡消费'
-        },
-        {
-          id: 3,
-          location: '打印服务中心',
-          time: '2024-06-19 16:20:10',
-          amount: '-12.00',
-          balance: '318.50',
-          type: 'consume',
-          category: 'printing',
-          description: '打印课件'
-        }
-      ];
-    } else {
-      // 管理员等其他人员的记录较少
-      mockRecords = [
-        {
-          id: 1,
-          location: '行政餐厅',
-          time: '2024-06-20 12:30:00',
-          amount: '-30.00',
-          balance: '270.00',
-          type: 'consume',
-          category: 'dining',
-          description: '工作餐'
-        },
-        {
-          id: 2,
-          location: '充值机',
-          time: '2024-06-18 09:00:00',
-          amount: '+100.00',
-          balance: '300.00',
-          type: 'recharge',
-          category: 'recharge',
-          description: '银行卡充值'
-        }
-      ];
+  /**
+   * 映射交易分类
+   */
+  mapTransactionCategory(apiCategory, merchantName) {
+    const categoryMap = {
+      '餐饮': 'dining',
+      '购物': 'shopping',
+      '图书馆': 'library',
+      '其他': 'other'
     }
     
-    // 计算今日和本月消费
-    const today = new Date().toDateString()
-    const thisMonth = new Date().getMonth()
+    // 如果API返回了分类，使用映射
+    if (apiCategory && categoryMap[apiCategory]) {
+      return categoryMap[apiCategory]
+    }
     
-    let todaySpending = 0
-    let monthlySpending = 0
-    
-    mockRecords.forEach(record => {
-      const recordDate = new Date(record.time)
-      
-      if (record.type === 'consume') {
-        const amount = Math.abs(parseFloat(record.amount))
-        
-        if (recordDate.toDateString() === today) {
-          todaySpending += amount
-        }
-        
-        if (recordDate.getMonth() === thisMonth) {
-          monthlySpending += amount
-        }
+    // 根据商户名称推断分类
+    if (merchantName) {
+      if (merchantName.includes('食堂') || merchantName.includes('餐厅')) {
+        return 'dining'
+      } else if (merchantName.includes('超市') || merchantName.includes('商店')) {
+        return 'shopping'
+      } else if (merchantName.includes('图书馆') || merchantName.includes('打印')) {
+        return 'library'
+      } else if (merchantName.includes('咖啡') || merchantName.includes('茶')) {
+        return 'coffee'
       }
-    })
+    }
     
-    this.setData({
-      recentRecords: mockRecords,
-      todaySpending: todaySpending.toFixed(2),
-      monthlySpending: monthlySpending.toFixed(2)
-    })
+    return 'other'
+  },
+
+  /**
+   * 获取默认描述
+   */
+  getDefaultDescription(transactionType, merchantName) {
+    if (transactionType === 'recharge') {
+      return '校园卡充值'
+    }
+    
+    if (merchantName) {
+      if (merchantName.includes('食堂') || merchantName.includes('餐厅')) {
+        return '餐饮消费'
+      } else if (merchantName.includes('超市')) {
+        return '购物消费'
+      } else if (merchantName.includes('图书馆')) {
+        return '图书馆消费'
+      } else if (merchantName.includes('打印')) {
+        return '打印费用'
+      }
+    }
+    
+    return '校园卡消费'
   },
 
   // 加载消费统计
-  loadSpendingStats() {
+  async loadSpendingStats() {
     if (!this.data.userInfo) {
       return;
     }
 
-    const userType = this.data.userInfo.person_type;
-    let mockStats = {};
+    try {
+      // 调用真实API获取消费统计
+      const statsData = await API.getCampusCardStatistics('month')
+      
+      // 转换数据格式
+      const spendingStats = {
+        daily: this.processDailyStats(statsData.daily_stats || []),
+        categories: this.processCategoryStats(statsData.category_stats || []),
+        locations: this.processLocationStats(statsData.location_stats || [])
+      }
+      
+      this.setData({
+        spendingStats: spendingStats
+      })
+    } catch (error) {
+      console.error('获取消费统计失败:', error)
+      // 出错时使用默认统计
+      this.setData({
+        spendingStats: {
+          daily: [],
+          categories: [],
+          locations: []
+        }
+      })
+    }
+  },
 
-    if (userType === 'student') {
-      mockStats = {
-        daily: [
-          { date: '6.16', amount: 25.5 },
-          { date: '6.17', amount: 31.2 },
-          { date: '6.18', amount: 18.8 },
-          { date: '6.19', amount: 42.1 },
-          { date: '6.20', amount: 17.5 }
-        ],
-        categories: [
-          { name: '餐饮', amount: 89.5, percentage: 65, color: '#0052d9' },
-          { name: '购物', amount: 28.3, percentage: 20, color: '#00a870' },
-          { name: '打印', amount: 12.8, percentage: 10, color: '#ff9500' },
-          { name: '其他', amount: 6.5, percentage: 5, color: '#e34d59' }
-        ],
-        locations: [
-          { name: '第一食堂', count: 15, amount: 245.6 },
-          { name: '第二食堂', count: 8, amount: 156.3 },
-          { name: '超市', count: 5, amount: 67.9 },
-          { name: '图书馆', count: 12, amount: 24.5 }
-        ]
-      };
-    } else if (userType === 'teacher' || userType === 'assistant_teacher') {
-      mockStats = {
-        daily: [
-          { date: '6.16', amount: 45.0 },
-          { date: '6.17', amount: 38.5 },
-          { date: '6.18', amount: 52.3 },
-          { date: '6.19', amount: 41.2 },
-          { date: '6.20', amount: 43.0 }
-        ],
-        categories: [
-          { name: '餐饮', amount: 125.0, percentage: 55, color: '#0052d9' },
-          { name: '咖啡茶饮', amount: 68.0, percentage: 30, color: '#00a870' },
-          { name: '打印复印', amount: 24.0, percentage: 10, color: '#ff9500' },
-          { name: '其他', amount: 11.0, percentage: 5, color: '#e34d59' }
-        ],
-        locations: [
-          { name: '教师餐厅', count: 12, amount: 320.0 },
-          { name: '咖啡厅', count: 8, amount: 156.0 },
-          { name: '打印中心', count: 3, amount: 36.0 }
-        ]
-      };
-    } else {
-      mockStats = {
-        daily: [
-          { date: '6.16', amount: 30.0 },
-          { date: '6.17', amount: 25.0 },
-          { date: '6.18', amount: 35.0 },
-          { date: '6.19', amount: 28.0 },
-          { date: '6.20', amount: 30.0 }
-        ],
-        categories: [
-          { name: '餐饮', amount: 148.0, percentage: 100, color: '#0052d9' }
-        ],
-        locations: [
-          { name: '行政餐厅', count: 5, amount: 148.0 }
-        ]
-      };
+  /**
+   * 处理每日统计数据
+   */
+  processDailyStats(dailyStats) {
+    // 获取最近7天的数据
+    const last7Days = []
+    const today = new Date()
+    
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today)
+      date.setDate(today.getDate() - i)
+      
+      const dateStr = `${date.getMonth() + 1}.${date.getDate()}`
+      const dayData = dailyStats.find(item => 
+        new Date(item.date).toDateString() === date.toDateString()
+      )
+      
+      last7Days.push({
+        date: dateStr,
+        amount: dayData ? parseFloat(dayData.amount) : 0
+      })
     }
     
-    this.setData({
-      spendingStats: mockStats
-    })
+    return last7Days
+  },
+
+  /**
+   * 处理分类统计数据
+   */
+  processCategoryStats(categoryStats) {
+    const colorMap = {
+      '餐饮': '#0052d9',
+      '购物': '#00a870', 
+      '图书馆': '#ff9500',
+      '其他': '#e34d59',
+      'dining': '#0052d9',
+      'shopping': '#00a870',
+      'library': '#ff9500',
+      'other': '#e34d59'
+    }
+    
+    const totalAmount = categoryStats.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0)
+    
+    return categoryStats.map(item => ({
+      name: item.category_name || item.category,
+      amount: parseFloat(item.amount || 0),
+      percentage: totalAmount > 0 ? Math.round((parseFloat(item.amount || 0) / totalAmount) * 100) : 0,
+      color: colorMap[item.category] || colorMap[item.category_name] || '#666666'
+    }))
+  },
+
+  /**
+   * 处理地点统计数据
+   */
+  processLocationStats(locationStats) {
+    return locationStats.map(item => ({
+      name: item.location_name || item.merchant_name || '未知地点',
+      count: parseInt(item.transaction_count || 0),
+      amount: parseFloat(item.total_amount || 0)
+    })).slice(0, 10) // 只显示前10个地点
   },
 
   // 充值功能

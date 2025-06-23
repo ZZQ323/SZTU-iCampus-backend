@@ -1,294 +1,399 @@
 """
-图书馆管理API端点
-提供图书查询、借阅管理、座位预约、图书荐购等功能
+图书馆接口
+提供图书搜索、借阅记录、座位预约等功能
 """
+import sqlite3
+from datetime import datetime, timedelta
+from typing import Optional
+from fastapi import APIRouter, HTTPException, Query, Depends
+from app.api.deps import get_current_user
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
-from typing import List, Optional
-from datetime import datetime, date, timedelta
+router = APIRouter()
 
-from app.api import deps
+def get_db_connection():
+    """获取数据库连接"""
+    conn = sqlite3.connect('../../data-service/sztu_campus.db')
+    conn.row_factory = sqlite3.Row
+    return conn
 
-router = APIRouter(tags=["library"])
-
-@router.get("/borrow-info")
-async def get_borrow_info(
-    student_id: str = Query("2024001", description="学生学号"),
-    db: Session = Depends(deps.get_db)
-):
-    """获取学生借阅信息"""
-    borrow_data = {
-        "student_id": student_id,
-        "current_borrow": 2,
-        "max_borrow": 10,
-        "borrow_list": [
-            {
-                "id": 1,
-                "book_name": "高等数学（第七版）",
-                "borrow_date": "2024-03-01",
-                "return_date": "2024-06-01"
-            }
-        ]
-    }
-    
-    return {"code": 0, "message": "success", "data": borrow_data}
-
-@router.get("/search")
+@router.get("/books/search", summary="图书搜索")
 async def search_books(
-    keyword: str = Query(..., description="搜索关键词"),
-    search_type: str = Query("all", description="搜索类型：title, author, isbn, all"),
-    skip: int = Query(0, ge=0, description="跳过记录数"),
-    limit: int = Query(20, ge=1, le=100, description="返回记录数"),
-    db: Session = Depends(deps.get_db)
+    q: str = Query(..., description="搜索关键词"),
+    category: Optional[str] = Query(None, description="图书分类"),
+    author: Optional[str] = Query(None, description="作者"),
+    publisher: Optional[str] = Query(None, description="出版社"),
+    limit: int = Query(20, description="返回条数"),
+    offset: int = Query(0, description="偏移量")
 ):
-    """
-    图书搜索
-    """
-    # 模拟搜索结果
-    mock_books = [
-        {
-            "id": 1,
-            "title": "高等数学（第七版）",
-            "author": "同济大学数学系",
-            "isbn": "9787040396638",
-            "publisher": "高等教育出版社",
-            "publish_year": "2014",
-            "category": "数学",
-            "location": "理工图书区A区3层",
-            "call_number": "O13/T56",
-            "total_copies": 50,
-            "available_copies": 15,
-            "status": "available"
-        },
-        {
-            "id": 2,
-            "title": "线性代数（第六版）",
-            "author": "同济大学数学系",
-            "isbn": "9787040396652",
-            "publisher": "高等教育出版社",
-            "publish_year": "2014",
-            "category": "数学",
-            "location": "理工图书区A区3层",
-            "call_number": "O151.2/T56",
-            "total_copies": 30,
-            "available_copies": 8,
-            "status": "available"
+    """图书搜索"""
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # 构建搜索条件
+        where_conditions = ["is_deleted = 0", "book_status = 'available'"]
+        params = []
+        
+        # 关键词搜索（标题、作者、ISBN）
+        if q:
+            where_conditions.append("(title LIKE ? OR author LIKE ? OR isbn LIKE ?)")
+            search_term = f"%{q}%"
+            params.extend([search_term, search_term, search_term])
+        
+        if category:
+            where_conditions.append("category = ?")
+            params.append(category)
+        
+        if author:
+            where_conditions.append("author LIKE ?")
+            params.append(f"%{author}%")
+        
+        if publisher:
+            where_conditions.append("publisher LIKE ?")
+            params.append(f"%{publisher}%")
+        
+        where_clause = " AND ".join(where_conditions)
+        
+        # 查询总数
+        count_sql = f"SELECT COUNT(*) FROM books WHERE {where_clause}"
+        cursor.execute(count_sql, params)
+        total = cursor.fetchone()[0]
+        
+        # 查询图书列表
+        sql = f"""
+            SELECT book_id, isbn, title, author, publisher, publication_date,
+                   category, pages, price, language, total_copies, available_copies,
+                   borrowed_copies, location_code, borrowable, loan_period_days,
+                   rating, review_count
+            FROM books 
+            WHERE {where_clause}
+            ORDER BY popularity_score DESC, publication_date DESC
+            LIMIT ? OFFSET ?
+        """
+        cursor.execute(sql, params + [limit, offset])
+        books = [dict(row) for row in cursor.fetchall()]
+        
+        return {
+            "code": 0,
+            "message": "success",
+            "data": {
+                "books": books,
+                "search_params": {
+                    "query": q,
+                    "category": category,
+                    "author": author,
+                    "publisher": publisher
+                },
+                "pagination": {
+                    "total": total,
+                    "limit": limit,
+                    "offset": offset,
+                    "has_more": offset + limit < total
+                }
+            },
+            "timestamp": datetime.now().isoformat()
         }
-    ]
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"搜索失败: {str(e)}")
+    finally:
+        conn.close()
+
+
+@router.get("/borrows", summary="获取借阅记录")
+async def get_borrow_records(
+    status: Optional[str] = Query(None, description="借阅状态: borrowed, returned, overdue"),
+    limit: int = Query(20, description="返回条数"),
+    offset: int = Query(0, description="偏移量"),
+    current_user = Depends(get_current_user)
+):
+    """获取借阅记录"""
     
-    # 简单的关键词匹配
-    filtered_books = []
-    for book in mock_books:
-        if keyword.lower() in book["title"].lower() or keyword.lower() in book["author"].lower():
-            filtered_books.append(book)
+    conn = get_db_connection()
+    cursor = conn.cursor()
     
-    total = len(filtered_books)
-    books = filtered_books[skip:skip + limit]
+    try:
+        person_id = current_user.get("person_id")
+        
+        # 构建查询条件
+        where_conditions = ["br.borrower_id = ?", "br.is_deleted = 0"]
+        params = [person_id]
+        
+        if status:
+            where_conditions.append("br.record_status = ?")
+            params.append(status)
+        
+        where_clause = " AND ".join(where_conditions)
+        
+        # 查询借阅记录
+        sql = f"""
+            SELECT br.record_id, br.book_id, br.borrow_date, br.due_date, br.return_date,
+                   br.renewal_count, br.max_renewals, br.record_status, br.is_overdue,
+                   br.overdue_days, br.overdue_fine, br.total_fee,
+                   b.title, b.author, b.isbn, b.publisher, b.location_code
+            FROM borrow_records br
+            JOIN books b ON br.book_id = b.book_id
+            WHERE {where_clause}
+            ORDER BY br.borrow_date DESC
+            LIMIT ? OFFSET ?
+        """
+        cursor.execute(sql, params + [limit, offset])
+        records = [dict(row) for row in cursor.fetchall()]
+        
+        # 计算统计信息
+        cursor.execute(f"""
+            SELECT 
+                COUNT(*) as total_records,
+                COUNT(CASE WHEN record_status = 'borrowed' THEN 1 END) as current_borrowed,
+                COUNT(CASE WHEN is_overdue = 1 THEN 1 END) as overdue_count,
+                COALESCE(SUM(total_fee), 0) as total_fees
+            FROM borrow_records 
+            WHERE borrower_id = ? AND is_deleted = 0
+        """, (person_id,))
+        
+        stats = dict(cursor.fetchone())
+        
+        return {
+            "code": 0,
+            "message": "success",
+            "data": {
+                "records": records,
+                "stats": stats,
+                "pagination": {
+                    "limit": limit,
+                    "offset": offset,
+                    "has_more": len(records) == limit
+                }
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"数据库查询失败: {str(e)}")
+    finally:
+        conn.close()
+
+
+@router.post("/borrows/{book_id}", summary="借阅图书")
+async def borrow_book(
+    book_id: str,
+    current_user = Depends(get_current_user)
+):
+    """借阅图书"""
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        person_id = current_user.get("person_id")
+        
+        # 检查图书是否存在且可借阅
+        cursor.execute("""
+            SELECT book_id, title, available_copies, borrowable, loan_period_days
+            FROM books 
+            WHERE book_id = ? AND is_deleted = 0
+        """, (book_id,))
+        
+        book = cursor.fetchone()
+        if not book:
+            raise HTTPException(status_code=404, detail="图书不存在")
+        
+        if not book["borrowable"]:
+            raise HTTPException(status_code=400, detail="该图书不可外借")
+        
+        if book["available_copies"] <= 0:
+            raise HTTPException(status_code=400, detail="图书已全部借出")
+        
+        # 检查用户是否已借阅此书
+        cursor.execute("""
+            SELECT record_id FROM borrow_records 
+            WHERE borrower_id = ? AND book_id = ? AND record_status = 'borrowed' AND is_deleted = 0
+        """, (person_id, book_id))
+        
+        if cursor.fetchone():
+            raise HTTPException(status_code=400, detail="您已借阅此书")
+        
+        # 创建借阅记录
+        record_id = f"BR{datetime.now().strftime('%Y%m%d%H%M%S')}{person_id[-4:]}"
+        borrow_date = datetime.now()
+        due_date = borrow_date + timedelta(days=book["loan_period_days"])
+        
+        cursor.execute("""
+            INSERT INTO borrow_records 
+            (record_id, book_id, borrower_id, borrow_date, due_date, max_renewals,
+             record_status, is_overdue, condition_on_borrow, created_at, updated_at, is_deleted, status, is_active)
+            VALUES (?, ?, ?, ?, ?, 2, 'borrowed', 0, 'good', 
+                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, 'active', 1)
+        """, (record_id, book_id, person_id, borrow_date, due_date))
+        
+        # 更新图书可借数量
+        cursor.execute("""
+            UPDATE books 
+            SET available_copies = available_copies - 1,
+                borrowed_copies = borrowed_copies + 1,
+                borrow_count = borrow_count + 1
+            WHERE book_id = ?
+        """, (book_id,))
+        
+        conn.commit()
+        
+        return {
+            "code": 0,
+            "message": "借阅成功",
+            "data": {
+                "record_id": record_id,
+                "book_title": book["title"],
+                "borrow_date": borrow_date.isoformat(),
+                "due_date": due_date.isoformat(),
+                "loan_period_days": book["loan_period_days"]
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"借阅失败: {str(e)}")
+    finally:
+        conn.close()
+
+
+@router.put("/borrows/{record_id}/renew", summary="续借图书")
+async def renew_book(
+    record_id: str,
+    current_user = Depends(get_current_user)
+):
+    """续借图书"""
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        person_id = current_user.get("person_id")
+        
+        # 查询借阅记录
+        cursor.execute("""
+            SELECT br.record_id, br.book_id, br.due_date, br.renewal_count, br.max_renewals,
+                   br.record_status, b.title, b.loan_period_days
+            FROM borrow_records br
+            JOIN books b ON br.book_id = b.book_id
+            WHERE br.record_id = ? AND br.borrower_id = ? AND br.is_deleted = 0
+        """, (record_id, person_id))
+        
+        record = cursor.fetchone()
+        if not record:
+            raise HTTPException(status_code=404, detail="借阅记录不存在")
+        
+        if record["record_status"] != "borrowed":
+            raise HTTPException(status_code=400, detail="只能续借未归还的图书")
+        
+        if record["renewal_count"] >= record["max_renewals"]:
+            raise HTTPException(status_code=400, detail="已达到最大续借次数")
+        
+        # 计算新的到期日期
+        current_due_date = datetime.fromisoformat(record["due_date"])
+        new_due_date = current_due_date + timedelta(days=record["loan_period_days"])
+        
+        # 更新借阅记录
+        cursor.execute("""
+            UPDATE borrow_records 
+            SET due_date = ?, 
+                renewal_count = renewal_count + 1,
+                last_renewal_date = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE record_id = ?
+        """, (new_due_date, record_id))
+        
+        conn.commit()
+        
+        return {
+            "code": 0,
+            "message": "续借成功",
+            "data": {
+                "record_id": record_id,
+                "book_title": record["title"],
+                "new_due_date": new_due_date.isoformat(),
+                "renewal_count": record["renewal_count"] + 1,
+                "max_renewals": record["max_renewals"]
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"续借失败: {str(e)}")
+    finally:
+        conn.close()
+
+
+@router.get("/seats", summary="获取座位信息")
+async def get_seats():
+    """获取座位信息（模拟数据）"""
+    
+    # 模拟座位数据
+    seats_data = {
+        "floors": [
+            {
+                "floor": 1,
+                "name": "一楼阅览区",
+                "total_seats": 200,
+                "available_seats": 156,
+                "areas": [
+                    {"area_id": "1A", "name": "期刊阅览区", "total": 50, "available": 35},
+                    {"area_id": "1B", "name": "普通阅览区", "total": 150, "available": 121}
+                ]
+            },
+            {
+                "floor": 2,
+                "name": "二楼自习区",
+                "total_seats": 300,
+                "available_seats": 89,
+                "areas": [
+                    {"area_id": "2A", "name": "安静自习区", "total": 200, "available": 45},
+                    {"area_id": "2B", "name": "讨论学习区", "total": 100, "available": 44}
+                ]
+            }
+        ],
+        "update_time": datetime.now().isoformat()
+    }
     
     return {
         "code": 0,
         "message": "success",
-        "data": {
-            "books": books,
-            "total": total,
-            "keyword": keyword,
-            "search_type": search_type
-        }
+        "data": seats_data,
+        "timestamp": datetime.now().isoformat()
     }
 
-@router.get("/seats")
-async def get_seat_info(db: Session = Depends(deps.get_db)):
-    """获取座位信息"""
-    seat_data = {
-        "floors": [
-            {"id": 1, "name": "一楼阅览室", "available_seats": 45},
-            {"id": 2, "name": "二楼阅览室", "available_seats": 38}
-        ]
-    }
-    
-    return {"code": 0, "message": "success", "data": seat_data}
 
-@router.post("/seat-reservation")
+@router.post("/seats/reserve", summary="预约座位")
 async def reserve_seat(
-    floor_id: int,
-    seat_number: str,
-    start_time: str,
-    end_time: str,
-    student_id: str = Query("2024001", description="学生学号"),
-    db: Session = Depends(deps.get_db)
+    area_id: str,
+    duration_hours: int = 4,
+    current_user = Depends(get_current_user)
 ):
-    """
-    预约座位
-    """
+    """预约座位（模拟实现）"""
+    
     # 模拟预约逻辑
-    reservation_data = {
-        "reservation_id": f"RES{datetime.now().strftime('%Y%m%d%H%M%S')}",
-        "student_id": student_id,
-        "floor_id": floor_id,
-        "seat_number": seat_number,
-        "start_time": start_time,
-        "end_time": end_time,
-        "status": "confirmed",
-        "qr_code": f"library_seat_{floor_id}_{seat_number}_{datetime.now().timestamp()}",
-        "created_at": datetime.now().isoformat()
-    }
+    seat_number = f"{area_id}-{datetime.now().strftime('%H%M%S')}"
+    start_time = datetime.now()
+    end_time = start_time + timedelta(hours=duration_hours)
     
     return {
         "code": 0,
         "message": "座位预约成功",
-        "data": reservation_data
-    }
-
-@router.get("/reservations")
-async def get_reservations(
-    student_id: str = Query("2024001", description="学生学号"),
-    status: Optional[str] = Query(None, description="预约状态：active, completed, cancelled"),
-    db: Session = Depends(deps.get_db)
-):
-    """
-    获取座位预约记录
-    """
-    # 模拟预约记录
-    reservations = [
-        {
-            "reservation_id": "RES20240320143000",
-            "floor_name": "一楼阅览室",
-            "seat_number": "A001",
-            "date": "2024-03-20",
-            "start_time": "14:30",
-            "end_time": "18:30",
-            "status": "active",
-            "created_at": "2024-03-20T10:00:00"
-        },
-        {
-            "reservation_id": "RES20240319090000",
-            "floor_name": "四楼自习室",
-            "seat_number": "D045",
-            "date": "2024-03-19",
-            "start_time": "09:00",
-            "end_time": "17:00",
-            "status": "completed",
-            "created_at": "2024-03-18T20:00:00"
-        }
-    ]
-    
-    # 状态筛选
-    if status:
-        reservations = [r for r in reservations if r["status"] == status]
-    
-    return {
-        "code": 0,
-        "message": "success",
         "data": {
-            "reservations": reservations,
-            "total": len(reservations)
-        }
-    }
-
-@router.post("/recommend")
-async def recommend_book(
-    title: str,
-    author: Optional[str] = None,
-    isbn: Optional[str] = None,
-    publisher: Optional[str] = None,
-    reason: Optional[str] = None,
-    student_id: str = Query("2024001", description="学生学号"),
-    db: Session = Depends(deps.get_db)
-):
-    """
-    图书荐购
-    """
-    # 模拟荐购提交
-    recommendation_data = {
-        "recommendation_id": f"REC{datetime.now().strftime('%Y%m%d%H%M%S')}",
-        "student_id": student_id,
-        "title": title,
-        "author": author,
-        "isbn": isbn,
-        "publisher": publisher,
-        "reason": reason,
-        "status": "submitted",
-        "submit_time": datetime.now().isoformat(),
-        "expected_review_time": (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
-    }
-    
-    return {
-        "code": 0,
-        "message": "荐购申请提交成功",
-        "data": recommendation_data
-    }
-
-@router.get("/recommendations")
-async def get_recommendations(
-    student_id: str = Query("2024001", description="学生学号"),
-    status: Optional[str] = Query(None, description="荐购状态：submitted, approved, rejected, purchased"),
-    db: Session = Depends(deps.get_db)
-):
-    """
-    获取荐购记录
-    """
-    # 模拟荐购记录
-    recommendations = [
-        {
-            "recommendation_id": "REC20240315100000",
-            "title": "深度学习（花书）",
-            "author": "Ian Goodfellow",
-            "status": "approved",
-            "submit_time": "2024-03-15T10:00:00",
-            "review_time": "2024-03-18T15:30:00",
-            "reviewer": "图书馆采编部",
-            "feedback": "该书具有较高的学术价值，已纳入采购计划"
+            "reservation_id": f"RSV{datetime.now().strftime('%Y%m%d%H%M%S')}",
+            "area_id": area_id,
+            "seat_number": seat_number,
+            "start_time": start_time.isoformat(),
+            "end_time": end_time.isoformat(),
+            "duration_hours": duration_hours
         },
-        {
-            "recommendation_id": "REC20240310140000",
-            "title": "算法导论（第四版）",
-            "author": "Thomas H. Cormen",
-            "status": "purchased",
-            "submit_time": "2024-03-10T14:00:00",
-            "review_time": "2024-03-12T09:00:00",
-            "purchase_time": "2024-03-20T11:00:00",
-            "call_number": "TP301.6/C81",
-            "location": "理工图书区A区2层"
-        }
-    ]
-    
-    # 状态筛选
-    if status:
-        recommendations = [r for r in recommendations if r["status"] == status]
-    
-    return {
-        "code": 0,
-        "message": "success",
-        "data": {
-            "recommendations": recommendations,
-            "total": len(recommendations)
-        }
-    }
-
-@router.post("/renew")
-async def renew_book(
-    borrow_id: int,
-    student_id: str = Query("2024001", description="学生学号"),
-    db: Session = Depends(deps.get_db)
-):
-    """
-    图书续借
-    """
-    # 模拟续借逻辑
-    new_return_date = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
-    
-    renew_data = {
-        "borrow_id": borrow_id,
-        "student_id": student_id,
-        "new_return_date": new_return_date,
-        "renewal_count": 1,
-        "max_renewal": 2,
-        "renew_time": datetime.now().isoformat()
-    }
-    
-    return {
-        "code": 0,
-        "message": f"续借成功，新归还日期：{new_return_date}",
-        "data": renew_data
+        "timestamp": datetime.now().isoformat()
     } 
