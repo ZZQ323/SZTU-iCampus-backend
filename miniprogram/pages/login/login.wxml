@@ -18,7 +18,6 @@
         <text class="nickname">{{wechatInfo.nickName}}</text>
         <text class="tip">使用微信账号登录</text>
       </view>
-      
       <view class="wechat-welcome" wx:else>
         <text class="welcome-text">👋 欢迎使用微信登录</text>
         <text class="tip">安全便捷，一键登录</text>
@@ -68,8 +67,10 @@
           type="password"
           placeholder="请输入密码"
           value="{{formData.password}}"
+          password="true"
           bindinput="onPasswordInput"
         />
+        <!-- bindinput 键盘输入时或内容改变时触发 -->
       </view>
     </view>
 
@@ -100,11 +101,13 @@
     <view class="form-content">
       <view class="input-group">
         <text class="label">学号/工号</text>
+        <!-- 键盘输入时或内容改变时触发。 -->
         <input 
           class="input"
           placeholder="请输入学号或工号"
           value="{{formData.loginId}}"
           bindinput="onLoginIdInput"
+          auto-focus
         />
       </view>
       <view class="input-group">
@@ -113,12 +116,9 @@
           class="input"
           type="password"
           placeholder="请输入密码"
-          value="{{formData.password}}"
+          password="true"
           bindinput="onPasswordInput"
         />
-      </view>
-      <view class="tip">
-        <text>测试账号: 2025000001 / Admin001HP1dbd10</text>
       </view>
     </view>
 

@@ -53,7 +53,8 @@ Page({
   checkLoginStatus() {
     const token = wx.getStorageSync('token');
     const userInfo = wx.getStorageSync('userInfo');
-    
+    // 为什么是通过token判断是否登录呢？
+    // 但是好像我这个CORS配置并不影响；
     if (token && userInfo) {
       // 已登录
       this.setData({
@@ -79,10 +80,8 @@ Page({
   async loadUserHomeData(userInfo) {
     try {
       this.setData({ loading: true });
-
       // 根据用户类型设置快捷操作
       const quickActions = this.getQuickActionsByUserType(userInfo.person_type);
-      
       // 设置用户信息
       const userData = {
         name: userInfo.name,
@@ -96,7 +95,7 @@ Page({
       };
 
       // TODO: 调用后端API获取用户相关数据
-      // 这里先使用模拟数据
+      // 这里先使用MOCK数据
       const homeData = {
         user_info: userData,
         quick_actions: quickActions,
@@ -123,6 +122,7 @@ Page({
 
   /**
    * 加载访客模式首页数据
+   * 没登录展示默认数据，登录展示个人数据
    */
   loadGuestHomeData() {
     const guestData = {
@@ -323,12 +323,12 @@ Page({
 
   /**
    * 通用页面跳转和操作处理
+   * 主要是配合快捷访问的
    */
   navigateTo(e) {
     console.log('点击快捷按钮，事件对象:', e);
     const url = e.currentTarget.dataset.url;
     const action = e.currentTarget.dataset.action;
-    
     console.log('获取到的URL:', url, 'Action:', action);
     
     // 处理特殊操作
@@ -430,7 +430,7 @@ Page({
   },
 
   /**
-   * 检查是否为受保护页面
+   * 检查是否为需要登录才能查看的页面
    */
   isProtectedPage(url) {
     const protectedPages = [
@@ -453,7 +453,7 @@ Page({
   },
 
   /**
-   * 跳转到公告详情
+   * 直接跳转到公告详情页
    */
   navigateToAnnouncement(e) {
     const id = e.currentTarget.dataset.id;

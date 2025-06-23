@@ -1,6 +1,6 @@
 # SZTU-iCampus 数据模型与API设计
 
-## 编号系统设计
+## 编码设计
 
 ### 1. 学院编码 (College Code)
 ```
@@ -111,7 +111,7 @@ S1-S10 - 宿舍楼群
 示例：C1-101, C1-302, D2-201, E1-105
 ```
 
-## 参数范围说明
+## MOCK数据参数范围说明
 
 ### 枚举值定义
 
@@ -198,6 +198,49 @@ scrapped - 已报废
 lost - 丢失
 ```
 
+#### 资产类型扩展定义
+```json
+{
+  "asset_categories": {
+    "teaching_equipment": {
+      "projection": ["投影仪", "激光投影仪", "短焦投影仪", "互动投影仪"],
+      "display": ["液晶显示屏", "LED显示屏", "触控一体机", "电子白板", "拼接屏"],
+      "audio": ["音响设备", "话筒", "扩音器", "调音台", "无线麦克风"],
+      "computer": ["台式电脑", "笔记本电脑", "平板电脑", "一体机电脑"],
+      "network": ["交换机", "路由器", "无线AP", "网线", "光纤设备"]
+    },
+    "lab_equipment": {
+      "computing": ["服务器", "工作站", "GPU服务器", "A100芯片", "H100芯片", "计算节点"],
+      "storage": ["存储服务器", "磁盘阵列", "NAS设备", "SSD硬盘", "机械硬盘"],
+      "instruments": ["示波器", "万用表", "信号发生器", "频谱分析仪", "逻辑分析仪"],
+      "specialized": ["3D打印机", "激光切割机", "PCB制板机", "焊接设备"]
+    },
+    "office_equipment": {
+      "furniture": ["办公桌", "办公椅", "会议桌", "文件柜", "书架", "沙发"],
+      "appliances": ["空调", "饮水机", "复印机", "打印机", "扫描仪", "碎纸机"],
+      "communication": ["座机电话", "对讲机", "视频会议设备", "摄像头"]
+    },
+    "infrastructure": {
+      "lighting": ["LED灯管", "应急灯", "路灯", "景观灯", "投光灯"],
+      "hvac": ["中央空调", "新风系统", "排风扇", "空气净化器"],
+      "security": ["监控摄像头", "门禁设备", "报警器", "消防设备"],
+      "landscape": ["草坪修剪机", "洒水设备", "园艺工具", "花盆"]
+    },
+    "facility_equipment": {
+      "cleaning": ["扫地车", "洗地机", "吸尘器", "垃圾桶", "清洁工具"],
+      "transport": ["通勤车", "电动车", "自行车", "搬运车"],
+      "sports": ["篮球架", "乒乓球台", "健身器材", "体育用品"],
+      "catering": ["餐桌", "餐椅", "厨房设备", "餐具", "冰箱"]
+    },
+    "dormitory_equipment": {
+      "furniture": ["宿舍床", "书桌", "衣柜", "椅子"],
+      "appliances": ["热水器", "洗衣机", "空调", "风扇"],
+      "facilities": ["窗帘", "百叶窗", "晾衣架", "鞋柜"]
+    }
+  }
+}
+```
+
 #### 教室类型 (room_type)
 ```
 classroom - 普通教室
@@ -214,7 +257,7 @@ dormitory - 宿舍
 gym - 体育馆
 ```
 
-## 核心实体关系分析
+## 实体表
 
 ### 1. 人员实体 (Person)
 ```json
@@ -328,9 +371,7 @@ gym - 体育馆
 }
 ```
 
-### 4. 组织架构实体
-
-#### 学院 (College)
+### 4.学院 (College)
 ```json
 {
   "college_id": "C001",             // 学院ID，格式：C+3位数字
@@ -362,7 +403,7 @@ gym - 体育馆
 }
 ```
 
-#### 专业 (Major)  
+### 5.专业 (Major)  
 ```json
 {
   "major_id": "M001",               // 专业ID，格式：M+3位数字
@@ -400,7 +441,7 @@ gym - 体育馆
 }
 ```
 
-#### 部门 (Department)
+### 6.部门 (Department)
 ```json
 {
   "department_id": "D001",          // 部门ID，格式：D+3位数字
@@ -436,7 +477,7 @@ gym - 体育馆
 }
 ```
 
-### 5. 场所实体 (Location)
+### 7. 场所实体 (Location)
 ```json
 {
   "location_id": "L001",
@@ -451,9 +492,7 @@ gym - 体育馆
 }
 ```
 
-### 6. 课程体系
-
-#### 课程 (Course)
+### 8.课程 (Course)
 ```json
 {
   "course_id": "MATH001",           // 课程ID，英文+数字
@@ -506,176 +545,7 @@ gym - 体育馆
 }
 ```
 
-#### 开课实例 (Course_Instance)
-```json
-{
-  "instance_id": "CI2024001",       // 开课实例ID，格式：CI+年份+序号
-  "course_id": "MATH001",           // 关联课程
-  "semester": "2024-2025-1",        // 开课学期
-  "academic_year": "2024-2025",     // 学年
-  "term": 1,                        // 学期，1-2
-  
-  // 教学人员
-  "teacher_id": "T2022001",         // 主讲教师
-  "assistant_ids": ["T2023001"],    // 助教列表
-  "substitute_teacher_id": null,    // 代课教师
-  
-  // 学生信息
-  "class_ids": ["CL2024001"],       // 上课班级列表
-  "max_students": 60,               // 最大容量，10-300
-  "enrolled_students": 58,          // 已选课人数
-  "waitlist_count": 5,              // 候补人数
-  
-  // 时间安排
-  "schedule": [
-    {
-      "weekday": 1,                 // 星期，1-7（周一到周日）
-      "start_slot": 1,              // 开始节次，1-5
-      "end_slot": 2,                // 结束节次，1-5
-      "start_time": "08:30",        // 开始时间，HH:MM
-      "end_time": "10:10",          // 结束时间，HH:MM
-      "location_id": "L001",        // 上课地点
-      "weeks": "1-16",              // 上课周次
-      "week_type": "all"            // all/odd/even
-    }
-  ],
-  
-  // 考试安排
-  "exam": {
-    "exam_id": "E2024001",          // 考试ID
-    "exam_type": "final",           // midterm/final/makeup
-    "exam_date": "2024-01-15",      // 考试日期
-    "start_time": "14:30",          // 开始时间
-    "end_time": "16:30",            // 结束时间
-    "duration_minutes": 120,        // 考试时长，30-300分钟
-    "location_id": "L002",          // 考试地点
-    "exam_form": "closed_book",     // 考试形式
-    "total_score": 100,             // 总分，50-150
-    "pass_score": 60                // 及格分，30-90
-  },
-  
-  // 成绩组成
-  "grade_composition": {
-    "attendance": 10,               // 出勤占比，0-30%
-    "homework": 20,                 // 作业占比，0-50%
-    "midterm": 30,                  // 期中占比，0-50%
-    "final": 40                     // 期末占比，30-100%
-  },
-  
-  // 课程状态
-  "status": "ongoing",              // planning/ongoing/completed/cancelled
-  "enrollment_status": "open",      // open/closed/full
-  
-  "created_at": "2024-01-01T10:00:00Z",
-  "updated_at": "2024-01-01T10:00:00Z"
-}
-```
-
-### 7. 成绩体系
-
-#### 成绩记录 (Grade)
-```json
-{
-  "grade_id": "G2024001",           // 成绩记录ID，格式：G+年份+序号
-  "student_id": "202408090101",     // 学生学号
-  "instance_id": "CI2024001",       // 开课实例ID
-  "semester": "2024-2025-1",        // 学期
-  "academic_year": "2024-2025",     // 学年
-  
-  // 成绩详情
-  "scores": {
-    "attendance": 95,               // 出勤成绩，0-100
-    "homework": 88,                 // 作业成绩，0-100
-    "quiz": 90,                     // 小测验成绩，0-100
-    "midterm": 92,                  // 期中成绩，0-100
-    "final": 89,                    // 期末成绩，0-100
-    "project": 94,                  // 项目成绩，0-100
-    "total": 90                     // 总成绩，0-100
-  },
-  
-  // 等第评定
-  "grade_point": 4.0,               // 绩点，0.0-5.0
-  "grade_level": "A",               // 等第：A/B/C/D/E/F
-  "pass_status": "pass",            // pass/fail/retake/exempt
-  "rank_in_class": 5,               // 班级排名，1-班级人数
-  "rank_in_major": 15,              // 专业排名，1-专业人数
-  
-  // 考试信息
-  "exam_times": 1,                  // 考试次数，1-3
-  "exam_type": "normal",            // normal/makeup/retake
-  "exam_seat": "A001",              // 考场座位号
-  "exam_room": "C1-101",            // 考场教室
-  
-  // 学术诚信
-  "integrity_status": "normal",     // normal/warning/violation
-  "plagiarism_check": "passed",     // passed/failed/not_checked
-  
-  // 审核信息
-  "teacher_id": "T2022001",         // 任课教师
-  "graded_by": "T2022001",          // 阅卷教师
-  "reviewed_by": "T2023001",        // 复核教师
-  "grade_date": "2024-01-20",       // 成绩录入日期
-  "publish_date": "2024-01-25",     // 成绩公布日期
-  
-  // 修改记录
-  "is_modified": false,             // 是否有修改
-  "modification_reason": "",        // 修改原因
-  "modification_date": null,        // 修改日期
-  "approved_by": null,              // 修改审批人
-  
-  "notes": "表现优秀",               // 备注，最大500字符
-  "created_at": "2024-01-20T15:30:00Z",
-  "updated_at": "2024-01-25T10:00:00Z"
-}
-```
-
-#### 成绩统计 (Grade_Statistics)
-```json
-{
-  "stat_id": "GS2024001",           // 统计ID
-  "type": "class",                  // class/major/college/course
-  "target_id": "CL2024001",         // 目标ID（班级/专业/学院/课程）
-  "semester": "2024-2025-1",        // 统计学期
-  
-  // 基础统计
-  "total_students": 58,             // 参与统计学生数
-  "passed_students": 55,            // 及格学生数
-  "failed_students": 3,             // 不及格学生数
-  "pass_rate": 94.83,               // 及格率，百分比
-  
-  // 分数统计
-  "average_score": 87.5,            // 平均分，0-100
-  "highest_score": 98,              // 最高分，0-100
-  "lowest_score": 45,               // 最低分，0-100
-  "median_score": 88,               // 中位数，0-100
-  "standard_deviation": 12.3,       // 标准差
-  
-  // 等第分布
-  "grade_distribution": {
-    "A": 15,                        // A等人数
-    "B": 25,                        // B等人数
-    "C": 15,                        // C等人数
-    "D": 2,                         // D等人数
-    "E": 1,                         // E等人数
-    "F": 0                          // F等人数
-  },
-  
-  // 分数段分布
-  "score_distribution": {
-    "90-100": 20,                   // 90-100分人数
-    "80-89": 25,                    // 80-89分人数
-    "70-79": 10,                    // 70-79分人数
-    "60-69": 2,                     // 60-69分人数
-    "0-59": 1                       // 0-59分人数
-  },
-  
-  "generated_at": "2024-01-26T10:00:00Z"
-}
-```
-
-### 8. 资产管理
-
-#### 资产登记 (Asset)
+### 9.资产登记 (Asset)
 ```json
 {
   "asset_id": "A2024001",           // 资产ID，格式：A+年份+序号
@@ -747,9 +617,7 @@ gym - 体育馆
 }
 ```
 
-### 9. 图书馆系统
-
-#### 图书 (Book)
+### 10.图书 (Book)
 ```json
 {
   "book_id": "B001",                // 图书ID，格式：B+序号
@@ -826,11 +694,219 @@ gym - 体育馆
 }
 ```
 
-#### 借阅记录 (Borrow_Record)
+
+### 11.校园卡信息 (Campus_Card)
+```json
+{
+  "card_id": "CC2024001",            // 卡片ID
+  "card_number": "202408090101",     // 卡号
+  "person_id": "P2024001",           // 持卡人ID
+  
+  // 卡片状态
+  "status": "active",                // active/frozen/lost/cancelled/expired
+  "card_type": "student",            // student/staff/visitor/temporary
+  "issue_date": "2024-09-01",        // 发卡日期
+  "expire_date": "2028-07-31",       // 到期日期
+  "last_active_date": "2024-03-01",  // 最近使用日期
+  
+  // 余额信息
+  "balance": 287.50,                 // 当前余额，单位：元
+  "frozen_balance": 0.00,            // 冻结余额
+  "daily_limit": 200.00,             // 日消费限额
+  "single_limit": 50.00,             // 单笔消费限额
+  "overdraft_limit": 0.00,           // 透支限额
+  
+  // 功能权限
+  "dining_enabled": true,            // 餐饮消费权限
+  "shopping_enabled": true,          // 商店消费权限
+  "library_enabled": true,           // 图书馆权限
+  "access_enabled": true,            // 门禁权限
+  "attendance_enabled": true,        // 考勤权限
+  
+  // 安全设置
+  "pin_required": false,             // 是否需要密码
+  "pin_hash": null,                  // 密码哈希
+  "failed_attempts": 0,              // 失败尝试次数，0-10
+  "locked_until": null,              // 锁定到期时间
+  
+  // 统计信息
+  "total_recharge": 2000.00,         // 总充值金额
+  "total_consumption": 1712.50,      // 总消费金额
+  "transaction_count": 156,          // 交易次数
+  "last_recharge_date": "2024-02-28", // 最近充值日期
+  "last_consumption_date": "2024-03-01", // 最近消费日期
+  
+  // 补助信息
+  "subsidy_balance": 0.00,           // 补助余额
+  "monthly_subsidy": 200.00,         // 月度补助金额
+  "subsidy_last_issued": "2024-03-01", // 最近补助发放日期
+  
+  "notes": "正常使用",
+  "created_at": "2024-09-01T10:00:00Z",
+  "updated_at": "2024-03-01T12:30:00Z"
+}
+```
+
+## 实体关系表
+
+### 1.选课表
+```json
+{
+  "instance_id": "CI2024001",       // 开课实例ID，格式：CI+年份+序号
+  "student_id": "",               // 选课学生
+  "course_id": "MATH001",           // 关联课程
+  "semester": "2024-2025-1",        // 开课学期
+  "academic_year": "2024-2025",     // 学年
+  "term": 1,                        // 学期，1-2
+  
+  // 教学人员
+  "teacher_id": "T2022001",         // 主讲教师
+  "assistant_ids": ["T2023001"],    // 助教列表
+  "substitute_teacher_id": null,    // 代课教师
+  
+  // 学生信息
+  "class_ids": ["CL2024001"],       // 上课班级列表
+  "max_students": 60,               // 最大容量，10-300
+  "enrolled_students": 58,          // 已选课人数
+  "waitlist_count": 5,              // 候补人数
+  
+  // 时间安排
+  "schedule": [
+    {
+      "weekday": 1,                 // 星期，1-7（周一到周日）
+      "start_slot": 1,              // 开始节次，1-5
+      "end_slot": 2,                // 结束节次，1-5
+      "start_time": "08:30",        // 开始时间，HH:MM
+      "end_time": "10:10",          // 结束时间，HH:MM
+      "location_id": "L001",        // 上课地点
+      "weeks": "1-16",              // 上课周次
+      "week_type": "all"            // all/odd/even
+    }
+  ],
+  
+  // 考试安排
+  "exam": {
+    "exam_id": "E2024001",          // 考试ID
+    "exam_type": "final",           // midterm/final/makeup
+    "exam_date": "2024-01-15",      // 考试日期
+    "start_time": "14:30",          // 开始时间
+    "end_time": "16:30",            // 结束时间
+    "duration_minutes": 120,        // 考试时长，30-300分钟
+    "location_id": "L002",          // 考试地点
+    "exam_form": "closed_book",     // 考试形式
+    "total_score": 100,             // 总分，50-150
+    "pass_score": 60                // 及格分，30-90
+  },
+  
+  // 成绩占比
+  "grade_composition": {
+    "attendance": 10,               // 出勤占比，0-30%
+    "homework": 20,                 // 作业占比，0-50%
+    "midterm": 30,                  // 期中占比，0-50%
+    "final": 40                     // 期末占比，30-100%
+  },
+  
+  // 课程状态
+  "status": "ongoing",              // planning/ongoing/completed/cancelled
+  "enrollment_status": "open",      // open/closed/full
+  
+  // 成绩详情
+  "scores": {
+    "attendance": 95,               // 出勤成绩，0-100
+    "homework": 88,                 // 作业成绩，0-100
+    "quiz": 90,                     // 小测验成绩，0-100
+    "midterm": 92,                  // 期中成绩，0-100
+    "final": 89,                    // 期末成绩，0-100
+    "project": 94,                  // 项目成绩，0-100
+    "total": 90                     // 总成绩，0-100
+  },
+  
+  // 等第评定
+  "grade_point": 4.0,               // 绩点，0.0-5.0
+  "grade_level": "A",               // 等第：A/B/C/D/E/F
+  "pass_status": "pass",            // pass/fail/retake/exempt
+  "rank_in_class": 5,               // 班级排名，1-班级人数
+  "rank_in_major": 15,              // 专业排名，1-专业人数
+  
+  // 考试信息
+  "exam_times": 1,                  // 考试次数，1-3
+  "exam_type": "normal",            // normal/makeup/retake
+  "exam_seat": "A001",              // 考场座位号
+  "exam_room": "C1-101",            // 考场教室
+  
+  // 学术诚信
+  "integrity_status": "normal",     // normal/warning/violation
+  "plagiarism_check": "passed",     // passed/failed/not_checked
+  
+  // 审核信息
+  "teacher_id": "T2022001",         // 任课教师
+  "graded_by": "T2022001",          // 阅卷教师
+  "reviewed_by": "T2023001",        // 复核教师
+  "grade_date": "2024-01-20",       // 成绩录入日期
+  "publish_date": "2024-01-25",     // 成绩公布日期
+  
+  "notes": "表现优秀",               // 备注，最大500字符
+
+  // 创建记录、修改记录
+  "created_at": "2024-01-20T15:30:00Z",
+  "updated_at": "2024-01-25T10:00:00Z",
+  "is_modified": false,             // 是否有修改
+  "modification_reason": "",        // 修改原因
+  "modification_date": null,        // 修改日期
+  "approved_by": null               // 修改审批人
+}
+```
+
+### 2.成绩统计表 (Grade_Statistics)
+```json
+{
+  "stat_id": "GS2024001",           // 统计ID
+  "type": "class",                  // class/major/college/course
+  "target_id": "CL2024001",         // 目标ID（班级/专业/学院/课程）
+  "semester": "2024-2025-1",        // 统计学期
+  
+  // 基础统计
+  "total_students": 58,             // 参与统计学生数
+  "passed_students": 55,            // 及格学生数
+  "failed_students": 3,             // 不及格学生数
+  "pass_rate": 94.83,               // 及格率，百分比
+  
+  // 分数统计
+  "average_score": 87.5,            // 平均分，0-100
+  "highest_score": 98,              // 最高分，0-100
+  "lowest_score": 45,               // 最低分，0-100
+  "median_score": 88,               // 中位数，0-100
+  "standard_deviation": 12.3,       // 标准差
+  
+  // 等第分布
+  "grade_distribution": {
+    "A": 15,                        // A等人数
+    "B": 25,                        // B等人数
+    "C": 15,                        // C等人数
+    "D": 2,                         // D等人数
+    "E": 1,                         // E等人数
+    "F": 0                          // F等人数
+  },
+  
+  // 分数段分布
+  "score_distribution": {
+    "90-100": 20,                   // 90-100分人数
+    "80-89": 25,                    // 80-89分人数
+    "70-79": 10,                    // 70-79分人数
+    "60-69": 2,                     // 60-69分人数
+    "0-59": 1                       // 0-59分人数
+  },
+  
+  "generated_at": "2024-01-26T10:00:00Z"
+}
+```
+
+
+### 3.借阅记录 (Borrow_Record)
 ```json
 {
   "record_id": "BR2024001",          // 借阅记录ID，格式：BR+年份+序号
-  "student_id": "202408090101",      // 借阅者学号
+  "person_id": "P2024001",           // 人员ID
   "book_id": "B001",                 // 图书ID
   "copy_id": "B001-001",             // 具体册次ID
   
@@ -879,9 +955,8 @@ gym - 体育馆
 }
 ```
 
-### 10. 财务系统
 
-#### 消费流水 (Transaction)
+### 4.消费流水 (Transaction)
 ```json
 {
   "transaction_id": "T2024001",      // 交易ID，格式：T+年份+序号
@@ -955,340 +1030,8 @@ gym - 体育馆
 }
 ```
 
-#### 校园卡信息 (Campus_Card)
-```json
-{
-  "card_id": "CC2024001",            // 卡片ID
-  "card_number": "202408090101",     // 卡号
-  "person_id": "P2024001",           // 持卡人ID
-  
-  // 卡片状态
-  "status": "active",                // active/frozen/lost/cancelled/expired
-  "card_type": "student",            // student/staff/visitor/temporary
-  "issue_date": "2024-09-01",        // 发卡日期
-  "expire_date": "2028-07-31",       // 到期日期
-  "last_active_date": "2024-03-01",  // 最近使用日期
-  
-  // 余额信息
-  "balance": 287.50,                 // 当前余额，单位：元
-  "frozen_balance": 0.00,            // 冻结余额
-  "daily_limit": 200.00,             // 日消费限额
-  "single_limit": 50.00,             // 单笔消费限额
-  "overdraft_limit": 0.00,           // 透支限额
-  
-  // 功能权限
-  "dining_enabled": true,            // 餐饮消费权限
-  "shopping_enabled": true,          // 商店消费权限
-  "library_enabled": true,           // 图书馆权限
-  "access_enabled": true,            // 门禁权限
-  "attendance_enabled": true,        // 考勤权限
-  
-  // 安全设置
-  "pin_required": false,             // 是否需要密码
-  "pin_hash": null,                  // 密码哈希
-  "failed_attempts": 0,              // 失败尝试次数，0-10
-  "locked_until": null,              // 锁定到期时间
-  
-  // 统计信息
-  "total_recharge": 2000.00,         // 总充值金额
-  "total_consumption": 1712.50,      // 总消费金额
-  "transaction_count": 156,          // 交易次数
-  "last_recharge_date": "2024-02-28", // 最近充值日期
-  "last_consumption_date": "2024-03-01", // 最近消费日期
-  
-  // 补助信息
-  "subsidy_balance": 0.00,           // 补助余额
-  "monthly_subsidy": 200.00,         // 月度补助金额
-  "subsidy_last_issued": "2024-03-01", // 最近补助发放日期
-  
-  "notes": "正常使用",
-  "created_at": "2024-09-01T10:00:00Z",
-  "updated_at": "2024-03-01T12:30:00Z"
-}
-```
 
-## API数据模板设计
-
-### 1. 统一响应格式（不变）
-```json
-{
-  "status": 0,
-  "msg": "success",
-  "data": {},
-  "timestamp": 1640995200000,
-  "version": "v1.0"
-}
-```
-
-### 2. 用户认证响应
-
-#### 微信小程序登录认证
-```json
-{
-  "status": 0,
-  "msg": "登录成功",
-  "data": {
-    "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-    "token_type": "bearer",
-    "expires_in": 7200,
-    "user": {
-      "person_id": "P2024001",
-      "name": "张三",
-      "person_type": "student",
-      "college_name": "计算机学院",
-      "major_name": "软件工程",
-      "wechat_bound": true,          // 是否已绑定微信账号
-      "permissions": {
-        "read": ["own_data", "public_announcements"],
-        "write": ["own_profile"],
-        "share": ["schedule"]
-      }
-    }
-  }
-}
-```
-
-#### 微信号绑定机制说明
-
-**绑定策略**：
-- **可选绑定**: 微信号不是必需字段，用户可以选择绑定或不绑定
-- **登录后绑定**: 支持用户首次使用时通过学号/工号登录，然后选择绑定微信
-- **自动绑定**: 当用户通过微信小程序登录时，系统自动关联微信OpenID
-- **解绑重绑**: 支持用户解绑当前微信号并重新绑定新的微信号
-
-**绑定流程**：
-1. 用户通过微信小程序授权获取OpenID
-2. 系统检查该OpenID是否已绑定账号
-3. 如已绑定，直接登录；如未绑定，提示用户输入学号/工号进行绑定
-4. 绑定成功后，用户可通过微信一键登录
-
-**数据结构**：
-```json
-{
-  "person_id": "P2024001",
-  "wechat_openid": "wx_123456_202408090101",  // 微信OpenID，可为null
-  "wechat_bound_date": "2024-09-01T10:00:00Z", // 绑定时间，可为null
-  "wechat_nickname": "小明同学",               // 微信昵称（可选）
-  "login_method": "wechat",                   // 登录方式：wechat/password/both
-}
-```
-
-**API接口**：
-- `POST /auth/wechat/login` - 微信登录
-- `POST /auth/wechat/bind` - 绑定微信号
-- `POST /auth/wechat/unbind` - 解绑微信号
-- `GET /auth/wechat/status` - 查询绑定状态
-
-### 3. 课表查询响应
-```json
-{
-  "status": 0,
-  "msg": "success",
-  "data": {
-    "semester": "2024-2025-1",
-    "week_number": 1,
-    "student_info": {
-      "student_id": "2024001",
-      "name": "张三",
-      "class_name": "软工2024-1班"
-    },
-    "courses": [
-      {
-        "instance_id": "CI2024001",
-        "course_code": "MATH001",
-        "course_name": "高等数学A",
-        "teacher_name": "张教授",
-        "credits": 4,
-        "schedule": {
-          "weekday": 1,
-          "start_time": "08:30",
-          "end_time": "10:10",
-          "location": "C1-101",
-          "building_name": "计算机学院1号楼",
-          "weeks": "1-16周"
-        },
-        "course_type": "required",
-        "exam_info": {
-          "exam_date": "2024-01-15",
-          "exam_time": "14:30-16:30",
-          "exam_location": "C1-102"
-        }
-      }
-    ]
-  }
-}
-```
-
-### 4. 成绩查询响应
-```json
-{
-  "status": 0,
-  "msg": "success",
-  "data": {
-    "student_info": {
-      "student_id": "2024001",
-      "name": "张三",
-      "major_name": "软件工程",
-      "current_semester": "2024-2025-1"
-    },
-    "semester_stats": {
-      "semester": "2024-2025-1",
-      "total_credits": 24,
-      "earned_credits": 24,
-      "gpa": 3.8,
-      "average_score": 87.5,
-      "ranking": {
-        "class_rank": 5,
-        "class_total": 58,
-        "major_rank": 15,
-        "major_total": 230
-      }
-    },
-    "courses": [
-      {
-        "course_code": "MATH001",
-        "course_name": "高等数学A",
-        "teacher_name": "张教授",
-        "credits": 4,
-        "course_type": "required",
-        "scores": {
-          "attendance": 95,
-          "homework": 88,
-          "midterm": 92,
-          "final": 89,
-          "total": 90
-        },
-        "grade_point": 4.0,
-        "grade_level": "A",
-        "exam_times": 1
-      }
-    ]
-  }
-}
-```
-
-### 5. 图书馆服务响应
-```json
-{
-  "status": 0,
-  "msg": "success",
-  "data": {
-    "user_info": {
-      "student_id": "2024001",
-      "name": "张三",
-      "max_borrow": 10,
-      "current_borrow": 2,
-      "overdue_count": 0,
-      "total_fine": 0.00
-    },
-    "borrowed_books": [
-      {
-        "record_id": "BR2024001",
-        "book_id": "B001",
-        "title": "算法导论",
-        "authors": ["Thomas H. Cormen"],
-        "borrow_date": "2024-03-01",
-        "due_date": "2024-06-01",
-        "days_left": 45,
-        "renew_times": 0,
-        "can_renew": true
-      }
-    ]
-  }
-}
-```
-
-### 6. 校园卡消费响应
-```json
-{
-  "status": 0,
-  "msg": "success",
-  "data": {
-    "card_info": {
-      "card_number": "2024001",
-      "balance": 287.50,
-      "status": "active"
-    },
-    "recent_transactions": [
-      {
-        "transaction_id": "T2024001",
-        "type": "consumption",
-        "amount": -12.50,
-        "merchant": "学生食堂一楼",
-        "location": "D1-1F",
-        "time": "2024-03-01T12:30:00Z",
-        "balance_after": 287.50
-      }
-    ],
-    "monthly_stats": {
-      "month": "2024-03",
-      "total_consumption": 456.80,
-      "avg_daily": 15.23,
-      "most_frequent_location": "学生食堂一楼"
-    }
-  }
-}
-```
-
-### 7. 权限控制矩阵
-
-```json
-{
-  "student": {
-    "read": ["own_schedule", "own_grades", "own_borrow_records", "public_announcements", "course_info"],
-    "write": ["own_profile", "course_evaluation"],
-    "share": ["schedule", "contact_info"]
-  },
-  "teacher": {
-    "read": ["own_courses", "student_grades", "course_schedules", "teaching_announcements"],
-    "write": ["student_grades", "course_content", "announcements"],
-    "share": ["course_materials", "grades"]
-  },
-  "department_head": {
-    "read": ["department_stats", "all_courses", "teacher_info", "student_info"],
-    "write": ["course_approval", "teacher_assignment", "department_announcements"],
-    "share": ["department_reports"]
-  },
-  "admin": {
-    "read": ["*"],
-    "write": ["user_management", "system_config", "all_announcements"],
-    "share": ["system_reports"]
-  }
-}
-```
-
-## 数据库表结构建议
-
-### 核心表
-1. `persons` - 人员基础表
-2. `colleges` - 学院表
-3. `majors` - 专业表
-4. `departments` - 部门表
-5. `classes` - 班级表（新增）
-6. `locations` - 场所表
-7. `room_occupations` - 场所占用表（新增）
-8. `courses` - 课程表
-9. `course_instances` - 开课实例表
-10. `grades` - 成绩表
-11. `grade_statistics` - 成绩统计表（新增）
-12. `assets` - 资产表
-13. `books` - 图书表
-14. `borrow_records` - 借阅记录表
-15. `transactions` - 消费流水表
-16. `campus_cards` - 校园卡信息表（新增）
-
-这样的设计能够支持复杂的查询需求，如：
-- 某学院某专业某学年的学生成绩统计分析
-- 某教学楼某时间段的教室使用情况
-- 某时间段的消费流水分析和财务报表
-- 跨学院的课程安排冲突检测和排课优化
-- 图书馆借阅行为分析和图书采购建议 
-
-## 新增实体设计
-
-### 11. 科研项目系统
-
-#### 科研项目 (Research_Project)
+### 5.科研项目系统
 ```json
 {
   "project_id": "RP2024001",         // 项目ID，格式：RP+年份+序号
@@ -1349,7 +1092,8 @@ gym - 体育馆
 }
 ```
 
-#### 科研项目申请 (Research_Application)
+### 6.科研项目申请 (Research_Application)
+与5的区别是可多次变更扩展……
 ```json
 {
   "application_id": "RA2024001",     // 申请ID，格式：RA+年份+序号
@@ -1401,7 +1145,7 @@ gym - 体育馆
 }
 ```
 
-#### 学校论文库 (Paper_Library)
+### 7.学校论文库 (Paper_Library)
 ```json
 {
   "paper_id": "PL2024001",           // 论文ID，格式：PL+年份+序号
@@ -1467,54 +1211,8 @@ gym - 体育馆
 }
 ```
 
-### 12. 扩展资产管理
 
-#### 资产类型扩展定义
-```json
-{
-  "asset_categories": {
-    "teaching_equipment": {
-      "projection": ["投影仪", "激光投影仪", "短焦投影仪", "互动投影仪"],
-      "display": ["液晶显示屏", "LED显示屏", "触控一体机", "电子白板", "拼接屏"],
-      "audio": ["音响设备", "话筒", "扩音器", "调音台", "无线麦克风"],
-      "computer": ["台式电脑", "笔记本电脑", "平板电脑", "一体机电脑"],
-      "network": ["交换机", "路由器", "无线AP", "网线", "光纤设备"]
-    },
-    "lab_equipment": {
-      "computing": ["服务器", "工作站", "GPU服务器", "A100芯片", "H100芯片", "计算节点"],
-      "storage": ["存储服务器", "磁盘阵列", "NAS设备", "SSD硬盘", "机械硬盘"],
-      "instruments": ["示波器", "万用表", "信号发生器", "频谱分析仪", "逻辑分析仪"],
-      "specialized": ["3D打印机", "激光切割机", "PCB制板机", "焊接设备"]
-    },
-    "office_equipment": {
-      "furniture": ["办公桌", "办公椅", "会议桌", "文件柜", "书架", "沙发"],
-      "appliances": ["空调", "饮水机", "复印机", "打印机", "扫描仪", "碎纸机"],
-      "communication": ["座机电话", "对讲机", "视频会议设备", "摄像头"]
-    },
-    "infrastructure": {
-      "lighting": ["LED灯管", "应急灯", "路灯", "景观灯", "投光灯"],
-      "hvac": ["中央空调", "新风系统", "排风扇", "空气净化器"],
-      "security": ["监控摄像头", "门禁设备", "报警器", "消防设备"],
-      "landscape": ["草坪修剪机", "洒水设备", "园艺工具", "花盆"]
-    },
-    "facility_equipment": {
-      "cleaning": ["扫地车", "洗地机", "吸尘器", "垃圾桶", "清洁工具"],
-      "transport": ["通勤车", "电动车", "自行车", "搬运车"],
-      "sports": ["篮球架", "乒乓球台", "健身器材", "体育用品"],
-      "catering": ["餐桌", "餐椅", "厨房设备", "餐具", "冰箱"]
-    },
-    "dormitory_equipment": {
-      "furniture": ["宿舍床", "书桌", "衣柜", "椅子"],
-      "appliances": ["热水器", "洗衣机", "空调", "风扇"],
-      "facilities": ["窗帘", "百叶窗", "晾衣架", "鞋柜"]
-    }
-  }
-}
-```
-
-### 13. 网络权限与登录管理
-
-#### 网络使用权限 (Network_Permission)
+### 8.网络使用权限 (Network_Permission)
 ```json
 {
   "permission_id": "NP2024001",      // 权限ID，格式：NP+年份+序号
@@ -1578,7 +1276,7 @@ gym - 体育馆
 }
 ```
 
-#### 系统登录权限 (System_Access)
+### 9.系统登录权限 (System_Access)
 ```json
 {
   "access_id": "SA2024001",          // 访问权限ID，格式：SA+年份+序号
@@ -1645,7 +1343,7 @@ gym - 体育馆
 }
 ```
 
-#### 平台权限配置 (Platform_Config)
+### 10.平台权限配置 (Platform_Config)
 ```json
 {
   "config_id": "PC2024001",          // 配置ID
@@ -1714,36 +1412,3 @@ gym - 体育馆
   "updated_at": "2024-03-01T15:30:00Z"
 }
 ```
-
-### 14. 更新的数据库表结构
-
-#### 新增核心表
-```
-17. research_projects - 科研项目表
-18. research_applications - 科研项目申请表  
-19. paper_library - 学校论文库表
-20. network_permissions - 网络使用权限表
-21. system_access - 系统登录权限表
-22. platform_configs - 平台权限配置表
-23. audit_logs - 审计日志表
-24. device_registrations - 设备注册表
-25. workflow_instances - 工作流实例表
-```
-
-#### 修改的表结构
-```sql
--- persons表中的employee_id字段修改
-ALTER TABLE persons MODIFY COLUMN employee_id VARCHAR(12) COMMENT '工号：年份(4位)+专业编号(4位)+序号(2位)';
-
--- assets表中增加更详细的分类
-ALTER TABLE assets ADD COLUMN subcategory VARCHAR(50) COMMENT '资产子类别';
-ALTER TABLE assets ADD COLUMN location_type VARCHAR(20) COMMENT '位置类型：classroom/lab/office/dormitory/outdoor';
-```
-
-这样的扩展设计能够支持：
-- 完整的科研项目全生命周期管理
-- 真实的校园网络使用场景和限制
-- 基于角色的细粒度权限控制系统
-- 多平台统一身份认证和授权
-- 详细的资产分类和定位管理
-- 完整的审计追踪和合规性要求 

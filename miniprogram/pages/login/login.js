@@ -1,51 +1,78 @@
 const app = getApp()
 
 Page({
+  /*
+    * data – 页面本地状态
+    * loginType        当前选中的登录方式，可选值: 'wechat' | 'password' | 'guest'
+    * formData         通用表单数据 (账号 / 密码 / 姓名)
+    * loading          是否处于网络请求中，用于控制按钮 Loading UI
+    * wechatLoginStep  微信授权登录的阶段: 'auth' | 'bind'
+    * wechatInfo       成功调用 wx.getUserInfo 后得到的用户资料
+    * wechatCode       wx.login() 后服务器换取 session 的临时 code
+    */
   data: {
     loginType: 'wechat', // wechat, password, guest
     formData: {
-      loginId: '',
+      loginId: '',  // 学号 / 工号
       password: '',
-      name: ''
+      name: ''   // 游客模式下输入的姓名
     },
     loading: false,
-    wechatLoginStep: 'auth', // auth, bind
+    wechatLoginStep: 'auth', // 微信登录阶段
     wechatInfo: null,
     wechatCode: null
   },
-
+  /**
+   * 页面生命周期 – onLoad
+   * @description 页面加载时触发，检查本地是否已有登录状态
+   * @param {Object} options – 小程序会注入的页面参数 (未使用)
+   */
   onLoad() {
     console.log('[登录] 页面加载')
     this.checkExistingLogin()
   },
-
+  /**
+   * 页面生命周期 – onShow
+   * @description 每次页面展示时触发，用于确认微信授权状态
+   */
   onShow() {
     // 检查是否需要显示微信授权
     this.checkWechatAuth()
   },
-
-  // 检查是否已登录
+  /**
+   * checkExistingLogin
+   * @description 判断本地存储是否已有 token 与 userInfo，若存在弹窗确认
+   * 无输入参数；无显式返回值
+  */
   checkExistingLogin() {
-    const token = wx.getStorageSync('token')
-    const userInfo = wx.getStorageSync('userInfo')
-    
+    // 检查本地缓存，来看是否已登录
+    const token = wx.getStorageSync('token')  // 本地令牌
+    const userInfo = wx.getStorageSync('userInfo')  // 本地用户信息
+    // 如果有的话，就是登陆了
     if (token && userInfo) {
       wx.showModal({
         title: '已登录',
         content: `您已登录为 ${userInfo.name}，是否重新登录？`,
         success: (res) => {
-          if (!res.confirm) {
+          if (!res.confirm) { 
+            // 用户点击“取消”则返回上一页
             wx.navigateBack()
           }
+          // 点击确定就李璐在当前页面
         }
       })
     }
   },
-
-  // 检查微信授权状态
+  /**
+   * checkWechatAuth
+   * @description 调用 wx.getSetting 检查是否已授权 scope.userInfo
+   * 成功后自动获取用户信息
+   */
   checkWechatAuth() {
+    // 检查微信授权状态
     wx.getSetting({
       success: (res) => {
+        // 如果可以读的话
         if (res.authSetting['scope.userInfo']) {
           // 已授权，获取用户信息
           this.getWechatUserInfo()
@@ -54,8 +81,12 @@ Page({
     })
   },
 
-  // 获取微信用户信息
+  /**
+   * getWechatUserInfo
+   * @description 调用 wx.getUserInfo 获取头像/昵称等公开资料
+  */
   getWechatUserInfo() {
+    // 获取微信用户信息
     wx.getUserInfo({
       success: (res) => {
         console.log('[微信] 获取用户信息成功', res)
@@ -68,10 +99,17 @@ Page({
       }
     })
   },
-
-  // 切换登录类型
+  /**
+   * onLoginTypeChange
+   * @description 切换登录方式时重置表单
+   * @param {Event} e – 事件对象，使用 data-*属性 传递数据
+   */
   onLoginTypeChange(e) {
+    // 切换登录类型
+    // HTMLElement.dataset.testAbc 、element.getAttribute("data-test") 等等
     const type = e.currentTarget.dataset.type
+    // setData 函数用于将数据从逻辑层发送到视图层 （异步）
+    // 同时改变对应的 this.data 的值（同步）。
     this.setData({
       loginType: type,
       formData: {
@@ -82,39 +120,46 @@ Page({
       wechatLoginStep: 'auth'
     })
   },
-
-  // 输入处理
+  // 以下三个输入处理方法均实时同步表单字段到 data
+  // 监听，并获取输入ID
   onLoginIdInput(e) {
     this.setData({
       'formData.loginId': e.detail.value
     })
   },
-
+  // 监听，并获取输入ID
   onPasswordInput(e) {
     this.setData({
       'formData.password': e.detail.value
     })
   },
-
   onNameInput(e) {
     this.setData({
       'formData.name': e.detail.value
     })
   },
 
-  // 微信登录
+  /**
+   * onWechatLogin – 主入口: 微信一键登录
+   * 步骤:
+   *  1. 调用 wx.login() 拿到 code
+   *  2. 调用后端 /auth/wechat/check-bind 判断是否已绑定校园账号
+   *  3. 若已绑定 -> loginWithWechatCode(code)
+   *     未绑定 -> 引导用户输入账号密码执行 onBindAccount()
+   * @returns {Promise<void>}
+   */
   async onWechatLogin() {
     this.setData({ loading: true })
-
     try {
       // 1. 获取微信登录凭证
-      const loginRes = await new Promise((resolve, reject) => {
-        wx.login({
-          success: resolve,
-          fail: reject
-        })
-      })
-
+      const loginRes = await new Promise(
+        (resolve, reject) => {
+          wx.login({
+            success: resolve,
+            fail: reject
+          })
+        }
+      )
       if (!loginRes.code) {
         throw new Error('获取微信登录凭证失败')
       }
@@ -124,11 +169,9 @@ Page({
 
       // 2. 检查是否已绑定账号
       const checkRes = await this.checkWechatBinding(loginRes.code)
-      
       if (checkRes.is_bound) {
         // 已绑定，直接登录
         const loginResult = await this.loginWithWechatCode(loginRes.code)
-        
         wx.showToast({
           title: '登录成功',
           icon: 'success'
@@ -173,9 +216,7 @@ Page({
           fail: reject
         })
       })
-
       console.log('[微信绑定检查] API响应', response)
-
       if (response.statusCode === 200) {
         return response.data
       } else {
@@ -205,17 +246,13 @@ Page({
           fail: reject
         })
       })
-
       console.log('[微信登录] API响应', response)
-
       if (response.statusCode === 200) {
         const { access_token, user } = response.data
-        
         // 保存登录信息
         wx.setStorageSync('token', access_token)
         wx.setStorageSync('userInfo', user)
         app.globalData.userInfo = user
-
         return response.data
       } else {
         throw new Error(response.data?.msg || '微信登录失败')
@@ -229,7 +266,6 @@ Page({
   // 账号密码登录
   async onPasswordLogin() {
     const { formData } = this.data
-
     // 表单验证
     if (!formData.loginId) {
       wx.showToast({ title: '请输入学号/工号', icon: 'none' })
@@ -239,11 +275,10 @@ Page({
       wx.showToast({ title: '请输入密码', icon: 'none' })
       return
     }
-
     this.setData({ loading: true })
-
     try {
       const response = await new Promise((resolve, reject) => {
+        // 这不需要加密吗？
         wx.request({
           url: `${app.globalData.baseURL}/api/v1/auth/login`,
           method: 'POST',
@@ -305,18 +340,15 @@ Page({
   // 绑定校园账号
   async onBindAccount() {
     const { formData, wechatCode } = this.data
-
     if (!formData.loginId || !formData.password) {
       wx.showToast({ title: '请输入完整的账号信息', icon: 'none' })
       return
     }
-
     if (!wechatCode) {
       wx.showToast({ title: '微信授权已过期，请重新操作', icon: 'none' })
       this.setData({ wechatLoginStep: 'auth' })
       return
     }
-
     this.setData({ loading: true })
 
     try {
@@ -337,9 +369,7 @@ Page({
           fail: reject
         })
       })
-
       console.log('[微信绑定] API响应', response)
-
       if (response.statusCode === 200) {
         wx.showToast({
           title: '绑定成功',
@@ -431,7 +461,6 @@ Page({
   // 统一登录处理
   async onLogin() {
     const { loginType } = this.data
-
     if (loginType === 'wechat') {
       await this.onWechatLogin()
     } else if (loginType === 'password') {

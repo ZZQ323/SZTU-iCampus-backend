@@ -5,23 +5,28 @@
 
   <!-- 用户信息卡片 -->
   <view class="user-card">
+    <!-- 左边的头像部分 -->
     <view class="user-left">
+      <!-- 未登录状态显示登录提示 -->
       <view class="user-avatar" bindtap="onUserAvatarTap">
         <image src="{{homeData.user_info.avatar}}" mode="aspectFill"></image>
-        <!-- 未登录状态显示登录提示 -->
         <view class="login-overlay" wx:if="{{!isLoggedIn}}">
           <text class="login-text">点击登录</text>
         </view>
       </view>
+      <!-- 根据用户类型显示不同信息 -->
       <view class="user-info">
+        <!-- 都有名字 -->
         <view class="user-name">{{homeData.user_info.name}}</view>
-        <!-- 根据用户类型显示不同信息 -->
+        <!-- 如果你是学生 -->
         <view class="user-id" wx:if="{{isLoggedIn && userInfo.person_type === 'student'}}">
           学号：{{homeData.user_info.student_id}}
         </view>
+        <!-- 如果你是老师 -->
         <view class="user-id" wx:elif="{{isLoggedIn && (userInfo.person_type === 'teacher' || userInfo.person_type === 'assistant_teacher')}}">
           工号：{{homeData.user_info.student_id}}
         </view>
+        <!-- 如果你是管理员 -->
         <view class="user-id" wx:elif="{{isLoggedIn && userInfo.person_type === 'admin'}}">
           管理员：{{homeData.user_info.student_id}}
         </view>
@@ -31,6 +36,7 @@
         <view class="user-college" wx:if="{{isLoggedIn && homeData.user_info.major}}">{{homeData.user_info.major}}</view>
       </view>
     </view>
+    <!-- 右边的统计部分 -->
     <view class="user-stats">
       <!-- 学生统计 -->
       <view wx:if="{{userInfo.person_type === 'student'}}" class="stat-items">
