@@ -1,5 +1,5 @@
 const app = getApp()
-const { eventStream, streamManager } = require('../../utils/stream.js')
+const API = require('../../utils/api.js')
 
 Page({
   data: {
@@ -19,7 +19,8 @@ Page({
       { value: 'competition', text: '比赛活动' }
     ],
     selectedType: 'all',
-    eventStatuses: ['全部', '即将开始', '进行中', '已结束'],
+    selectedTypeText: '全部',
+    eventStatuses: ['全部', '即将开始', '进行中', '已结束', '已关注', '未关注', '已报名'],
     selectedStatus: '全部',
     organizers: ['全部', '学术委员会', '学生会', '体育部', '计算机学院', '社团联合会', '教务处'],
     streamStatus: {
@@ -56,45 +57,143 @@ Page({
 
   async loadEvents() {
     console.log('[活动页面] 📥 加载活动数据')
+    console.log('[活动页面] 🔍 当前筛选条件:', {
+      selectedType: this.data.selectedType,
+      selectedStatus: this.data.selectedStatus
+    })
+    
     this.setData({ loading: true })
 
     try {
-      const baseURL = getApp().globalData.baseURL
-      const response = await new Promise((resolve, reject) => {
-        wx.request({
-          url: `${baseURL}/api/v1/events`,
-          method: 'GET',
-          success: resolve,
-          fail: reject
+      // 检查token是否存在（不登录也允许浏览）
+      const token = wx.getStorageSync('token')
+      console.log('[活动页面] 🔑 Token检查:', token ? 'Token存在' : 'Token缺失，但允许浏览')
+      
+      // 如果选择的是需要登录的筛选项，但没有token，则提示登录
+      const selectedStatus = this.data.selectedStatus
+      if (!token && (selectedStatus === '已关注' || selectedStatus === '未关注' || selectedStatus === '已报名')) {
+        wx.showModal({
+          title: '提示',
+          content: '查看此类状态需要先登录',
+          cancelText: '取消',
+          confirmText: '去登录',
+          success: (res) => {
+            if (res.confirm) {
+              wx.navigateTo({
+                url: '/pages/login/login'
+              })
+            } else {
+              // 重置为"全部"状态
+              this.setData({ selectedStatus: '全部' })
+              this.loadEvents()
+            }
+          }
         })
-      })
+        this.setData({ loading: false })
+        return
+      }
+      
+      // 🔧 使用统一的API模块，根据筛选条件获取活动
+      let apiParams = {
+        event_type: this.data.selectedType === 'all' ? null : this.data.selectedType
+      }
+      
+      // 处理状态筛选 (复用前面的selectedStatus变量)
+      if (selectedStatus !== '全部' && selectedStatus !== '已关注' && selectedStatus !== '未关注' && selectedStatus !== '已报名') {
+        // 常规状态筛选
+        apiParams.status = selectedStatus
+      }
+      
+      const response = await API.getEvents(apiParams)
 
-      if (response.statusCode === 200 && response.data.success) {
-        console.log('[活动页面] ✅ 活动数据加载成功:', response.data.data.length, '条')
+      console.log('[活动页面] 📦 API完整响应:', response)
+
+      if (response.code === 0) {
+        console.log('[活动页面] ✅ 活动数据加载成功:', response.data.events.length, '条')
+        console.log('[活动页面] 📋 原始活动数据:', response.data.events)
         
-        const eventsWithProgress = response.data.data.map(event => ({
+        let eventsWithProgress = response.data.events.map(event => ({
           ...event,
+          id: event.event_id, // 🔧 统一ID字段
+          organizer: event.organizer_name, // 🔧 字段映射
+          location: event.location_name, // 🔧 字段映射
           participationRate: event.max_participants > 0 ? 
             ((event.current_participants / event.max_participants) * 100).toFixed(1) : '0',
+          participationPercent: event.max_participants > 0 ? 
+            Math.round((event.current_participants / event.max_participants) * 100) : 0,
           isNearFull: event.max_participants > 0 && 
             (event.current_participants / event.max_participants) > 0.8
         }))
+        
+        // 🔧 根据关注和报名状态进行筛选 (复用前面的selectedStatus变量)
+        if (selectedStatus === '已关注' || selectedStatus === '未关注' || selectedStatus === '已报名') {
+          const token = wx.getStorageSync('token')
+          if (token) {
+            const followedEvents = wx.getStorageSync('followedEvents') || []
+            const registeredEvents = wx.getStorageSync('registeredEvents') || []
+            
+            eventsWithProgress = eventsWithProgress.filter(event => {
+              const eventId = event.id
+              if (selectedStatus === '已关注') {
+                return followedEvents.includes(eventId)
+              } else if (selectedStatus === '未关注') {
+                return !followedEvents.includes(eventId)
+              } else if (selectedStatus === '已报名') {
+                return registeredEvents.includes(eventId)
+              }
+              return true
+            })
+          } else {
+            // 未登录时，这些筛选项返回空结果
+            eventsWithProgress = []
+          }
+        }
         
         this.setData({ 
           events: eventsWithProgress,
           loading: false 
         })
+        
+        console.log('[活动页面] 🎯 处理后的活动数据:', eventsWithProgress)
+        console.log('[活动页面] 📊 setData后的页面状态:', {
+          eventsLength: this.data.events.length,
+          loading: this.data.loading
+        })
+        
+        if (eventsWithProgress.length === 0) {
+          wx.showToast({
+            title: '暂无活动数据',
+            icon: 'none',
+            duration: 2000
+          })
+        }
       } else {
-        throw new Error('活动数据加载失败')
+        console.error('[活动页面] ❌ API返回错误:', response)
+        throw new Error(response.message || '活动数据加载失败')
       }
     } catch (error) {
       console.error('[活动页面] ❌ 加载活动失败:', error)
       
-      wx.showToast({
-        title: '❌ 活动加载失败',
-        icon: 'none',
-        duration: 2000
-      })
+      // 检查是否是认证错误
+      if (error.message && (error.message.includes('401') || error.message.includes('unauthorized'))) {
+        wx.showModal({
+          title: '认证失败',
+          content: '登录状态已过期，请重新登录',
+          showCancel: false,
+          confirmText: '去登录',
+          success: () => {
+            wx.navigateTo({
+              url: '/pages/login/login'
+            })
+          }
+        })
+      } else {
+        wx.showToast({
+          title: '❌ 活动加载失败',
+          icon: 'none',
+          duration: 2000
+        })
+      }
       
       this.setData({ loading: false })
     }
@@ -106,21 +205,46 @@ Page({
   startEventStream() {
     console.log('[活动页面] 🌊 启动活动实时数据流')
     
-    eventStream.start((eventData) => {
-      console.log('[活动页面] 📊 收到活动更新:', eventData)
+    try {
+      const streamModule = require('../../utils/stream.js')
+      const eventStream = streamModule && streamModule.eventStream
       
-      this.updateStreamStatus()
-      
-      if (eventData.update_type === 'participant_change') {
-        this.handleParticipantChange(eventData)
-        
-      } else if (eventData.stream_type === 'initial') {
-        this.handleInitialEventData(eventData)
-        
+      if (eventStream && typeof eventStream.start === 'function') {
+        eventStream.start((eventData) => {
+          console.log('[活动页面] 📊 收到活动更新:', eventData)
+          
+          this.updateStreamStatus()
+          
+          if (eventData.update_type === 'participant_change') {
+            this.handleParticipantChange(eventData)
+            
+          } else if (eventData.stream_type === 'initial') {
+            this.handleInitialEventData(eventData)
+            
+          } else {
+            this.handleGeneralEventUpdate(eventData)
+          }
+        })
       } else {
-        this.handleGeneralEventUpdate(eventData)
+        console.log('[活动页面] ⚠️ 流式更新功能暂不可用，跳过')
+        this.setData({
+          streamStatus: {
+            isConnected: false,
+            participantUpdates: 0,
+            lastUpdate: null
+          }
+        })
       }
-    })
+    } catch (error) {
+      console.error('[活动页面] ❌ 启动流式更新失败:', error)
+      this.setData({
+        streamStatus: {
+          isConnected: false,
+          participantUpdates: 0,
+          lastUpdate: null
+        }
+      })
+    }
     
     this.statusUpdateTimer = setInterval(() => {
       this.updateStreamStatus()
@@ -291,25 +415,56 @@ Page({
    * 📊 更新流式状态
    */
   updateStreamStatus() {
-    const { eventStream } = require('../../utils/stream.js')
-    const stats = eventStream.getStats()
-    
-    this.setData({
-      streamStatus: {
-        isConnected: stats.isConnected,
-        participantUpdates: stats.participantChanges || 0,
-        lastUpdate: stats.lastUpdate ? 
-          new Date(stats.lastUpdate).toLocaleTimeString() : null
+    try {
+      const streamModule = require('../../utils/stream.js')
+      const eventStream = streamModule && streamModule.eventStream
+      
+      if (eventStream && typeof eventStream.getStats === 'function') {
+        const stats = eventStream.getStats()
+        
+        this.setData({
+          streamStatus: {
+            isConnected: stats.isConnected || false,
+            participantUpdates: stats.participantChanges || 0,
+            lastUpdate: stats.lastUpdate ? 
+              new Date(stats.lastUpdate).toLocaleTimeString() : null
+          }
+        })
+      } else {
+        this.setData({
+          streamStatus: {
+            isConnected: false,
+            participantUpdates: 0,
+            lastUpdate: null
+          }
+        })
       }
-    })
+    } catch (error) {
+      console.error('[活动页面] ❌ 更新流式状态失败:', error)
+      this.setData({
+        streamStatus: {
+          isConnected: false,
+          participantUpdates: 0,
+          lastUpdate: null
+        }
+      })
+    }
   },
 
   /**
    * 🛑 停止活动流
    */
   stopEventStream() {
-    const { eventStream } = require('../../utils/stream.js')
-    eventStream.stop()
+    try {
+      const streamModule = require('../../utils/stream.js')
+      const eventStream = streamModule && streamModule.eventStream
+      
+      if (eventStream && typeof eventStream.stop === 'function') {
+        eventStream.stop()
+      }
+    } catch (error) {
+      console.error('[活动页面] ❌ 停止流式更新失败:', error)
+    }
     
     if (this.statusUpdateTimer) {
       clearInterval(this.statusUpdateTimer)
@@ -328,10 +483,21 @@ Page({
    */
   viewEventDetail(e) {
     const event = e.currentTarget.dataset.event
+    
+    if (!event) {
+      console.error('[活动页面] ❌ 无法获取活动数据')
+      wx.showToast({
+        title: '获取活动信息失败',
+        icon: 'none'
+      })
+      return
+    }
+    
     console.log('[活动页面] 🎯 查看活动详情:', event.title)
     
     // 构造完整的活动数据
     const eventDetail = {
+      id: event.id || event.event_id,
       title: event.title,
       description: event.description || '这是一个精彩的校园活动，期待您的参与！',
       location: event.location,
@@ -373,7 +539,7 @@ Page({
   /**
    * ✅ 参加活动
    */
-  joinEvent(event) {
+  async joinEvent(event) {
     if (event.current_participants >= event.max_participants) {
       wx.showToast({
         title: '😔 活动人数已满',
@@ -383,15 +549,36 @@ Page({
       return
     }
     
-    wx.showToast({
-      title: '✅ 参加成功！',
-      icon: 'success',
-      duration: 2000
-    })
-    
-    // 模拟参与成功，触发参与人数增加
-    // 在实际应用中，这里应该调用后端API
-    console.log('[活动页面] ✅ 模拟参加活动:', event.title)
+    try {
+      wx.showLoading({ title: '报名中...' })
+      
+      // 🔧 使用统一的API模块
+      const response = await API.registerEvent(event.event_id || event.id)
+      
+      if (response.code === 0) {
+        wx.hideLoading()
+        wx.showToast({
+          title: '✅ 参加成功！',
+          icon: 'success',
+          duration: 2000
+        })
+        
+        // 刷新活动列表
+        this.loadEvents()
+        
+        console.log('[活动页面] ✅ 参加活动成功:', event.title)
+      } else {
+        throw new Error(response.message || '参加活动失败')
+      }
+    } catch (error) {
+      console.error('[活动页面] ❌ 参加活动失败:', error)
+      wx.hideLoading()
+      wx.showToast({
+        title: '参加失败，请重试',
+        icon: 'none',
+        duration: 2000
+      })
+    }
   },
 
   /**
@@ -487,39 +674,24 @@ ${changesText}`
   },
 
   onTypeChange(e) {
-    const typeFilter = e.detail.value
-    console.log('[活动页面] 类型筛选:', typeFilter)
-    this.setData({ selectedType: typeFilter })
+    const typeIndex = e.detail.value
+    const selectedTypeData = this.data.eventTypes[typeIndex]
+    const selectedType = selectedTypeData.value
+    const selectedTypeText = selectedTypeData.text
+    console.log('[活动页面] 类型筛选:', selectedType, selectedTypeText)
+    this.setData({ 
+      selectedType: selectedType,
+      selectedTypeText: selectedTypeText
+    })
     this.loadEvents()
   },
 
   onStatusChange(e) {
-    const statusFilter = e.detail.value
-    console.log('[活动页面] 状态筛选:', statusFilter)
-    this.setData({ selectedStatus: statusFilter })
+    const statusIndex = e.detail.value
+    const selectedStatus = this.data.eventStatuses[statusIndex]
+    console.log('[活动页面] 状态筛选:', selectedStatus)
+    this.setData({ selectedStatus: selectedStatus })
     this.loadEvents()
-  },
-
-  viewEvent(e) {
-    const event = e.currentTarget.dataset.event
-    console.log('[活动页面] 查看活动详情:', event.title)
-    
-    const participantProgress = event.max_participants > 0 ? 
-      Math.round((event.current_participants / event.max_participants) * 100) : 0
-    
-    wx.showModal({
-      title: event.title,
-      content: `📍 地点：${event.location}\n⏰ 时间：${event.start_time}\n👥 参与人数：${event.current_participants}/${event.max_participants} (${participantProgress}%)\n📝 描述：${event.description}\n\n主办方：${event.organizer}`,
-      showCancel: true,
-      cancelText: '关闭',
-      confirmText: '我要参加',
-      confirmColor: '#0052d9',
-      success: (res) => {
-        if (res.confirm) {
-          this.joinEvent(event)
-        }
-      }
-    })
   },
 
   onDateSelect(e) {

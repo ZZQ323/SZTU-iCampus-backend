@@ -311,11 +311,12 @@
 
 .radio-list {
   display: flex;
-  gap: 16px;
+  flex: auto;
   background: white;
-  padding: 16px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  padding: 10rpx;
+  border-radius: 12rpx;
+  box-shadow: 10rpx 2rpx 8rpx rgba(0, 0, 0, 0.06);
+  justify-content: space-around;
 }
 
 /* 考试列表 */

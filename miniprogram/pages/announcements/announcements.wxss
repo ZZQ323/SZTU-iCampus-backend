@@ -119,6 +119,23 @@
   margin-right: 16rpx;
 }
 
+.header-badges {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.collection-badge {
+  font-size: 24rpx;
+  color: #ff8f00;
+  background: #fff3e0;
+  padding: 4rpx 8rpx;
+  border-radius: 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .badge {
   padding: 8rpx 16rpx;
   border-radius: 20rpx;

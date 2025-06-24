@@ -18,6 +18,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
@@ -66,11 +69,11 @@ async def http_exception_handler(request, exc):
     return JSONResponse(
         status_code=exc.status_code,
         content={
-            "status": 1,
-            "msg": exc.detail,
+            "code": exc.status_code,
+            "message": exc.detail,
             "data": None,
-            "timestamp": int(time.time()),
-            "version": settings.PROJECT_VERSION
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "version": "v1.0"
         }
     )
 
@@ -81,11 +84,11 @@ async def general_exception_handler(request, exc):
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
-            "status": 1,
-            "msg": "服务器内部错误",
+            "code": 500,
+            "message": "服务器内部错误",
             "data": None,
-            "timestamp": int(time.time()),
-            "version": settings.PROJECT_VERSION
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "version": "v1.0"
         }
     )
 
@@ -114,20 +117,25 @@ async def root():
 async def health_check():
     """健康检查接口"""
     try:
-        # 检查数据库连接
-        import sqlite3
-        db = sqlite3.connect(settings.DATABASE_PATH, check_same_thread=False)
-        cursor = db.cursor()
-        cursor.execute("SELECT COUNT(*) FROM persons")
-        user_count = cursor.fetchone()[0]
-        cursor.close()
-        db.close()
+        # 🔄 通过HTTP请求检查data-service健康状态，不直接连数据库
+        from app.core.http_client import http_client
+        
+        # 测试HTTP连接到data-service
+        result = await http_client.query_table(
+            "persons",
+            filters={"is_deleted": False},
+            limit=1
+        )
+        
+        # 如果能成功获取数据，说明服务正常
+        user_count = result.get("estimated_total", "unknown")
         
         return {
             "status": 0,
             "msg": "服务健康",
             "data": {
                 "database": "connected",
+                "data_service": "available",
                 "user_count": user_count,
                 "service": "running"
             },
@@ -141,7 +149,8 @@ async def health_check():
                 "status": 1,
                 "msg": "服务不健康",
                 "data": {
-                    "database": "disconnected",
+                    "database": "unknown",
+                    "data_service": "unavailable",
                     "error": str(e)
                 },
                 "timestamp": int(time.time())

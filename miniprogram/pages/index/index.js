@@ -95,8 +95,7 @@ Page({
         unread_count: 0 // TODO: 从API获取
       };
 
-      // TODO: 调用后端API获取用户相关数据
-      // 这里先使用MOCK数据
+      // 调用后端API获取用户相关数据
       const homeData = {
         user_info: userData,
         quick_actions: quickActions,
@@ -222,28 +221,34 @@ Page({
   async getTodaySchedule(userInfo) {
     try {
       if (userInfo.person_type === 'student') {
-        // 获取当前周课程表
-        const scheduleData = await API.getCurrentWeekSchedule();
-        
-        // 获取今天是周几
-        const today = new Date();
-        const weekday = today.getDay() || 7; // 周日为0，转换为7
-        
-        // 过滤出今天的课程
-        const todayCourses = scheduleData.courses || [];
-        const todaySchedule = todayCourses
-          .filter(course => course.weekday === weekday)
-          .map(course => ({
-            id: course.course_id,
-            course_name: course.course_name,
-            teacher: course.teacher_name,
-            time: `${course.start_time}-${course.end_time}`,
-            location: course.location,
-            status: this.getCourseStatus(course.start_time, course.end_time)
-          }))
-          .slice(0, 3); // 最多显示3条
-        
-        return todaySchedule;
+        // 🔧 增加错误处理，避免认证失败
+        try {
+          // 获取当前周课程表
+          const scheduleData = await API.getCurrentWeekSchedule();
+          
+          // 获取今天是周几
+          const today = new Date();
+          const weekday = today.getDay() || 7; // 周日为0，转换为7
+          
+          // 🔧 修复：正确访问嵌套的data.courses
+          const todayCourses = scheduleData.data?.courses || [];
+          const todaySchedule = todayCourses
+            .filter(course => course.weekday === weekday)
+            .map(course => ({
+              id: course.course_id,
+              course_name: course.course_name,
+              teacher: course.teacher_name,
+              time: `${course.start_time}-${course.end_time}`,
+              location: course.location,
+              status: this.getCourseStatus(course.start_time, course.end_time)
+            }))
+            .slice(0, 3); // 最多显示3条
+          
+          return todaySchedule;
+        } catch (apiError) {
+          console.warn('API调用失败，返回空课表:', apiError);
+          return [];
+        }
       } else if (userInfo.person_type === 'teacher') {
         // 教师暂时返回空数组，后续可以实现教师课表
         return [];
@@ -282,24 +287,31 @@ Page({
    */
   async getAnnouncements(userInfo) {
     try {
-      // 获取最新的5条公告
-      const announcementsData = await API.getAnnouncements({
-        page: 1,
-        size: 5,
-        sort: 'publish_time',
-        order: 'desc'
-      });
-      
-      const announcements = announcementsData.announcements || [];
-      
-      return announcements.map(item => ({
-        id: item.announcement_id,
-        title: item.title,
-        department: item.department,
-        date: item.publish_time.split('T')[0], // 只取日期部分
-        urgent: item.is_urgent || item.priority === 'high',
-        category: item.category
-      }));
+      // 🔧 增加错误处理，避免认证失败
+      try {
+        // 获取最新的5条公告
+        const announcementsData = await API.getAnnouncements({
+          page: 1,
+          size: 5,
+          sort: 'publish_time',
+          order: 'desc'
+        });
+        
+        // 🔧 修复：正确访问嵌套的data.announcements
+        const announcements = announcementsData.data?.announcements || [];
+        
+        return announcements.map(item => ({
+          id: item.announcement_id,
+          title: item.title,
+          department: item.department,
+          date: item.publish_time.split('T')[0], // 只取日期部分
+          urgent: item.is_urgent || item.priority === 'high',
+          category: item.category
+        }));
+      } catch (apiError) {
+        console.warn('公告API调用失败，返回默认公告:', apiError);
+        throw apiError;  // 重新抛出，让外层catch处理
+      }
     } catch (error) {
       console.error('获取公告信息失败:', error);
       // 出错时返回默认公告
@@ -322,18 +334,24 @@ Page({
   async getTodayStats(userInfo) {
     try {
       if (userInfo.person_type === 'student') {
-        // 学生统计数据
-        const [scheduleData, borrowData, announcementData] = await Promise.allSettled([
-          API.getCurrentWeekSchedule(),
-          API.getBorrowRecords({ status: 'borrowed' }),
-          API.getAnnouncements({ page: 1, size: 1 })
+        // 学生统计数据 - 增加错误处理
+        const results = await Promise.allSettled([
+          API.getCurrentWeekSchedule().catch(() => ({ data: { courses: [] } })),
+          API.getBorrowRecords({ status: 'borrowed' }).catch(() => ({ data: { borrow_records: [] } })),
+          API.getAnnouncements({ page: 1, size: 1 }).catch(() => ({ data: { pagination: { total: 0 } } }))
         ]);
 
         // 计算今日课程数
         const today = new Date();
         const weekday = today.getDay() || 7;
-        const todayCourses = scheduleData.status === 'fulfilled' 
-          ? (scheduleData.value.courses || []).filter(course => course.weekday === weekday)
+        
+        const scheduleResult = results[0];
+        const borrowResult = results[1]; 
+        const announcementResult = results[2];
+        
+        // 🔧 安全地访问数据
+        const todayCourses = scheduleResult.status === 'fulfilled' 
+          ? (scheduleResult.value.data?.courses || []).filter(course => course.weekday === weekday)
           : [];
 
         // 计算已完成课程数
@@ -344,11 +362,11 @@ Page({
         return {
           courses: todayCourses.length,
           completed_courses: completedCourses,
-          library_books: borrowData.status === 'fulfilled' 
-            ? (borrowData.value.borrow_records || []).length 
+          library_books: borrowResult.status === 'fulfilled' 
+            ? (borrowResult.value.data?.borrow_records || []).length 
             : 0,
-          announcements: announcementData.status === 'fulfilled' 
-            ? (announcementData.value.total || 0)
+          announcements: announcementResult.status === 'fulfilled' 
+            ? (announcementResult.value.data?.pagination?.total || 0)
             : 0
         };
       } else if (userInfo.person_type === 'teacher') {
@@ -361,14 +379,24 @@ Page({
         };
       } else if (userInfo.person_type === 'admin') {
         // 管理员统计数据
-        const adminStatsData = await API.getAdminStats();
-        
-        return {
-          total_users: adminStatsData.total_users || 63460,
-          active_sessions: adminStatsData.active_sessions || 0,
-          system_alerts: adminStatsData.system_alerts || 0,
-          announcements: adminStatsData.total_announcements || 0
-        };
+        try {
+          const adminStatsData = await API.getAdminStats().catch(() => ({}));
+          
+          return {
+            total_users: adminStatsData.total_users || 63460,
+            active_sessions: adminStatsData.active_sessions || 0,
+            system_alerts: adminStatsData.system_alerts || 0,
+            announcements: adminStatsData.total_announcements || 0
+          };
+        } catch (error) {
+          console.warn('管理员统计API失败:', error);
+          return {
+            total_users: 63460,
+            active_sessions: 0,
+            system_alerts: 0,
+            announcements: 0
+          };
+        }
       }
       
       return {

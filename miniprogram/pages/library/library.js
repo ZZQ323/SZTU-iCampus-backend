@@ -1,4 +1,5 @@
 const app = getApp()
+const API = require('../../utils/api.js')
 
 Page({
   data: {
@@ -96,252 +97,181 @@ Page({
   },
 
   // 搜索图书
-  searchBooks(keyword, isRealTime = false) {
+  async searchBooks(keyword, isRealTime = false) {
     console.log('[图书馆] 🔍 搜索图书:', keyword)
     
     if (!isRealTime) {
       this.setData({ loading: true })
     }
     
-    // 模拟搜索结果
-    const mockResults = [
-      {
-        id: 1,
-        title: `《${keyword}相关图书》`,
-        author: '著名作者',
-        isbn: '978-7-111-12345-6',
-        location: 'A区3楼 A301.2',
-        status: 'available',
-        borrowCount: 156,
-        rating: 4.5,
-        cover: '/assets/test/book1.jpg'
-      },
-      {
-        id: 2,
-        title: `《高级${keyword}教程》`,
-        author: '专业团队',
-        isbn: '978-7-222-54321-8',
-        location: 'B区2楼 B205.1',
-        status: 'borrowed',
-        borrowCount: 89,
-        rating: 4.2,
-        cover: '/assets/test/book2.jpg'
-      },
-      {
-        id: 3,
-        title: `《${keyword}实践指南》`,
-        author: '实战专家',
-        isbn: '978-7-333-98765-4',
-        location: 'A区1楼 A102.5',
-        status: 'available',
-        borrowCount: 234,
-        rating: 4.8,
-        cover: '/assets/test/book3.jpg'
-      }
-    ]
-    
-    setTimeout(() => {
+    try {
+      const response = await API.searchBooks({
+        keyword: keyword,
+        page: 1,
+        size: 10
+      })
+      
+      if (response.code === 0) {
+        const books = response.data.books || []
       this.setData({
-        searchResults: mockResults,
+          searchResults: books,
         showSearchResults: true,
         loading: false
       })
       
       if (!isRealTime) {
         wx.showToast({
-          title: `找到${mockResults.length}本相关图书`,
+            title: `找到${books.length}本相关图书`,
           icon: 'success'
         })
       }
-    }, isRealTime ? 200 : 800)
+      } else {
+        throw new Error(response.message || '搜索失败')
+      }
+    } catch (error) {
+      console.error('[图书馆] ❌ 搜索图书失败:', error)
+      this.setData({ loading: false })
+      
+      if (!isRealTime) {
+        wx.showToast({
+          title: '搜索失败，请重试',
+          icon: 'none'
+        })
+      }
+    }
   },
 
   // 加载借阅信息
-  loadBorrowInfo() {
+  async loadBorrowInfo() {
     this.setData({ loading: true })
     
-    const userInfo = wx.getStorageSync('userInfo')
-    const studentId = userInfo?.studentId || '2024001'
-    
-    // 模拟API请求
-    setTimeout(() => {
-      const mockBorrowList = [
-        {
-          id: 1,
-          title: '《计算机网络原理》',
-          author: '谢希仁',
-          isbn: '978-7-111-31570-8',
-          borrowDate: '2024-05-15',
-          dueDate: '2024-06-15',
-          renewCount: 0,
-          maxRenew: 2,
-          isOverdue: false,
-          daysLeft: 5,
-          location: 'A区3楼 A301.2',
-          cover: '/assets/test/book1.jpg'
-        },
-        {
-          id: 2,
-          title: '《数据结构与算法》',
-          author: '严蔚敏',
-          isbn: '978-7-302-25737-2',
-          borrowDate: '2024-05-10',
-          dueDate: '2024-06-10',
-          renewCount: 1,
-          maxRenew: 2,
-          isOverdue: true,
-          daysLeft: -3,
-          location: 'B区2楼 B205.1',
-          cover: '/assets/test/book2.jpg'
-        }
-      ]
+    try {
+      const response = await API.getBorrowRecords({
+        status: 'borrowed',
+        page: 1,
+        size: 20
+      })
+      
+      if (response.code === 0) {
+        const borrowList = response.data.borrow_records || []
+        const statistics = response.data.statistics || {}
       
       this.setData({
-        currentBorrow: mockBorrowList.length,
+          currentBorrow: statistics.total_borrowed || borrowList.length,
         maxBorrow: 10,
-        borrowList: mockBorrowList,
+          borrowList: borrowList,
         loading: false
       })
-    }, 1000)
+      } else {
+        throw new Error(response.message || '获取借阅信息失败')
+      }
+    } catch (error) {
+      console.error('[图书馆] ❌ 加载借阅信息失败:', error)
+      this.setData({ loading: false })
+      wx.showToast({
+        title: '加载失败，请重试',
+        icon: 'none'
+      })
+    }
   },
 
   // 加载座位信息
-  loadSeatInfo() {
-    // 模拟座位数据
-    const mockFloors = [
-      {
-        id: 1,
-        name: '一楼阅览区',
-        totalSeats: 80,
-        availableSeats: 23,
-        occupancyRate: 71,
-        description: '期刊阅览、报纸阅读'
-      },
-      {
-        id: 2,
-        name: '二楼学习区',
-        totalSeats: 120,
-        availableSeats: 45,
-        occupancyRate: 63,
-        description: '安静学习、个人研修'
-      },
-      {
-        id: 3,
-        name: '三楼研讨区',
-        totalSeats: 60,
-        availableSeats: 18,
-        occupancyRate: 70,
-        description: '小组讨论、团队学习'
-      },
-      {
-        id: 4,
-        name: '四楼电子阅览室',
-        totalSeats: 40,
-        availableSeats: 12,
-        occupancyRate: 70,
-        description: '电子资源、网络检索'
-      }
-    ]
+  async loadSeatInfo() {
+    try {
+      const response = await API.getSeatInfo()
+      
+      if (response.code === 0) {
+        const areas = response.data.areas || []
+        const statistics = response.data.statistics || {}
     
     this.setData({
-      floors: mockFloors,
-      availableSeats: mockFloors.reduce((sum, floor) => sum + floor.availableSeats, 0),
-      totalSeats: mockFloors.reduce((sum, floor) => sum + floor.totalSeats, 0)
-    })
+          floors: areas,
+          availableSeats: statistics.available_seats || 0,
+          totalSeats: statistics.total_seats || 0
+        })
+      } else {
+        throw new Error(response.message || '获取座位信息失败')
+      }
+    } catch (error) {
+      console.error('[图书馆] ❌ 加载座位信息失败:', error)
+      wx.showToast({
+        title: '座位信息加载失败',
+        icon: 'none'
+      })
+    }
   },
 
   // 加载热门图书
-  loadPopularBooks() {
-    const mockPopularBooks = [
-      {
-        id: 1,
-        title: '《深度学习》',
-        author: 'Ian Goodfellow',
-        borrowCount: 342,
-        rating: 4.8,
-        status: 'available',
-        cover: '/assets/test/book1.jpg'
-      },
-      {
-        id: 2,
-        title: '《算法导论》',
-        author: 'Thomas H. Cormen',
-        borrowCount: 298,
-        rating: 4.7,
-        status: 'borrowed',
-        cover: '/assets/test/book2.jpg'
-      },
-      {
-        id: 3,
-        title: '《设计模式》',
-        author: 'Erich Gamma',
-        borrowCount: 245,
-        rating: 4.6,
-        status: 'available',
-        cover: '/assets/test/book3.jpg'
+  async loadPopularBooks() {
+    try {
+      const response = await API.searchBooks({
+        keyword: '',
+        category: 'popular',
+        page: 1,
+        size: 6
+      })
+      
+      if (response.code === 0) {
+        const books = response.data.books || []
+        this.setData({
+          popularBooks: books
+        })
+      } else {
+        throw new Error(response.message || '获取热门图书失败')
       }
-    ]
-    
-    this.setData({
-      popularBooks: mockPopularBooks
-    })
+    } catch (error) {
+      console.error('[图书馆] ❌ 加载热门图书失败:', error)
+    }
   },
 
   // 加载新书推荐
-  loadNewArrivals() {
-    const mockNewArrivals = [
-      {
-        id: 4,
-        title: '《机器学习实战》',
-        author: '周志华',
-        arrivalDate: '2024-06-18',
-        status: 'available',
-        cover: '/assets/test/book4.jpg'
-      },
-      {
-        id: 5,
-        title: '《Python编程从入门到精通》',
-        author: '李华',
-        arrivalDate: '2024-06-15',
-        status: 'available',
-        cover: '/assets/test/book5.jpg'
-      }
-    ]
-    
+  async loadNewArrivals() {
+    try {
+      const response = await API.searchBooks({
+        keyword: '',
+        category: 'new',
+        page: 1,
+        size: 6
+      })
+      
+      if (response.code === 0) {
+        const books = response.data.books || []
     this.setData({
-      newArrivals: mockNewArrivals
-    })
+          newArrivals: books
+        })
+      } else {
+        throw new Error(response.message || '获取新书推荐失败')
+      }
+    } catch (error) {
+      console.error('[图书馆] ❌ 加载新书推荐失败:', error)
+    }
   },
 
   // 加载借阅历史
-  loadBorrowHistory() {
-    const mockHistory = [
-      {
-        id: 1,
-        title: '《操作系统概念》',
-        author: 'Abraham Silberschatz',
-        borrowDate: '2024-04-01',
-        returnDate: '2024-04-30',
-        rating: 5
-      },
-      {
-        id: 2,
-        title: '《编译原理》',
-        author: 'Alfred V. Aho',
-        borrowDate: '2024-03-15',
-        returnDate: '2024-04-10',
-        rating: 4
-      }
-    ]
-    
+  async loadBorrowHistory() {
+    try {
+      const response = await API.getBorrowRecords({
+        status: 'returned',
+        page: 1,
+        size: 10
+      })
+      
+      if (response.code === 0) {
+        const borrowHistory = response.data.borrow_records || []
     this.setData({
-      borrowHistory: mockHistory
+          borrowHistory: borrowHistory
     })
+      } else {
+        throw new Error(response.message || '获取借阅历史失败')
+      }
+    } catch (error) {
+      console.error('[图书馆] ❌ 加载借阅历史失败:', error)
+    }
   },
 
   // 检查逾期图书
   checkOverdueBooks() {
-    const overdueCount = this.data.borrowList.filter(book => book.isOverdue).length
+    const overdueCount = this.data.borrowList.filter(book => book.status === 'overdue').length
     
     this.setData({
       overdueBooksCount: overdueCount
@@ -371,10 +301,10 @@ Page({
   },
 
   // 续借图书
-  renewBook(e) {
+  async renewBook(e) {
     const book = e.currentTarget.dataset.book
     
-    if (book.renewCount >= book.maxRenew) {
+    if (book.renewal_count >= book.max_renewals) {
       wx.showToast({
         title: '已达最大续借次数',
         icon: 'none'
@@ -384,19 +314,32 @@ Page({
     
     wx.showModal({
       title: '续借确认',
-      content: `确定要续借《${book.title}》吗？\n续借后到期日期将延长30天`,
-      success: (res) => {
+      content: `确定要续借《${book.book_title}》吗？\n续借后到期日期将延长30天`,
+      success: async (res) => {
         if (res.confirm) {
           wx.showLoading({ title: '续借中...' })
           
-          setTimeout(() => {
+          try {
+            const response = await API.renewBook(book.record_id)
+            
+            if (response.code === 0) {
             wx.hideLoading()
             wx.showToast({
               title: '续借成功',
               icon: 'success'
             })
             this.loadBorrowInfo()
-          }, 1500)
+            } else {
+              throw new Error(response.message || '续借失败')
+            }
+          } catch (error) {
+            console.error('[图书馆] ❌ 续借失败:', error)
+            wx.hideLoading()
+            wx.showToast({
+              title: '续借失败，请重试',
+              icon: 'none'
+            })
+          }
         }
       }
     })
@@ -405,7 +348,7 @@ Page({
   // 查看图书详情
   onViewBookDetail(e) {
     const book = e.currentTarget.dataset.book
-    console.log('[图书馆] 📖 查看图书详情:', book.title)
+    console.log('[图书馆] 📖 查看图书详情:', book.title || book.book_title)
     
     // 存储图书信息到全局数据
     app.globalData.currentBook = book
@@ -416,7 +359,7 @@ Page({
   },
 
   // 预约图书
-  reserveBook(e) {
+  async reserveBook(e) {
     const book = e.currentTarget.dataset.book
     
     if (book.status === 'available') {
@@ -430,17 +373,30 @@ Page({
     wx.showModal({
       title: '预约图书',
       content: `确定要预约《${book.title}》吗？\n图书归还后将优先为您保留3天`,
-      success: (res) => {
+      success: async (res) => {
         if (res.confirm) {
           wx.showLoading({ title: '预约中...' })
           
-          setTimeout(() => {
+          try {
+            const response = await API.borrowBook(book.book_id)
+            
+            if (response.code === 0) {
             wx.hideLoading()
             wx.showToast({
               title: '预约成功',
               icon: 'success'
             })
-          }, 1000)
+            } else {
+              throw new Error(response.message || '预约失败')
+            }
+          } catch (error) {
+            console.error('[图书馆] ❌ 预约失败:', error)
+            wx.hideLoading()
+            wx.showToast({
+              title: '预约失败，请重试',
+              icon: 'none'
+            })
+          }
         }
       }
     })
@@ -449,10 +405,10 @@ Page({
   // 选择楼层
   onSelectFloor(e) {
     const floor = e.currentTarget.dataset.floor
-    console.log('[图书馆] 🏢 选择楼层:', floor.name)
+    console.log('[图书馆] 🏢 选择楼层:', floor.area)
     
     wx.navigateTo({
-      url: `/pages/library/seat-map/seat-map?floorId=${floor.id}&floorName=${floor.name}`
+      url: `/pages/library/seat-map/seat-map?floorId=${floor.floor}&floorName=${floor.area}`
     })
   },
 

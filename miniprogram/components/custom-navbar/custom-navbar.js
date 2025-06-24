@@ -26,13 +26,28 @@ Component({
 
   lifetimes: {
     attached() {
-      const systemInfo = wx.getSystemInfoSync()
+      // 使用新的API替代已弃用的getSystemInfoSync
+      let statusBarHeight = 0;
+      try {
+        const windowInfo = wx.getWindowInfo();
+        statusBarHeight = windowInfo.statusBarHeight || 0;
+      } catch (e) {
+        // 兼容旧版本
+        try {
+          const systemInfo = wx.getSystemInfoSync();
+          statusBarHeight = systemInfo.statusBarHeight || 0;
+        } catch (err) {
+          console.warn('获取系统信息失败', err);
+          statusBarHeight = 44; // 默认值
+        }
+      }
+      
       const menuButtonInfo = wx.getMenuButtonBoundingClientRect()
       
       this.setData({
-        statusBarHeight: systemInfo.statusBarHeight,
+        statusBarHeight: statusBarHeight,
         menuButtonInfo: menuButtonInfo,
-        navBarHeight: (menuButtonInfo.top - systemInfo.statusBarHeight) * 2 + menuButtonInfo.height
+        navBarHeight: (menuButtonInfo.top - statusBarHeight) * 2 + menuButtonInfo.height
       })
     }
   },

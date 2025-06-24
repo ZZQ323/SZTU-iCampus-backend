@@ -1,4 +1,6 @@
 // 校园卡快速操作面板
+const API = require('../../utils/api.js')
+
 Page({
   data: {
     balance: '0.00',
@@ -7,7 +9,8 @@ Page({
     isLost: false,
     showRechargeDialog: false,
     selectedAmount: 0,
-    rechargeOptions: [10, 20, 50, 100, 200, 500]
+    rechargeOptions: [10, 20, 50, 100, 200, 500],
+    loading: false
   },
 
   onLoad() {
@@ -19,20 +22,48 @@ Page({
   },
 
   // 加载卡片信息
-  loadCardInfo() {
-    // 获取用户信息
-    const userInfo = wx.getStorageSync('userInfo')
+  async loadCardInfo() {
+    this.setData({ loading: true })
     
-    // 模拟校园卡数据
+    try {
+      const response = await API.getCampusCardInfo()
+      
+      if (response.code === 0) {
+        const cardInfo = response.data || {}
+        const now = new Date()
+        const timeStr = now.toLocaleTimeString()
+        
+        this.setData({
+          balance: (cardInfo.balance || 0).toFixed(2),
+          cardNumber: cardInfo.card_number || '未知',
+          lastUpdateTime: `更新时间：${timeStr}`,
+          isLost: cardInfo.status === 'lost',
+          loading: false
+        })
+      } else {
+        throw new Error(response.message || '获取校园卡信息失败')
+      }
+    } catch (error) {
+      console.error('[校园卡快速面板] ❌ 加载卡片信息失败:', error)
+      this.setData({ loading: false })
+      
+      // 获取用户信息作为备用显示
+    const userInfo = wx.getStorageSync('userInfo')
     const now = new Date()
-    const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+      const timeStr = now.toLocaleTimeString()
     
     this.setData({
-      balance: '185.50',
-      cardNumber: userInfo.studentId || '2024000000',
+        balance: '0.00',
+        cardNumber: userInfo?.student_id || '未知',
       lastUpdateTime: `更新时间：${timeStr}`,
       isLost: false
     })
+      
+      wx.showToast({
+        title: '加载失败，显示默认信息',
+        icon: 'none'
+      })
+    }
   },
 
   // 快速充值
@@ -61,13 +92,23 @@ Page({
   },
 
   // 确认充值
-  onRechargeConfirm() {
+  async onRechargeConfirm() {
     const amount = this.data.selectedAmount
-    const currentBalance = parseFloat(this.data.balance)
-    const newBalance = currentBalance + amount
+    
+    try {
+      wx.showLoading({ title: '充值中...' })
+      
+      const response = await API.rechargeCampusCard({
+        amount: amount
+      })
+      
+      if (response.code === 0) {
+        wx.hideLoading()
+        
+        // 更新余额
+        this.loadCardInfo()
     
     this.setData({
-      balance: newBalance.toFixed(2),
       showRechargeDialog: false
     })
     
@@ -75,13 +116,17 @@ Page({
       title: `充值成功 ¥${amount}`,
       icon: 'success'
     })
-    
-    // 更新时间
-    const now = new Date()
-    const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
-    this.setData({
-      lastUpdateTime: `更新时间：${timeStr}`
-    })
+      } else {
+        throw new Error(response.message || '充值失败')
+      }
+    } catch (error) {
+      console.error('[校园卡快速面板] ❌ 充值失败:', error)
+      wx.hideLoading()
+      wx.showToast({
+        title: '充值失败，请重试',
+        icon: 'none'
+      })
+    }
   },
 
   // 取消充值
@@ -93,15 +138,13 @@ Page({
 
   // 查看消费记录
   onViewRecords() {
-    wx.showModal({
-      title: '功能提示',
-      content: '消费记录功能正在开发中，请稍后使用',
-      showCancel: false
+    wx.navigateTo({
+      url: '/pages/campus-card/campus-card?tab=transactions'
     })
   },
 
   // 切换挂失状态
-  onToggleLost() {
+  async onToggleLost() {
     const action = this.data.isLost ? '解除挂失' : '紧急挂失'
     const content = this.data.isLost ? 
       '确定要解除校园卡挂失状态吗？' : 
@@ -110,8 +153,18 @@ Page({
     wx.showModal({
       title: action,
       content: content,
-      success: (res) => {
+      success: async (res) => {
         if (res.confirm) {
+          try {
+            wx.showLoading({ title: `${action}中...` })
+            
+            const response = await API.toggleCampusCardLost({
+              action: this.data.isLost ? 'unlock' : 'lock'
+            })
+            
+            if (response.code === 0) {
+              wx.hideLoading()
+              
           this.setData({
             isLost: !this.data.isLost
           })
@@ -121,12 +174,19 @@ Page({
             icon: 'success'
           })
           
-          // 更新时间
-          const now = new Date()
-          const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
-          this.setData({
-            lastUpdateTime: `更新时间：${timeStr}`
-          })
+              // 刷新卡片信息
+              this.loadCardInfo()
+            } else {
+              throw new Error(response.message || `${action}失败`)
+            }
+          } catch (error) {
+            console.error(`[校园卡快速面板] ❌ ${action}失败:`, error)
+            wx.hideLoading()
+            wx.showToast({
+              title: `${action}失败，请重试`,
+              icon: 'none'
+            })
+          }
         }
       }
     })

@@ -37,7 +37,7 @@ def get_user_profile(
         "class_name": current_user.get("class_name")
     }
 
-@router.get("/", summary="用户管理功能")
+@router.get("", summary="用户管理功能")
 def user_management_placeholder() -> Msg:
     """
     用户管理功能占位符

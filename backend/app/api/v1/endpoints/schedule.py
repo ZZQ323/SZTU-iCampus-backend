@@ -2,343 +2,372 @@
 课程表接口
 提供课程表查询、课程管理等功能
 """
-import sqlite3
-from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query
+from datetime import datetime, timedelta
+import time
+
 from app.api.deps import get_current_user
+# 🔄 使用HTTP客户端进行真正的HTTP请求，不导入Python模块
+from app.core.http_client import http_client
 
 router = APIRouter()
 
-def get_db_connection():
-    """获取数据库连接"""
-    conn = sqlite3.connect('../../data-service/sztu_campus.db')
-    conn.row_factory = sqlite3.Row
-    return conn
-
-@router.get("/", summary="获取课程表列表")
-async def get_schedules(
-    semester: Optional[str] = Query(None, description="学期"),
-    week_number: Optional[int] = Query(None, description="周次"),
-    current_user = Depends(get_current_user)
+@router.get("/", response_model=dict)
+async def get_schedule(
+    semester: Optional[str] = Query(None, description="学期，如：2024-2025-1"),
+    week_number: Optional[int] = Query(None, ge=1, le=20, description="周次"),
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """获取当前用户的课程表"""
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
+    """获取课表列表"""
     try:
-        person_id = current_user.get("person_id")
-        cursor.execute("SELECT student_id FROM persons WHERE person_id = ?", (person_id,))
-        student_info = cursor.fetchone()
-        
-        if not student_info or not student_info["student_id"]:
-            raise HTTPException(status_code=403, detail="仅限学生查询课程表")
-        
-        student_id = student_info["student_id"]
-        
-        # 构建查询条件
-        where_conditions = ["e.student_id = ?", "e.is_deleted = 0", "cs.is_deleted = 0"]
-        params = [student_id]
-        
-        if semester:
-            where_conditions.append("ci.semester = ?")
-            params.append(semester)
-        
-        where_clause = " AND ".join(where_conditions)
-        
-        # 查询课程表
-        sql = f"""
-            SELECT cs.schedule_id, cs.course_instance_id, cs.day_of_week, 
-                   cs.start_time, cs.end_time, cs.classroom, cs.building,
-                   cs.week_range, cs.class_type,
-                   c.course_id, c.course_name, c.course_code, c.credit_hours,
-                   ci.semester, ci.academic_year, ci.teacher_id,
-                   p.name as teacher_name,
-                   l.location_name, l.building_name
-            FROM enrollments e
-            JOIN course_instances ci ON e.course_instance_id = ci.instance_id
-            JOIN courses c ON ci.course_id = c.course_id
-            JOIN class_schedules cs ON ci.instance_id = cs.course_instance_id
-            LEFT JOIN persons p ON ci.teacher_id = p.employee_id
-            LEFT JOIN locations l ON cs.classroom = l.room_number
-            WHERE {where_clause}
-            ORDER BY cs.day_of_week, cs.start_time
-        """
-        cursor.execute(sql, params)
-        schedules = [dict(row) for row in cursor.fetchall()]
-        
-        # 如果指定了周次，过滤周次
-        if week_number:
-            filtered_schedules = []
-            for schedule in schedules:
-                week_range = schedule.get("week_range", "")
-                if week_range and is_week_in_range(week_number, week_range):
-                    filtered_schedules.append(schedule)
-            schedules = filtered_schedules
-        
-        return {
-            "code": 0,
-            "message": "success",
-            "data": {
-                "schedules": schedules,
-                "semester": semester,
-                "week_number": week_number
-            },
-            "timestamp": datetime.now().isoformat()
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"数据库查询失败: {str(e)}")
-    finally:
-        conn.close()
-
-
-@router.get("/week/{week_number}", summary="获取指定周课程表")
-async def get_week_schedule(
-    week_number: int,
-    semester: Optional[str] = Query(None, description="学期"),
-    current_user = Depends(get_current_user)
-):
-    """获取指定周次的课程表"""
-    
-    if week_number < 1 or week_number > 30:
-        raise HTTPException(status_code=400, detail="周次必须在1-30之间")
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    try:
-        person_id = current_user.get("person_id")
-        cursor.execute("SELECT student_id FROM persons WHERE person_id = ?", (person_id,))
-        student_info = cursor.fetchone()
-        
-        if not student_info or not student_info["student_id"]:
-            raise HTTPException(status_code=403, detail="仅限学生查询课程表")
-        
-        student_id = student_info["student_id"]
-        
-        # 构建查询条件
-        where_conditions = ["e.student_id = ?", "e.is_deleted = 0", "cs.is_deleted = 0"]
-        params = [student_id]
-        
-        if semester:
-            where_conditions.append("ci.semester = ?")
-            params.append(semester)
-        
-        where_clause = " AND ".join(where_conditions)
-        
-        # 查询课程表
-        sql = f"""
-            SELECT cs.schedule_id, cs.day_of_week, cs.start_time, cs.end_time,
-                   cs.classroom, cs.building, cs.week_range, cs.class_type,
-                   c.course_name, c.course_code, c.credit_hours,
-                   ci.semester, ci.academic_year,
-                   p.name as teacher_name
-            FROM enrollments e
-            JOIN course_instances ci ON e.course_instance_id = ci.instance_id
-            JOIN courses c ON ci.course_id = c.course_id
-            JOIN class_schedules cs ON ci.instance_id = cs.course_instance_id
-            LEFT JOIN persons p ON ci.teacher_id = p.employee_id
-            WHERE {where_clause}
-            ORDER BY cs.day_of_week, cs.start_time
-        """
-        cursor.execute(sql, params)
-        all_schedules = [dict(row) for row in cursor.fetchall()]
-        
-        # 过滤指定周次的课程
-        week_schedules = []
-        for schedule in all_schedules:
-            week_range = schedule.get("week_range", "")
-            if week_range and is_week_in_range(week_number, week_range):
-                week_schedules.append(schedule)
-        
-        return {
-            "code": 0,
-            "message": "success",
-            "data": {
+        # 🔄 HTTP请求data-service获取课表
+        if current_user["person_type"] == "student":
+            student_id = current_user.get("student_id")
+            if not student_id:
+                raise HTTPException(status_code=400, detail="学生ID不能为空")
+            
+            schedule_data = await http_client.get_student_schedule(
+                student_id=student_id,
+                semester=semester,
+                week_number=week_number
+            )
+        else:
+            # 教师课表逻辑
+            schedule_data = {
+                "semester": semester or "2024-2025-1",
                 "week_number": week_number,
-                "semester": semester,
-                "schedules": week_schedules
-            },
-            "timestamp": datetime.now().isoformat()
+                "courses": []
+            }
+        
+        return {
+            "code": 0,
+            "message": "获取课表成功",
+            "data": schedule_data,
+            "timestamp": int(time.time()),
+            "version": "v1.0"
         }
         
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"数据库查询失败: {str(e)}")
-    finally:
-        conn.close()
+        print(f"获取课表错误: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="获取课表失败"
+        )
 
 
-@router.get("/current-week", summary="获取当前周课程表")
-async def get_current_week_schedule(
-    semester: Optional[str] = Query(None, description="学期"),
-    current_user = Depends(get_current_user)
+@router.get("/week/{week_number}", response_model=dict)
+async def get_schedule_by_week(
+    week_number: int,
+    semester: Optional[str] = Query("2024-2025-1", description="学期"),
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """获取当前周次的课程表"""
-    
-    # 计算当前周次（简单实现，假设学期从第1周开始）
-    current_week = get_current_week_number()
-    
-    # 调用指定周课程表接口
-    return await get_week_schedule(current_week, semester, current_user)
+    """获取指定周课表"""
+    try:
+        # 🔄 HTTP请求data-service获取指定周课表
+        if current_user["person_type"] == "student":
+            student_id = current_user.get("student_id")
+            if not student_id:
+                raise HTTPException(status_code=400, detail="学生ID不能为空")
+            
+            schedule_data = await http_client.get_student_schedule(
+                student_id=student_id,
+                semester=semester,
+                week_number=week_number
+            )
+        else:
+            schedule_data = {
+                "semester": semester or "2024-2025-1",
+                "week_number": week_number,
+                "courses": []
+            }
+        
+        return {
+            "code": 0,
+            "message": "获取周课表成功",
+            "data": schedule_data,
+            "timestamp": int(time.time()),
+            "version": "v1.0"
+        }
+        
+    except Exception as e:
+        print(f"获取周课表错误: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="获取周课表失败"
+        )
 
 
-@router.get("/grid/{week_number}", summary="获取课程表网格数据")
+@router.get("/current-week", response_model=dict)
+async def get_current_week_schedule(
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """获取当前周课表"""
+    try:
+        # 计算当前周数
+        current_week = 1  # 简化处理，实际应根据学期开始时间计算
+        
+        # 🔄 HTTP请求data-service获取当前周课表
+        if current_user["person_type"] == "student":
+            student_id = current_user.get("student_id")
+            if not student_id:
+                raise HTTPException(status_code=400, detail="学生ID不能为空")
+            
+            schedule_data = await http_client.get_student_schedule(
+                student_id=student_id,
+                semester="2024-2025-1",
+                week_number=current_week
+            )
+        else:
+            schedule_data = {
+                "semester": "2024-2025-1",
+                "week_number": current_week,
+                "courses": []
+            }
+        
+        return {
+            "code": 0,
+            "message": "获取当前周课表成功",
+            "data": schedule_data,
+            "timestamp": int(time.time()),
+            "version": "v1.0"
+        }
+        
+    except Exception as e:
+        print(f"获取当前周课表错误: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="获取当前周课表失败"
+        )
+
+
+@router.get("/grid/{week_number}", response_model=dict)
 async def get_schedule_grid(
     week_number: int,
-    semester: Optional[str] = Query(None, description="学期"),
-    current_user = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """获取指定周次的课程表网格数据，用于前端表格显示"""
-    
-    if week_number < 1 or week_number > 30:
-        raise HTTPException(status_code=400, detail="周次必须在1-30之间")
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
+    """获取课表网格数据"""
     try:
-        person_id = current_user.get("person_id")
-        cursor.execute("SELECT student_id FROM persons WHERE person_id = ?", (person_id,))
-        student_info = cursor.fetchone()
+        # 🔄 HTTP请求data-service获取课表数据
+        schedule_data = await http_client.get_student_schedule(
+            student_id=current_user.get("student_id"),
+            semester="2024-2025-1",
+            week_number=week_number
+        )
         
-        if not student_info or not student_info["student_id"]:
-            raise HTTPException(status_code=403, detail="仅限学生查询课程表")
+        # 转换为网格格式
+        grid_data = []
+        for course in schedule_data.get("courses", []):
+            schedule_info = course.get("schedule", {})
+            grid_data.append({
+                "day": schedule_info.get("weekday", 1),
+                "period": 1,  # 简化处理
+                "course": course
+            })
         
-        student_id = student_info["student_id"]
-        
-        # 获取该周的所有课程
-        week_schedule_response = await get_week_schedule(week_number, semester, current_user)
-        schedules = week_schedule_response["data"]["schedules"]
-        
-        # 生成7x12的网格数据（7天 x 12个时间段）
-        grid = {}
-        for day in range(1, 8):  # 1-7表示周一到周日
-            grid[day] = {}
-            for slot in range(1, 13):  # 1-12表示12个时间段
-                grid[day][slot] = None
-        
-        # 填充课程数据到网格
-        for schedule in schedules:
-            day = schedule["day_of_week"]
-            time_slot = get_time_slot_from_time(schedule["start_time"])
-            
-            if day in grid and time_slot in grid[day]:
-                grid[day][time_slot] = {
-                    "course_name": schedule["course_name"],
-                    "course_code": schedule["course_code"],
-                    "teacher_name": schedule["teacher_name"],
-                    "classroom": schedule["classroom"],
-                    "building": schedule["building"],
-                    "start_time": schedule["start_time"],
-                    "end_time": schedule["end_time"],
-                    "class_type": schedule["class_type"]
+        return {
+            "code": 0,
+            "message": "获取课表网格数据成功",
+            "data": {
+                "week_number": week_number,
+                "grid": grid_data,
+                "time_slots": {
+                    "1": {"name": "第1-2节", "time": "08:30-10:10"},
+                    "2": {"name": "第3-4节", "time": "10:30-12:10"},
+                    "3": {"name": "第5-6节", "time": "14:00-15:40"},
+                    "4": {"name": "第7-8节", "time": "16:00-17:40"},
+                    "5": {"name": "第9-10节", "time": "19:00-20:40"}
                 }
+            },
+            "timestamp": int(time.time()),
+            "version": "v1.0"
+        }
         
-        # 时间段信息
-        time_slots = [
-            {"slot": 1, "start_time": "08:00", "end_time": "08:45"},
-            {"slot": 2, "start_time": "08:50", "end_time": "09:35"},
-            {"slot": 3, "start_time": "10:05", "end_time": "10:50"},
-            {"slot": 4, "start_time": "10:55", "end_time": "11:40"},
-            {"slot": 5, "start_time": "14:00", "end_time": "14:45"},
-            {"slot": 6, "start_time": "14:50", "end_time": "15:35"},
-            {"slot": 7, "start_time": "15:55", "end_time": "16:40"},
-            {"slot": 8, "start_time": "16:45", "end_time": "17:30"},
-            {"slot": 9, "start_time": "19:00", "end_time": "19:45"},
-            {"slot": 10, "start_time": "19:50", "end_time": "20:35"},
-            {"slot": 11, "start_time": "20:40", "end_time": "21:25"},
-            {"slot": 12, "start_time": "21:30", "end_time": "22:15"}
+    except Exception as e:
+        return {
+            "code": 500,
+            "message": f"获取课表网格失败: {str(e)}",
+            "data": None,
+            "timestamp": datetime.now().isoformat(),
+            "version": "v1.0"
+        }
+
+
+@router.get("/today", response_model=dict)
+async def get_today_schedule(
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """获取今日课表"""
+    try:
+        current_week = 10
+        student_id = current_user.get("student_id") or current_user.get("person_id")
+        result = await http_client.get_student_schedule(
+            student_id=student_id,
+            week_number=current_week
+        )
+        
+        # 获取今天是周几
+        today_weekday = datetime.now().weekday() + 1  # 1=周一, 7=周日
+        
+        # 过滤今日课程
+        today_courses = [
+            course for course in result["courses"]
+            if course["weekday"] == today_weekday
         ]
         
         return {
             "code": 0,
             "message": "success",
             "data": {
-                "week_number": week_number,
-                "semester": semester,
-                "time_slots": time_slots,
-                "schedule_grid": grid,
-                "student_info": {
-                    "student_id": student_id,
-                    "name": current_user.get("name")
-                }
+                "date": datetime.now().strftime("%Y-%m-%d"),
+                "weekday": today_weekday,
+                "weekday_name": ["", "周一", "周二", "周三", "周四", "周五", "周六", "周日"][today_weekday],
+                "courses": today_courses,
+                "course_count": len(today_courses)
             },
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
+            "version": "v1.0"
         }
+        
+    except Exception as e:
+        return {
+            "code": 500,
+            "message": f"获取今日课表失败: {str(e)}",
+            "data": None,
+            "timestamp": datetime.now().isoformat(),
+            "version": "v1.0"
+        }
+
+
+@router.get("/conflicts", response_model=dict)
+async def check_schedule_conflicts(
+    week_number: Optional[int] = Query(None, description="检查的周次"),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """检查课表冲突"""
+    try:
+        student_id = current_user.get("student_id") or current_user.get("person_id")
+        result = await http_client.get_student_schedule(
+            student_id=student_id,
+            week_number=week_number
+        )
+        
+        # 简单的冲突检测逻辑
+        conflicts = []
+        courses = result["courses"]
+        
+        for i, course1 in enumerate(courses):
+            for j, course2 in enumerate(courses[i+1:], i+1):
+                if (course1["weekday"] == course2["weekday"] and 
+                    course1["start_time"] == course2["start_time"]):
+                    conflicts.append({
+                        "type": "time_conflict",
+                        "courses": [course1, course2],
+                        "description": f"{course1['course_name']} 与 {course2['course_name']} 时间冲突"
+                    })
+        
+        return {
+            "code": 0,
+            "message": "success",
+            "data": {
+                "has_conflicts": len(conflicts) > 0,
+                "conflict_count": len(conflicts),
+                "conflicts": conflicts
+            },
+            "timestamp": datetime.now().isoformat(),
+            "version": "v1.0"
+        }
+        
+    except Exception as e:
+        return {
+            "code": 500,
+            "message": f"检查课表冲突失败: {str(e)}",
+            "data": None,
+            "timestamp": datetime.now().isoformat(),
+            "version": "v1.0"
+        }
+
+@router.post("/", summary="添加课程（学生选课）")
+async def add_course(
+    course_instance_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """添加课程（学生选课）"""
+    try:
+        if current_user["person_type"] != "student":
+            raise HTTPException(status_code=403, detail="只有学生可以选课")
+        
+        # 🔄 HTTP请求data-service进行选课
+        result = await http_client._request(
+            "POST",
+            "/insert/enrollments",
+            json_data={
+                "enrollment_id": f"ENR{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                "student_id": current_user["student_id"],
+                "course_instance_id": course_instance_id,
+                "enrollment_status": "completed",
+                "enrollment_time": datetime.now().isoformat(),
+                "is_deleted": False
+            }
+        )
+        
+        if result.get("status") == "success":
+            return {
+                "code": 0,
+                "message": "选课成功",
+                "data": {"course_instance_id": course_instance_id},
+                "timestamp": datetime.now().isoformat(),
+                "version": "v1.0"
+            }
+        else:
+            raise HTTPException(status_code=500, detail="选课失败")
         
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"数据库查询失败: {str(e)}")
-    finally:
-        conn.close()
+        return {
+            "code": 500,
+            "message": f"选课失败: {str(e)}",
+            "data": None,
+            "timestamp": datetime.now().isoformat(),
+            "version": "v1.0"
+        }
 
-
-def is_week_in_range(week_number: int, week_range: str) -> bool:
-    """检查周次是否在指定范围内"""
-    if not week_range:
-        return True
-    
+@router.delete("/{schedule_id}", summary="删除课程")
+async def delete_course(
+    schedule_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """删除课程（退课）"""
     try:
-        # 处理格式如 "1-16" 或 "1-8,10-16"
-        ranges = week_range.replace("周", "").split(",")
-        for range_part in ranges:
-            if "-" in range_part:
-                start, end = range_part.split("-")
-                if int(start) <= week_number <= int(end):
-                    return True
-            else:
-                if week_number == int(range_part):
-                    return True
-        return False
-    except:
-        return True
-
-
-def get_current_week_number() -> int:
-    """获取当前学期周次"""
-    # 简单实现：假设每年9月第一周为第1周
-    now = datetime.now()
-    
-    # 确定学期开始时间
-    if now.month >= 9:  # 秋季学期
-        semester_start = datetime(now.year, 9, 1)
-    elif now.month <= 2:  # 春季学期
-        semester_start = datetime(now.year, 2, 15)
-    else:  # 春季学期
-        semester_start = datetime(now.year, 2, 15)
-    
-    # 计算周数
-    weeks = (now - semester_start).days // 7 + 1
-    return max(1, min(weeks, 20))  # 限制在1-20周之间
-
-
-def get_time_slot_from_time(time_str: str) -> int:
-    """根据时间字符串获取时间段编号"""
-    try:
-        time = datetime.strptime(time_str, "%H:%M:%S").time()
-        hour = time.hour
+        if current_user["person_type"] != "student":
+            raise HTTPException(status_code=403, detail="只有学生可以退课")
         
-        if hour < 9:
-            return 1 if time.minute < 45 else 2
-        elif hour < 11:
-            return 3 if time.minute < 50 else 4
-        elif hour < 16:
-            return 5 if time.minute < 45 else 6
-        elif hour < 18:
-            return 7 if time.minute < 40 else 8
+        # 🔄 HTTP请求data-service进行退课
+        result = await http_client._request(
+            "DELETE",
+            "/delete/enrollments",
+            json_data={"enrollment_id": schedule_id}
+        )
+        
+        if result.get("status") == "success":
+            return {
+                "code": 0,
+                "message": "退课成功",
+                "data": {"schedule_id": schedule_id},
+                "timestamp": datetime.now().isoformat(),
+                "version": "v1.0"
+            }
         else:
-            if hour < 20:
-                return 9
-            elif hour < 21:
-                return 10 if time.minute < 35 else 11
-            else:
-                return 12
-    except:
-        return 1 
+            raise HTTPException(status_code=500, detail="退课失败")
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        return {
+            "code": 500,
+            "message": f"退课失败: {str(e)}",
+            "data": None,
+            "timestamp": datetime.now().isoformat(),
+            "version": "v1.0"
+        } 

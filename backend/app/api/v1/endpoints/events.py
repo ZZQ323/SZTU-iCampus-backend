@@ -1,293 +1,220 @@
 """
-活动模块 API
-提供活动列表、详情、报名、签到等功能
+活动事件模块 API - 通过HTTP请求data-service获取数据
 """
-import sqlite3
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Query, Depends
+
 from app.api.deps import get_current_user
+# 🔄 使用HTTP客户端进行真正的HTTP请求，不导入Python模块
+from app.core.http_client import http_client
 
 router = APIRouter()
 
-def get_db_connection():
-    """获取数据库连接"""
-    conn = sqlite3.connect('../../data-service/sztu_campus.db')
-    conn.row_factory = sqlite3.Row
-    return conn
-
-@router.get("/", summary="获取活动列表")
+@router.get("", summary="获取活动列表")
 async def get_events(
-    event_type: Optional[str] = Query(None, description="活动类型"),
+    category: Optional[str] = Query(None, description="活动分类"),
     status: Optional[str] = Query(None, description="活动状态"),
-    organizer: Optional[str] = Query(None, description="主办方"),
-    limit: int = Query(20, description="返回条数"),
-    offset: int = Query(0, description="偏移量")
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """获取活动列表"""
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
     try:
-        # 构建查询条件
-        where_conditions = ["is_deleted = 0"]
-        params = []
-        
-        if event_type:
-            where_conditions.append("event_type = ?")
-            params.append(event_type)
-        
+        filters = {"is_deleted": False}
+        if category:
+            filters["category"] = category
         if status:
-            where_conditions.append("status = ?")
-            params.append(status)
+            filters["status"] = status
         
-        if organizer:
-            where_conditions.append("organizer_name LIKE ?")
-            params.append(f"%{organizer}%")
+        # 🔄 HTTP请求data-service获取活动
+        result = await http_client.query_table(
+            "events",
+            filters=filters,
+            order_by="start_time ASC"
+        )
         
-        where_clause = " AND ".join(where_conditions)
-        
-        # 查询活动列表
-        sql = f"""
-            SELECT event_id, title, short_description, event_type, category,
-                   organizer_name, start_time, end_time, location_name,
-                   max_participants, current_participants, registration_required,
-                   registration_fee, status, poster_url, view_count
-            FROM events
-            WHERE {where_clause}
-            ORDER BY start_time DESC
-            LIMIT ? OFFSET ?
-        """
-        cursor.execute(sql, params + [limit, offset])
-        events = [dict(row) for row in cursor.fetchall()]
+        # 🔧 修复：提取events数组并按前端期望格式返回
+        events = result.get("data", {}).get("records", [])
         
         return {
             "code": 0,
             "message": "success",
             "data": {
-                "events": events,
-                "pagination": {
-                    "limit": limit,
-                    "offset": offset,
-                    "has_more": len(events) == limit
-                }
+                "events": events,  # 前端期望的格式
+                "total": len(events),
+                "has_more": False
             },
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
+            "version": "v1.0"
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"查询失败: {str(e)}")
-    finally:
-        conn.close()
-
+        return {
+            "code": 500,
+            "message": f"获取活动列表失败: {str(e)}",
+            "data": {
+                "events": [],  # 确保失败时也返回正确格式
+                "total": 0,
+                "has_more": False
+            },
+            "timestamp": datetime.now().isoformat(),
+            "version": "v1.0"
+        }
 
 @router.get("/{event_id}", summary="获取活动详情")
-async def get_event_detail(event_id: str):
+async def get_event_detail(
+    event_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
     """获取活动详情"""
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
     try:
-        sql = """
-            SELECT * FROM events
-            WHERE event_id = ? AND is_deleted = 0
-        """
-        cursor.execute(sql, (event_id,))
-        event = cursor.fetchone()
-        
-        if not event:
-            raise HTTPException(status_code=404, detail="活动不存在")
-        
-        event_dict = dict(event)
-        
-        # 更新浏览次数
-        cursor.execute(
-            "UPDATE events SET view_count = view_count + 1 WHERE event_id = ?",
-            (event_id,)
+        # 🔄 HTTP请求data-service获取活动详情
+        result = await http_client.query_table(
+            "events",
+            filters={
+                "event_id": event_id,
+                "is_deleted": False
+            },
+            limit=1
         )
-        conn.commit()
         
         return {
             "code": 0,
             "message": "success",
-            "data": event_dict,
-            "timestamp": datetime.now().isoformat()
+            "data": result,
+            "timestamp": datetime.now().isoformat(),
+            "version": "v1.0"
         }
         
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"查询失败: {str(e)}")
-    finally:
-        conn.close()
-
+        return {
+            "code": 500,
+            "message": f"获取活动详情失败: {str(e)}",
+            "data": None,
+            "timestamp": datetime.now().isoformat(),
+            "version": "v1.0"
+        }
 
 @router.post("/", summary="创建活动")
 async def create_event(
-    title: str,
-    description: str,
-    event_type: str,
-    start_time: str,
-    end_time: str,
-    location_name: str,
-    max_participants: Optional[int] = None,
-    current_user = Depends(get_current_user)
+    event_data: dict,
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """创建活动（教师/管理员）"""
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
+    """创建活动"""
     try:
-        person_id = current_user.get("person_id")
-        organizer_name = current_user.get("name", "未知用户")
+        # 生成活动ID
+        event_id = f"EVT{datetime.now().strftime('%Y%m%d%H%M%S')}"
         
-        event_id = f"EV{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        # 准备插入数据
+        insert_data = {
+            "event_id": event_id,
+            "title": event_data.get("title"),
+            "description": event_data.get("description"),
+            "category": event_data.get("category", "general"),
+            "start_time": event_data.get("start_time"),
+            "end_time": event_data.get("end_time"),
+            "location": event_data.get("location"),
+            "organizer_id": current_user["person_id"],
+            "max_participants": event_data.get("max_participants", 100),
+            "status": "upcoming",
+            "created_at": datetime.now().isoformat(),
+            "is_deleted": False
+        }
         
-        cursor.execute("""
-            INSERT INTO events 
-            (event_id, title, description, event_type, organizer_id, organizer_name,
-             start_time, end_time, location_name, max_participants, current_participants,
-             status, created_at, updated_at, is_deleted)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 'planned', 
-                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0)
-        """, (event_id, title, description, event_type, person_id, organizer_name,
-              start_time, end_time, location_name, max_participants))
-        
-        conn.commit()
+        # 🔄 HTTP请求data-service创建活动
+        result = await http_client._request(
+            "POST",
+            "/insert/events",
+            json_data=insert_data
+        )
         
         return {
             "code": 0,
             "message": "活动创建成功",
-            "data": {"event_id": event_id},
-            "timestamp": datetime.now().isoformat()
+            "data": insert_data,
+            "timestamp": datetime.now().isoformat(),
+            "version": "v1.0"
         }
         
     except Exception as e:
-        conn.rollback()
-        raise HTTPException(status_code=500, detail=f"创建失败: {str(e)}")
-    finally:
-        conn.close()
-
+        return {
+            "code": 500,
+            "message": f"创建活动失败: {str(e)}",
+            "data": None,
+            "timestamp": datetime.now().isoformat(),
+            "version": "v1.0"
+        }
 
 @router.post("/{event_id}/register", summary="报名活动")
 async def register_event(
     event_id: str,
-    current_user = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """报名活动"""
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
     try:
-        person_id = current_user.get("person_id")
-        participant_name = current_user.get("name", "未知用户")
+        # 准备注册数据
+        registration_data = {
+            "registration_id": f"REG{datetime.now().strftime('%Y%m%d%H%M%S')}",
+            "event_id": event_id,
+            "participant_id": current_user["person_id"],
+            "registration_time": datetime.now().isoformat(),
+            "status": "registered",
+            "is_deleted": False
+        }
         
-        # 检查活动是否存在
-        cursor.execute("SELECT * FROM events WHERE event_id = ? AND is_deleted = 0", (event_id,))
-        event = cursor.fetchone()
-        
-        if not event:
-            raise HTTPException(status_code=404, detail="活动不存在")
-        
-        # 检查是否已报名
-        cursor.execute("""
-            SELECT registration_id FROM event_registrations 
-            WHERE event_id = ? AND participant_id = ? AND is_deleted = 0
-        """, (event_id, person_id))
-        
-        if cursor.fetchone():
-            raise HTTPException(status_code=400, detail="您已报名此活动")
-        
-        # 创建报名记录
-        registration_id = f"REG{datetime.now().strftime('%Y%m%d%H%M%S')}{person_id[-4:]}"
-        
-        cursor.execute("""
-            INSERT INTO event_registrations
-            (registration_id, event_id, participant_id, participant_name,
-             registration_time, registration_status, created_at, updated_at, is_deleted)
-            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, 'registered', 
-                    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0)
-        """, (registration_id, event_id, person_id, participant_name))
-        
-        # 更新参与人数
-        cursor.execute("""
-            UPDATE events 
-            SET current_participants = current_participants + 1
-            WHERE event_id = ?
-        """, (event_id,))
-        
-        conn.commit()
+        # 🔄 HTTP请求data-service进行报名
+        result = await http_client._request(
+            "POST",
+            "/insert/event_registrations",
+            json_data=registration_data
+        )
         
         return {
             "code": 0,
             "message": "报名成功",
-            "data": {"registration_id": registration_id},
-            "timestamp": datetime.now().isoformat()
+            "data": registration_data,
+            "timestamp": datetime.now().isoformat(),
+            "version": "v1.0"
         }
         
-    except HTTPException:
-        raise
     except Exception as e:
-        conn.rollback()
-        raise HTTPException(status_code=500, detail=f"报名失败: {str(e)}")
-    finally:
-        conn.close()
-
+        return {
+            "code": 500,
+            "message": f"报名失败: {str(e)}",
+            "data": None,
+            "timestamp": datetime.now().isoformat(),
+            "version": "v1.0"
+        }
 
 @router.delete("/{event_id}/register", summary="取消报名")
-async def cancel_registration(
+async def cancel_event_registration(
     event_id: str,
-    current_user = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """取消报名"""
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
     try:
-        person_id = current_user.get("person_id")
-        
-        # 查询报名记录
-        cursor.execute("""
-            SELECT registration_id FROM event_registrations
-            WHERE event_id = ? AND participant_id = ? AND registration_status = 'registered' AND is_deleted = 0
-        """, (event_id, person_id))
-        
-        registration = cursor.fetchone()
-        if not registration:
-            raise HTTPException(status_code=404, detail="未找到报名记录")
-        
-        # 取消报名
-        cursor.execute("""
-            UPDATE event_registrations 
-            SET registration_status = 'cancelled', updated_at = CURRENT_TIMESTAMP
-            WHERE registration_id = ?
-        """, (registration["registration_id"],))
-        
-        # 更新参与人数
-        cursor.execute("""
-            UPDATE events 
-            SET current_participants = current_participants - 1
-            WHERE event_id = ?
-        """, (event_id,))
-        
-        conn.commit()
+        # 🔄 HTTP请求data-service取消报名
+        result = await http_client._request(
+            "DELETE",
+            "/delete/event_registrations",
+            json_data={
+                "event_id": event_id,
+                "participant_id": current_user["person_id"]
+            }
+        )
         
         return {
             "code": 0,
             "message": "取消报名成功",
-            "data": {},
-            "timestamp": datetime.now().isoformat()
+            "data": {"event_id": event_id},
+            "timestamp": datetime.now().isoformat(),
+            "version": "v1.0"
         }
         
-    except HTTPException:
-        raise
     except Exception as e:
-        conn.rollback()
-        raise HTTPException(status_code=500, detail=f"取消失败: {str(e)}")
-    finally:
-        conn.close() 
+        return {
+            "code": 500,
+            "message": f"取消报名失败: {str(e)}",
+            "data": None,
+            "timestamp": datetime.now().isoformat(),
+            "version": "v1.0"
+        } 

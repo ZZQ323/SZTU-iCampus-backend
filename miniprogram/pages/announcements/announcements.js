@@ -14,7 +14,8 @@ Page({
       { label: '教务', value: 'academic' },
       { label: '学工', value: 'student' },
       { label: '后勤', value: 'logistics' },
-      { label: '重要', value: 'important' }
+      { label: '重要', value: 'important' },
+      { label: '收藏', value: 'collected' }
     ],
     loading: false,
     showRefreshTip: false
@@ -30,6 +31,10 @@ Page({
     // 页面每次可见时调用。常用来刷新 UI、重连 WebSocket 等
     if (this.data.announcements.length === 0) {
       this.fetchAnnouncements()
+    } else {
+      // 如果公告数据已存在，更新收藏状态并重新过滤
+      this.updateCollectionStatus()
+      this.filterAnnouncements()
     }
   },
 
@@ -45,8 +50,8 @@ Page({
         order: 'desc'
       })
       
-      // 转换数据格式
-      const announcements = (announcementsData.announcements || []).map(item => ({
+      // 转换数据格式 - 🔧 修复数据访问路径
+      const announcements = (announcementsData.data?.announcements || []).map(item => ({
         id: item.announcement_id,
         title: item.title,
         content: item.content || item.summary || '',
@@ -54,7 +59,9 @@ Page({
         category: this.mapCategoryFromApi(item.category),
         priority: item.priority === 'high' ? 'high' : 'normal',
         date: item.publish_time ? item.publish_time.split('T')[0] : '',
-        time: item.publish_time ? item.publish_time.split('T')[1].substring(0, 5) : '',
+        time: item.publish_time && item.publish_time.includes('T') 
+          ? item.publish_time.split('T')[1].substring(0, 5) 
+          : item.publish_time || '',
         isRead: false, // 后续可以通过阅读记录API获取
         isUrgent: item.is_urgent,
         isPinned: item.is_pinned,
@@ -66,6 +73,8 @@ Page({
         filteredAnnouncements: announcements
       })
       
+      // 更新收藏状态
+      this.updateCollectionStatus()
       this.filterAnnouncements()
     } catch (error) {
       console.error('获取公告失败:', error)
@@ -136,6 +145,11 @@ Page({
     if (currentCategory !== 'all') {
       if (currentCategory === 'important') {
         filtered = filtered.filter(item => item.priority === 'high')
+      } else if (currentCategory === 'collected') {
+        // 收藏分类：从本地存储获取已收藏的公告
+        const collectedAnnouncements = wx.getStorageSync('collectedAnnouncements') || []
+        const collectedIds = new Set(collectedAnnouncements.map(item => item.id))
+        filtered = filtered.filter(item => collectedIds.has(item.id))
       } else {
         filtered = filtered.filter(item => item.category === currentCategory)
       }
@@ -168,17 +182,17 @@ Page({
       await API.recordReading('announcement', announcement.id, 0)
       
       // 本地标记为已读
-      const updatedAnnouncements = this.data.announcements.map(item => {
-        if (item.id === announcement.id) {
-          return { ...item, isRead: true }
-        }
-        return item
-      })
-      
-      this.setData({
-        announcements: updatedAnnouncements
-      })
-      this.filterAnnouncements()
+    const updatedAnnouncements = this.data.announcements.map(item => {
+      if (item.id === announcement.id) {
+        return { ...item, isRead: true }
+      }
+      return item
+    })
+    
+    this.setData({
+      announcements: updatedAnnouncements
+    })
+    this.filterAnnouncements()
     } catch (error) {
       console.error('标记已读失败:', error)
       // 即使标记失败也继续跳转
@@ -226,5 +240,20 @@ Page({
     wx.navigateBack({
       delta: 1
     });
-  }
+  },
+
+  // 更新收藏状态
+  updateCollectionStatus() {
+    const collectedAnnouncements = wx.getStorageSync('collectedAnnouncements') || []
+    const collectedIds = new Set(collectedAnnouncements.map(item => item.id))
+    
+    const updatedAnnouncements = this.data.announcements.map(item => ({
+      ...item,
+      isCollected: collectedIds.has(item.id)
+    }))
+    
+    this.setData({
+      announcements: updatedAnnouncements
+    })
+  },
 }); 

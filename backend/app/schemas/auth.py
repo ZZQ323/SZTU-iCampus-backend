@@ -8,9 +8,9 @@ from datetime import datetime
 
 class LoginRequest(BaseModel):
     """登录请求"""
-    login_id: str = Field(..., description="登录ID（学号或工号）", min_length=4, max_length=20)
-    password: str = Field(..., description="密码", min_length=6, max_length=50)
-    remember_me: bool = Field(False, description="记住我")
+    login_id: str = Field(..., description="登录ID（学号或工号）")
+    password: str = Field(..., description="密码")
+    remember_me: bool = Field(False, description="是否记住登录状态")
     
     @validator('login_id')
     def validate_login_id(cls, v):
@@ -115,12 +115,11 @@ class WechatBindCheckResponse(BaseModel):
     user_info: Optional[UserInfo] = Field(None, description="用户信息（如果已绑定）")
     openid: Optional[str] = Field(None, description="微信OpenID")
 
-class WechatBindRequest(BaseModel):
+class WeChatBindRequest(BaseModel):
     """微信绑定请求"""
-    code: str = Field(..., description="微信授权码")
-    login_id: str = Field(..., description="校园账号ID")
-    password: str = Field(..., description="校园账号密码")
-    user_info: Optional[Dict[str, Any]] = Field(None, description="微信用户信息")
+    wechat_openid: str = Field(..., description="微信OpenID")
+    wechat_nickname: Optional[str] = Field(None, description="微信昵称")
+    wechat_avatar: Optional[str] = Field(None, description="微信头像URL")
 
 class WechatUnbindRequest(BaseModel):
     """微信解绑请求"""
@@ -143,3 +142,26 @@ class WechatUserInfo(BaseModel):
     city: Optional[str] = Field(None, description="城市")
     province: Optional[str] = Field(None, description="省份")
     country: Optional[str] = Field(None, description="国家") 
+
+class PasswordChangeRequest(BaseModel):
+    """密码修改请求模型"""
+    current_password: str = Field(..., description="当前密码")
+    new_password: str = Field(..., description="新密码", min_length=6, max_length=20)
+    confirm_password: str = Field(..., description="确认新密码")
+
+class PasswordResetRequest(BaseModel):
+    """密码重置请求模型"""
+    username: str = Field(..., description="用户名")
+    email: str = Field(..., description="邮箱地址")
+    verification_code: str = Field(..., description="验证码")
+    new_password: str = Field(..., description="新密码", min_length=6, max_length=20)
+
+class PhoneVerificationRequest(BaseModel):
+    """手机验证请求模型"""
+    phone: str = Field(..., description="手机号码")
+    verification_code: str = Field(..., description="验证码")
+
+class EmailVerificationRequest(BaseModel):
+    """邮箱验证请求模型"""
+    email: str = Field(..., description="邮箱地址")
+    verification_code: str = Field(..., description="验证码") 

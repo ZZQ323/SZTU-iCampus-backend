@@ -12,8 +12,9 @@ class API {
   static async request(url, options = {}) {
     const token = wx.getStorageSync('token');
     
+    console.log('🔍 [API调试] 当前存储的token:', token ? token.substring(0, 20) + '...' : 'null');
+    
     const defaultOptions = {
-      timeout: 10000,
       header: {
         'Content-Type': 'application/json',
         ...(token && { 'Authorization': `Bearer ${token}` })
@@ -21,6 +22,8 @@ class API {
     };
 
     const finalOptions = { ...defaultOptions, ...options };
+    
+    console.log('🔍 [API调试] 完整请求头:', finalOptions.header);
     
     try {
       console.log(`🔗 API请求: ${finalOptions.method || 'GET'} ${BASE_URL}${url}`);
@@ -30,20 +33,52 @@ class API {
           url: `${BASE_URL}${url}`,
           ...finalOptions,
           success: resolve,
-          fail: reject
+          fail: (error) => {
+            console.error('❌ 网络请求失败:', error);
+            // 提供更详细的错误信息
+            if (error.errMsg && error.errMsg.includes('timeout')) {
+              reject(new Error('请求超时，请检查网络连接或稍后重试'));
+            } else if (error.errMsg && error.errMsg.includes('fail')) {
+              reject(new Error('网络连接失败，请检查服务器状态'));
+            } else {
+              reject(error);
+            }
+          }
         });
       });
 
-      console.log(`✅ API响应:`, response.data);
+      console.log(`✅ API响应状态:`, response.statusCode);
+      console.log(`✅ API响应数据:`, response.data);
 
-      if (response.statusCode === 200 && response.data.code === 0) {
-        return response.data.data;
+      if (response.statusCode === 200) {
+        // 🔧 返回完整的响应对象，让调用方决定如何处理
+        return response.data;
+      } else if (response.statusCode === 401) {
+        // 处理认证失败
+        console.warn('⚠️ 认证失败，清除token');
+        wx.removeStorageSync('token');
+        throw new Error('登录已过期，请重新登录');
+      } else if (response.statusCode === 403) {
+        throw new Error('权限不足');
+      } else if (response.statusCode === 404) {
+        throw new Error('请求的资源不存在');
+      } else if (response.statusCode >= 500) {
+        throw new Error('服务器内部错误，请稍后重试');
       } else {
-        throw new Error(response.data.message || '请求失败');
+        console.error('❌ API响应错误:', {
+          statusCode: response.statusCode,
+          response: response.data
+        });
+        throw new Error(response.data?.message || `请求失败(${response.statusCode})`);
       }
     } catch (error) {
       console.error(`❌ API错误:`, error);
-      throw error;
+      // 确保总是抛出Error对象
+      if (error instanceof Error) {
+        throw error;
+      } else {
+        throw new Error(error.message || '未知错误');
+      }
     }
   }
 
@@ -51,11 +86,20 @@ class API {
    * GET 请求
    */
   static get(url, params = {}) {
-    const queryString = Object.keys(params)
-      .map(key => `${key}=${encodeURIComponent(params[key])}`)
+    // 🔧 过滤掉 null、undefined 和空字符串参数
+    const filteredParams = Object.keys(params)
+      .filter(key => params[key] !== null && params[key] !== undefined && params[key] !== '')
+      .reduce((obj, key) => {
+        obj[key] = params[key];
+        return obj;
+      }, {});
+    
+    const queryString = Object.keys(filteredParams)
+      .map(key => `${key}=${encodeURIComponent(filteredParams[key])}`)
       .join('&');
     
     const fullUrl = queryString ? `${url}?${queryString}` : url;
+    console.log('🔍 [API调试] 请求URL:', `${BASE_URL}${fullUrl}`);
     
     return this.request(fullUrl, { method: 'GET' });
   }
@@ -193,6 +237,20 @@ class API {
     return this.get(`/exams/${examId}/countdown`);
   }
 
+  /**
+   * 获取考试统计
+   */
+  static getExamStatistics() {
+    return this.get('/exams/statistics');
+  }
+
+  /**
+   * 获取成绩预告通知
+   */
+  static getGradeNotifications() {
+    return this.get('/grades/notifications');
+  }
+
   // ============ 图书馆相关 API ============
   
   /**
@@ -228,6 +286,13 @@ class API {
    */
   static getSeats() {
     return this.get('/library/seats');
+  }
+
+  /**
+   * 获取座位信息（别名，兼容性）
+   */
+  static getSeatInfo() {
+    return this.getSeats();
   }
 
   /**

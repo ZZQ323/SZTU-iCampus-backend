@@ -9,13 +9,13 @@
   <view class="filter-section">
     <view class="filter-item">
       <text class="filter-label">类型:</text>
-      <picker bindchange="onTypeChange" value="{{eventTypes.indexOf(selectedType)}}" range="{{eventTypes}}">
-        <view class="picker-text">{{selectedType}} ▼</view>
+      <picker bindchange="onTypeChange" range="{{eventTypes}}" range-key="text">
+        <view class="picker-text">{{selectedTypeText}} ▼</view>
       </picker>
     </view>
     <view class="filter-item">
       <text class="filter-label">状态:</text>
-      <picker bindchange="onStatusChange" value="{{eventStatuses.indexOf(selectedStatus)}}" range="{{eventStatuses}}">
+      <picker bindchange="onStatusChange" range="{{eventStatuses}}">
         <view class="picker-text">{{selectedStatus}} ▼</view>
       </picker>
     </view>
@@ -37,6 +37,7 @@
       wx:for="{{events}}" 
       wx:key="id" 
       class="event-item"
+      data-event="{{item}}"
       data-id="{{item.id}}"
       data-title="{{item.title}}"
       data-description="{{item.description}}"
@@ -46,7 +47,7 @@
       data-end_time="{{item.end_time}}"
       data-requirements="{{item.requirements}}"
       data-contact_info="{{item.contact_info}}"
-      bindtap="viewEvent"
+      bindtap="viewEventDetail"
     >
       <view class="event-header">
         <view class="event-title">{{item.title}}</view>
@@ -75,7 +76,7 @@
         <t-icon name="user-group" size="24rpx" color="#666" />
         <text class="participants-text">{{item.current_participants}}/{{item.max_participants}}人</text>
         <view class="progress-bar">
-          <view class="progress-fill" style="width: {{item.participationPercent}}%"></view>
+          <view class="progress-fill" style="width: {{item.participationPercent}}\%"></view>
         </view>
       </view>
       

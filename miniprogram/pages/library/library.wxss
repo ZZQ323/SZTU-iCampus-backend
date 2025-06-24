@@ -171,8 +171,9 @@
 
 .book-actions {
   display: flex;
-  gap: 8px;
-  margin-top: auto;
+  flex: auto;
+  flex-direction: row;
+  flex-wrap: wrap;
 }
 
 .history-list {

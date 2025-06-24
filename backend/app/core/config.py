@@ -26,17 +26,17 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7天
     ALGORITHM: str = "HS256"
     
-    # 数据库配置
-    DATABASE_PATH: str = os.getenv("DATABASE_PATH", "D:/ProjectStore/SZTU-iCampus/data-service/sztu_campus.db")
+    # 🔄 数据服务配置（恢复启用）
+    DATA_SERVICE_ENABLED: bool = True  # 重新启用数据服务调用
+    DATA_SERVICE_URL: str = os.getenv("DATA_SERVICE_URL", "http://127.0.0.1:8001")
+    DATA_SERVICE_API_KEY: str = "sztu-data-service-key-2024"
+    DATA_SERVICE_TIMEOUT: int = 30
     
-    # 数据服务配置 🚀 新增
-    DATA_SERVICE_ENABLED: bool = True  # 数据服务开关
-    DATA_SERVICE_URL: str = os.getenv("DATA_SERVICE_URL", "http://localhost:8001")
-    DATA_SERVICE_API_KEY: str = "sztu-data-service-key-2024"  # API密钥
-    DATA_SERVICE_TIMEOUT: int = 30  # 请求超时时间
+    # 数据库配置（保留用于健康检查）
+    DATABASE_PATH: str = os.getenv("DATABASE_PATH", "data-service/sztu_campus.db")
     
     # Mock数据配置
-    USE_MOCK_DATA: bool = False  # Mock数据开关，False时使用数据服务
+    USE_MOCK_DATA: bool = False  # 使用真实数据服务数据
     
     # Redis配置（缓存）
     REDIS_URL: str = "redis://localhost:6379/1"
@@ -57,7 +57,7 @@ class Settings(BaseSettings):
         "http://localhost:8080",
         "http://localhost:3000",
         "https://localhost",
-        "https://localhost:8080",
+        "https://localhost:8080", 
         "https://localhost:3000",
     ]
     
@@ -90,30 +90,6 @@ class Settings(BaseSettings):
 # 全局设置实例
 settings = Settings()
 
-# 数据服务API路径配置
-DATA_SERVICE_PATHS = {
-    "health": "/health",
-    "stats": "/stats",
-    "persons": "/persons",
-    "courses": "/courses", 
-    "grades": "/grades",
-    "announcements": "/announcements",
-    "notifications": "/notifications",
-    "library": "/library",
-    "transactions": "/transactions",
-    "stream_notifications": "/stream/notifications",
-}
-
-# 缓存键配置
-CACHE_KEYS = {
-    "user_info": "user:{user_id}",
-    "course_schedule": "schedule:{user_id}:{semester}",
-    "announcements": "announcements:page:{page}",
-    "library_info": "library:{user_id}",
-    "grades": "grades:{user_id}:{semester}",
-    "stats": "stats:general",
-}
-
 # 权限配置
 PERMISSIONS = {
     "admin": ["read", "write", "delete", "manage"],
@@ -144,11 +120,10 @@ def ensure_directories():
     upload_dir = Path(settings.UPLOAD_PATH)
     upload_dir.mkdir(parents=True, exist_ok=True)
     
-    # 检查数据库文件是否存在
-    db_path = Path(settings.DATABASE_PATH)
-    if not db_path.exists():
-        print(f"警告: 数据库文件不存在: {db_path}")
-        print("请确保数据服务已正确生成数据库文件")
+    print(f"📁 日志目录: {log_dir.absolute()}")
+    print(f"📁 上传目录: {upload_dir.absolute()}")
+    print(f"🔗 数据服务: {settings.DATA_SERVICE_URL}")
+    print(f"✅ 配置加载完成")
 
 # 在导入时确保目录存在
 ensure_directories() 

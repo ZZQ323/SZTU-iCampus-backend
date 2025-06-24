@@ -7,7 +7,7 @@
   <view class="semester-selector">
     <view class="semester-info">
       <text class="current-semester">{{gradesData.semester_info.academic_year}}</text>
-      <text class="semester-name">第{{gradesData.semester_info.current_semester}}学期</text>
+      <text class="semester-name">{{gradesData.semesterDisplayName || '当前学期'}}</text>
     </view>
     <view class="semester-picker">
       <picker 

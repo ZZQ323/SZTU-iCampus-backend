@@ -3,7 +3,8 @@ const app = getApp()
 Page({
   data: {
     announcement: {},
-    loading: true
+    loading: true,
+    isCollected: false  // 添加收藏状态
   },
 
   onLoad(options) {
@@ -27,6 +28,9 @@ Page({
         loading: false
       })
       
+      // 检查收藏状态
+      this.checkCollectionStatus()
+      
       console.log('[公告详情] 公告数据加载完成:', announcement.title)
     } else {
       // 如果没有公告数据，返回上一页
@@ -38,6 +42,17 @@ Page({
         wx.navigateBack()
       }, 1500)
     }
+  },
+
+  // 检查收藏状态
+  checkCollectionStatus() {
+    const announcement = this.data.announcement
+    const collectedAnnouncements = wx.getStorageSync('collectedAnnouncements') || []
+    const isCollected = collectedAnnouncements.some(item => item.id === announcement.id)
+    
+    this.setData({
+      isCollected: isCollected
+    })
   },
 
   onBack() {
@@ -55,38 +70,47 @@ Page({
 
   onCollect() {
     const announcement = this.data.announcement
+    const isCollected = this.data.isCollected
     
     // 获取已收藏的公告列表
     let collectedAnnouncements = wx.getStorageSync('collectedAnnouncements') || []
     
-    // 检查是否已收藏
-    const isCollected = collectedAnnouncements.some(item => item.id === announcement.id)
-    
     if (isCollected) {
-      wx.showToast({
-        title: '已经收藏过了',
-        icon: 'none'
+      // 取消收藏
+      collectedAnnouncements = collectedAnnouncements.filter(item => item.id !== announcement.id)
+      wx.setStorageSync('collectedAnnouncements', collectedAnnouncements)
+      
+      this.setData({
+        isCollected: false
       })
-      return
+      
+      wx.showToast({
+        title: '取消收藏',
+        icon: 'success'
+      })
+    } else {
+      // 添加收藏
+      collectedAnnouncements.unshift({
+        ...announcement,
+        collectedAt: new Date().toISOString()
+      })
+      
+      // 保存到本地存储（最多保存50条）
+      if (collectedAnnouncements.length > 50) {
+        collectedAnnouncements = collectedAnnouncements.slice(0, 50)
+      }
+      
+      wx.setStorageSync('collectedAnnouncements', collectedAnnouncements)
+      
+      this.setData({
+        isCollected: true
+      })
+      
+      wx.showToast({
+        title: '收藏成功',
+        icon: 'success'
+      })
     }
-    
-    // 添加到收藏列表
-    collectedAnnouncements.unshift({
-      ...announcement,
-      collectedAt: new Date().toISOString()
-    })
-    
-    // 保存到本地存储（最多保存50条）
-    if (collectedAnnouncements.length > 50) {
-      collectedAnnouncements = collectedAnnouncements.slice(0, 50)
-    }
-    
-    wx.setStorageSync('collectedAnnouncements', collectedAnnouncements)
-    
-    wx.showToast({
-      title: '收藏成功',
-      icon: 'success'
-    })
   },
 
   onCopy() {

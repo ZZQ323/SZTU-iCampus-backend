@@ -297,13 +297,13 @@ Page({
 
       console.log('[登录] API响应', response)
 
-      if (response.statusCode === 200 && response.data.access_token) {
-        const { access_token, user } = response.data
+      if (response.statusCode === 200 && response.data.code === 0) {
+        const { access_token, user_info } = response.data.data
         
         // 保存登录信息
         wx.setStorageSync('token', access_token)
-        wx.setStorageSync('userInfo', user)
-        app.globalData.userInfo = user
+        wx.setStorageSync('userInfo', user_info)
+        app.globalData.userInfo = user_info
 
         wx.showToast({
           title: '登录成功',
@@ -314,7 +314,7 @@ Page({
           wx.switchTab({ url: '/pages/index/index' })
         }, 1500)
       } else {
-        throw new Error(response.data?.msg || '登录失败')
+        throw new Error(response.data?.message || '登录失败')
       }
     } catch (error) {
       console.error('[登录] 失败', error)
@@ -324,8 +324,8 @@ Page({
         errorMsg = '用户名或密码错误'
       } else if (error.statusCode === 423) {
         errorMsg = '账户已被锁定'  
-      } else if (error.data?.msg) {
-        errorMsg = error.data.msg
+      } else if (error.data?.message) {
+        errorMsg = error.data.message
       }
 
       wx.showToast({

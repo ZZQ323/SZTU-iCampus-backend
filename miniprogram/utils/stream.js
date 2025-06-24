@@ -114,7 +114,7 @@ class StreamManager {
       const response = await this.request({
         url: '/stream/sync',
         method: 'GET',
-        data: {
+        data: { 
           since: this.lastSyncTime
         },
         header: {

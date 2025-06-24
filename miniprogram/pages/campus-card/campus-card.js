@@ -221,35 +221,35 @@ Page({
         category: this.mapTransactionCategory(item.category, item.merchant_name),
         description: item.description || this.getDefaultDescription(item.transaction_type, item.merchant_name)
       }))
-      
-      // 计算今日和本月消费
-      const today = new Date().toDateString()
-      const thisMonth = new Date().getMonth()
-      
-      let todaySpending = 0
-      let monthlySpending = 0
-      
+    
+    // 计算今日和本月消费
+    const today = new Date().toDateString()
+    const thisMonth = new Date().getMonth()
+    
+    let todaySpending = 0
+    let monthlySpending = 0
+    
       recentRecords.forEach(record => {
-        const recordDate = new Date(record.time)
-        
-        if (record.type === 'consume') {
-          const amount = Math.abs(parseFloat(record.amount))
-          
-          if (recordDate.toDateString() === today) {
-            todaySpending += amount
-          }
-          
-          if (recordDate.getMonth() === thisMonth) {
-            monthlySpending += amount
-          }
-        }
-      })
+      const recordDate = new Date(record.time)
       
-      this.setData({
+      if (record.type === 'consume') {
+        const amount = Math.abs(parseFloat(record.amount))
+        
+        if (recordDate.toDateString() === today) {
+          todaySpending += amount
+        }
+        
+        if (recordDate.getMonth() === thisMonth) {
+          monthlySpending += amount
+        }
+      }
+    })
+    
+    this.setData({
         recentRecords: recentRecords,
-        todaySpending: todaySpending.toFixed(2),
-        monthlySpending: monthlySpending.toFixed(2)
-      })
+      todaySpending: todaySpending.toFixed(2),
+      monthlySpending: monthlySpending.toFixed(2)
+    })
     } catch (error) {
       console.error('获取消费记录失败:', error)
       // 出错时使用空数组
@@ -331,9 +331,9 @@ Page({
         daily: this.processDailyStats(statsData.daily_stats || []),
         categories: this.processCategoryStats(statsData.category_stats || []),
         locations: this.processLocationStats(statsData.location_stats || [])
-      }
-      
-      this.setData({
+    }
+    
+    this.setData({
         spendingStats: spendingStats
       })
     } catch (error) {
@@ -470,39 +470,23 @@ Page({
   },
 
   // 处理充值流程
-  processRecharge(option, amount) {
+  async processRecharge(option, amount) {
+    try {
     wx.showLoading({
       title: `${option.name}充值中...`
     })
     
-    // 模拟充值过程
-    setTimeout(() => {
-      wx.hideLoading()
-      
-      // 更新余额
-      const currentBalance = parseFloat(this.data.cardInfo.balance)
-      const newBalance = (currentBalance + amount).toFixed(2)
-      
-      this.setData({
-        'cardInfo.balance': newBalance,
-        'cardInfo.lastUpdateTime': new Date().toLocaleString()
+      const response = await API.rechargeCampusCard({
+        amount: amount,
+        payment_method: option.method || 'wechat'
       })
       
-      // 添加充值记录
-      const newRecord = {
-        id: Date.now(),
-        location: '充值机',
-        time: new Date().toLocaleString(),
-        amount: `+${amount.toFixed(2)}`,
-        balance: newBalance,
-        type: 'recharge',
-        category: 'recharge',
-        description: `${option.name}充值`
-      }
-      
-      this.setData({
-        recentRecords: [newRecord, ...this.data.recentRecords]
-      })
+      if (response.code === 0) {
+        wx.hideLoading()
+        
+        // 刷新卡片信息和消费记录
+        await this.loadCardInfo()
+        await this.loadRecentRecords()
       
       wx.showToast({
         title: '充值成功',
@@ -512,7 +496,18 @@ Page({
       
       // 触觉反馈
       wx.vibrateShort()
-    }, 2000)
+      } else {
+        throw new Error(response.message || '充值失败')
+      }
+    } catch (error) {
+      console.error('[校园卡] ❌ 充值失败:', error)
+      wx.hideLoading()
+      wx.showToast({
+        title: '充值失败，请重试',
+        icon: 'none',
+        duration: 2000
+      })
+    }
   },
 
   // 查看消费记录

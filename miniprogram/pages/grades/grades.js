@@ -1,10 +1,11 @@
 const app = getApp()
+const API = require('../../utils/api')
 
 Page({
   data: {
     gradesData: {
       semester_info: {
-        current_semester: "2024-1",
+        current_semester: "2024-2025-1",
         academic_year: "2024-2025"
       },
       summary: {
@@ -133,10 +134,10 @@ Page({
     
     // 学期选择
     semesterRange: [
-      {label: "2024-2025学年 第一学期", value: "2024-1"},
-      {label: "2023-2024学年 第二学期", value: "2023-2"},
-      {label: "2023-2024学年 第一学期", value: "2023-1"},
-      {label: "2022-2023学年 第二学期", value: "2022-2"}
+      {label: "2024-2025学年 第一学期", value: "2024-2025-1"},
+      {label: "2023-2024学年 第二学期", value: "2023-2024-2"},
+      {label: "2023-2024学年 第一学期", value: "2023-2024-1"},
+      {label: "2022-2023学年 第二学期", value: "2022-2023-2"}
     ],
     semesterIndex: 0,
     
@@ -157,6 +158,12 @@ Page({
    */
   onLoad() {
     console.log('成绩查询页面加载');
+    
+    // 设置初始学期显示名称
+    this.setData({
+      'gradesData.semesterDisplayName': this.formatSemesterDisplay(this.data.gradesData.semester_info.current_semester)
+    });
+    
     this.loadGradesData();
     this.applyFilter();
   },
@@ -185,27 +192,61 @@ Page({
     try {
       this.setData({ loading: true });
       
-      // 这里应该调用后端API获取成绩数据
-      // const res = await wx.request({
-      //   url: 'http://localhost:8000/api/v1/simple/grades',
-      //   method: 'GET',
-      //   data: {
-      //     semester: this.data.gradesData.semester_info.current_semester
-      //   },
-      //   header: {
-      //     'Authorization': 'Bearer ' + wx.getStorageSync('token')
-      //   }
-      // });
-      // 
-      // if (res.data.success) {
-      //   this.setData({
-      //     gradesData: res.data.data
-      //   });
-      //   this.applyFilter();
-      // }
-
-      // 模拟API调用延迟
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // 独立调用成绩数据（主要数据）
+      const gradesResponse = await API.getGrades({
+        semester: this.data.gradesData.semester_info.current_semester
+      });
+      
+      console.log('成绩数据响应:', gradesResponse);
+      
+      // 处理成绩数据
+      if (gradesResponse && gradesResponse.code === 0) {
+        const gradesData = gradesResponse.data;
+        
+        // 默认使用成绩数据中的summary
+        let summaryData = gradesData.summary || {};
+        
+        // 尝试获取统计数据（不影响主流程）
+        try {
+          const statsResponse = await API.getGradeStatistics();
+          console.log('统计数据响应:', statsResponse);
+          
+          if (statsResponse && statsResponse.code === 0) {
+            const stats = statsResponse.data;
+            // 合并统计数据到summary中
+            summaryData = {
+              ...summaryData,
+              total_courses: gradesData.summary?.total_courses || stats.total_courses || 0,
+              total_credits: gradesData.summary?.total_credits || stats.total_credits || 0,
+              avg_score: gradesData.summary?.avg_score || stats.avg_score || 0,
+              gpa: gradesData.summary?.gpa || stats.gpa || 0,
+              rank: summaryData.rank || null,
+              total_students: summaryData.total_students || null,
+              // 可以从统计API获取更详细的分析数据
+              overall_gpa: stats.overall_gpa || summaryData.gpa,
+              overall_avg_score: stats.overall_avg_score || summaryData.avg_score
+            };
+          }
+        } catch (statsError) {
+          console.warn('获取统计数据失败，使用默认数据:', statsError);
+          // 继续使用基础summary数据
+        }
+        
+        this.setData({
+          'gradesData.semester_info': gradesData.semester_info,
+          'gradesData.grades': gradesData.grades || [],
+          'gradesData.summary': summaryData,
+          'gradesData.semesterDisplayName': this.formatSemesterDisplay(gradesData.semester_info?.current_semester)
+        });
+        
+        this.applyFilter();
+      } else {
+        console.error('成绩API返回错误:', gradesResponse);
+        wx.showToast({
+          title: gradesResponse?.message || '获取成绩数据失败',
+          icon: 'error'
+        });
+      }
       
       console.log('成绩数据加载完成');
     } catch (error) {
@@ -241,7 +282,8 @@ Page({
     
     this.setData({
       semesterIndex,
-      'gradesData.semester_info.current_semester': semester
+      'gradesData.semester_info.current_semester': semester,
+      'gradesData.semesterDisplayName': this.formatSemesterDisplay(semester)
     });
     
     // 重新加载该学期的成绩数据
@@ -355,5 +397,24 @@ Page({
       title: '我的成绩单 - SZTU校园服务',
       imageUrl: '/assets/icons/Grade.png'
     };
+  },
+
+  /**
+   * 格式化学期显示
+   */
+  formatSemesterDisplay(semester) {
+    if (!semester) return '';
+    
+    // 解析 "2024-2025-1" 格式
+    const parts = semester.split('-');
+    if (parts.length === 3) {
+      const startYear = parts[0];
+      const endYear = parts[1];
+      const semesterNum = parts[2];
+      const semesterName = semesterNum === '1' ? '第一学期' : '第二学期';
+      return `${startYear}-${endYear}学年 ${semesterName}`;
+    }
+    
+    return semester;
   }
 }); 

@@ -51,6 +51,7 @@
 - `PUT /api/v1/library/borrows/{record_id}/renew` - 续借图书
 - `GET /api/v1/library/seats` - 获取座位信息
 - `POST /api/v1/library/seats/reserve` - 预约座位
+- `GET /api/v1/library/my-reservations` - 获取我的座位预约
 
 ### 2.7 校园卡模块 `/api/v1/campus-card`
 - `GET /api/v1/campus-card/info` - 获取校园卡信息
@@ -314,4 +315,774 @@
     "system_message": "系统消息"
   }
 }
-``` 
+```
+
+## 6. 详细数据格式规范
+
+### 6.1 成绩查询响应 `GET /api/v1/grades`
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "semester_info": {
+      "current_semester": "2024-2025-1",
+      "academic_year": "2024-2025"
+    },
+    "student_id": "202100043213",
+    "grades": [
+      {
+        "course_id": "MATH001",
+        "course_name": "高等数学A",
+        "course_code": "MATH001",
+        "credits": 4.0,
+        "teacher": "张教授",
+        "regular_score": 85.0,
+        "midterm_score": 88.0,
+        "final_score": 92.0,
+        "lab_score": 0.0,
+        "homework_score": 0.0,
+        "total_score": 89.2,
+        "grade_level": "A",
+        "gpa_points": 4.0,
+        "course_type": "required",
+        "semester": "2024-2025-1",
+        "academic_year": "2024-2025",
+        "is_passed": true,
+        "teacher_comment": null
+      }
+    ],
+    "summary": {
+      "total_courses": 8,
+      "passed_courses": 8,
+      "total_credits": 24.5,
+      "avg_score": 87.3,
+      "gpa": 3.67,
+      "pass_rate": 100.0
+    }
+  },
+  "timestamp": "2024-03-01T12:30:00Z",
+  "version": "v1.0"
+}
+```
+
+### 6.2 成绩统计响应 `GET /api/v1/grades/statistics`
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "student_id": "202100043213",
+    "overall": {
+      "total_semesters": 3,
+      "total_courses": 24,
+      "total_credits": 72.0,
+      "overall_gpa": 3.8,
+      "overall_avg_score": 86.5
+    },
+    "semester_trends": [
+      {
+        "semester": "2024-2025-1",
+        "academic_year": "2024-2025",
+        "course_count": 8,
+        "total_credits": 24.0,
+        "avg_score": 87.3,
+        "gpa": 3.67,
+        "pass_rate": 100.0
+      }
+    ],
+    "course_type_analysis": {
+      "required": {
+        "count": 15,
+        "total_credits": 45.0,
+        "avg_score": 86.8,
+        "gpa": 3.7
+      },
+      "elective": {
+        "count": 6,
+        "total_credits": 18.0,
+        "avg_score": 89.2,
+        "gpa": 4.0
+      }
+    },
+    "performance_analysis": {
+      "excellent_count": 18,
+      "good_count": 5,
+      "average_count": 1,
+      "poor_count": 0
+    }
+  },
+  "timestamp": "2024-03-01T12:30:00Z",
+  "version": "v1.0"
+}
+```
+
+### 6.3 公告列表响应 `GET /api/v1/announcements`
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "announcements": [
+      {
+        "announcement_id": "ANN2025001",
+        "title": "关于2024年寒假放假安排的通知",
+        "content": "各位同学：根据学校校历安排...",
+        "summary": "2024年寒假放假安排通知",
+        "publisher_id": "P2025063441",
+        "publisher_name": "何平",
+        "department": "教务处",
+        "category": "education",
+        "priority": "high",
+        "is_urgent": true,
+        "is_pinned": true,
+        "publish_time": "2025-06-03T22:59:55.149634",
+        "view_count": 476,
+        "like_count": 0,
+        "comment_count": 0
+      }
+    ],
+    "total": 8,
+    "page": 1,
+    "size": 10,
+    "pages": 1
+  },
+  "timestamp": "2024-03-01T12:30:00Z",
+  "version": "v1.0"
+}
+```
+
+### 6.4 公告详情响应 `GET /api/v1/announcements/{id}`
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "announcement_id": "ANN2025001",
+    "title": "关于2024年寒假放假安排的通知",
+    "content": "各位同学：根据学校校历安排...",
+    "summary": "2024年寒假放假安排通知",
+    "publisher_id": "P2025063441",
+    "publisher_name": "何平",
+    "department": "教务处",
+    "category": "education",
+    "priority": "high",
+    "is_urgent": true,
+    "is_pinned": true,
+    "publish_time": "2025-06-03T22:59:55.149634",
+    "view_count": 476,
+    "like_count": 0,
+    "comment_count": 0,
+    "is_read": false,
+    "is_bookmarked": false
+  },
+  "timestamp": "2024-03-01T12:30:00Z",
+  "version": "v1.0"
+}
+```
+
+### 6.5 用户登录响应 `POST /api/v1/auth/login`
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "token_type": "bearer",
+    "user_info": {
+      "person_id": "P2025043213",
+      "name": "宋文",
+      "person_type": "student",
+      "student_id": "202100043213",
+      "employee_id": null,
+      "college_name": "计算机与软件学院",
+      "major_name": "软件工程",
+      "class_name": "软工2021-1班",
+      "department_name": null
+    }
+  },
+  "timestamp": "2024-03-01T12:30:00Z",
+  "version": "v1.0"
+}
+```
+
+### 6.6 图书搜索响应 `GET /api/v1/library/books/search`
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "books": [
+      {
+        "book_id": "B001",
+        "id": "B001",
+        "isbn": "978-7-111-54742-6",
+        "title": "深入理解计算机系统",
+        "subtitle": "原书第3版",
+        "author": "Randal E. Bryant, David R. O'Hallaron",
+        "publisher": "机械工业出版社",
+        "publish_date": "2016-11-01",
+        "category": "计算机科学",
+        "call_number": "TP3/B877",
+        "total_copies": 5,
+        "available_copies": 2,
+        "borrowed_copies": 3,
+        "location": "计算机类图书区",
+        "floor": "三楼",
+        "description": "系统性地介绍了计算机系统的各个方面",
+        "borrow_count": 156,
+        "borrowCount": 156,
+        "rating": 4.5,
+        "status": "available",
+        "cover": "https://via.placeholder.com/120x160?text=深入理解\n计算机系统",
+        "is_new": false,
+        "arrivalDate": null
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "size": 20,
+      "total": 1,
+      "pages": 1
+    },
+    "search_info": {
+      "keyword": "计算机",
+      "category": "popular",
+      "author": null
+    }
+  },
+  "timestamp": "2024-06-24T12:30:00Z",
+  "version": "v1.0"
+}
+```
+
+### 6.7 借阅记录响应 `GET /api/v1/library/borrows`
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "borrow_records": [
+      {
+        "record_id": "BR001",
+        "book_id": "B001",
+        "id": "BR001",
+        "title": "深入理解计算机系统",
+        "book_title": "深入理解计算机系统",
+        "isbn": "978-7-111-54742-6",
+        "author": "Randal E. Bryant",
+        "borrow_date": "2024-05-30",
+        "borrowDate": "2024-05-30",
+        "due_date": "2024-06-29T23:59:59",
+        "dueDate": "2024-06-29",
+        "return_date": null,
+        "status": "borrowed",
+        "renewal_count": 1,
+        "renewCount": 1,
+        "max_renewals": 2,
+        "maxRenew": 2,
+        "fine_amount": 0.0,
+        "location": "计算机类图书区",
+        "daysLeft": 5,
+        "isOverdue": false,
+        "cover": "https://via.placeholder.com/120x160?text=深入理解\n计算机系统"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "size": 20,
+      "total": 1,
+      "pages": 1
+    },
+    "statistics": {
+      "total_borrowed": 2,
+      "total_returned": 1,
+      "total_overdue": 1
+    }
+  },
+  "timestamp": "2024-06-24T12:30:00Z",
+  "version": "v1.0"
+}
+```
+
+### 6.8 图书馆座位信息响应 `GET /api/v1/library/seats`
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "seats": [
+      {
+        "seat_id": "L1-A-001",
+        "floor": 1,
+        "area": "A区",
+        "seat_number": "001",
+        "seat_type": "普通座位",
+        "is_available": true,
+        "has_power": true,
+        "has_network": true,
+        "equipment": ["台灯", "电源插座"],
+        "current_user": null,
+        "reserved_until": null
+      }
+    ],
+    "statistics": {
+      "total_seats": 300,
+      "available_seats": 66,
+      "occupied_seats": 234,
+      "occupancy_rate": 78.0
+    },
+    "areas": [
+      {
+        "id": "floor1_a",
+        "floor": 1,
+        "area": "A区",
+        "name": "一楼A区",
+        "description": "安静学习区域",
+        "total": 50,
+        "available": 12,
+        "availableSeats": 12,
+        "occupancyRate": 76.0
+      }
+    ]
+  },
+  "timestamp": "2024-06-24T12:30:00Z",
+  "version": "v1.0"
+}
+```
+
+### 6.9 座位预约响应 `POST /api/v1/library/seats/reserve`
+```json
+{
+  "code": 0,
+  "message": "座位预约成功",
+  "data": {
+    "reservation_id": "RSV20240624130000",
+    "seat_id": "L1-A-001",
+    "user_id": "P2025043213",
+    "start_time": "2024-06-24T13:00:00Z",
+    "end_time": "2024-06-24T17:00:00Z",
+    "duration": 4,
+    "status": "confirmed"
+  },
+  "timestamp": "2024-06-24T12:30:00Z",
+  "version": "v1.0"
+}
+```
+
+### 6.10 我的座位预约响应 `GET /api/v1/library/my-reservations`
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "reservations": [
+      {
+        "reservation_id": "RSV20240624130000",
+        "seat_id": "L1-A-001",
+        "seat_info": {
+          "floor": 1,
+          "area": "A区",
+          "seat_number": "001"
+        },
+        "start_time": "2024-06-24T13:00:00",
+        "end_time": "2024-06-24T17:00:00",
+        "duration": 4,
+        "status": "active",
+        "created_at": "2024-06-24T12:55:00"
+      }
+    ]
+  },
+  "timestamp": "2024-06-24T12:30:00Z",
+  "version": "v1.0"
+}
+```
+
+### 6.11 借阅图书响应 `POST /api/v1/library/borrows/{book_id}`
+```json
+{
+  "code": 0,
+  "message": "借阅成功",
+  "data": {
+    "record_id": "BR20240624130000",
+    "user_id": "P2025043213",
+    "book_id": "B001",
+    "borrow_date": "2024-06-24T13:00:00Z",
+    "due_date": "2024-07-24T23:59:59Z",
+    "status": "borrowed"
+  },
+  "timestamp": "2024-06-24T12:30:00Z",
+  "version": "v1.0"
+}
+```
+
+### 6.12 续借图书响应 `PUT /api/v1/library/borrows/{record_id}/renew`
+```json
+{
+  "code": 0,
+  "message": "续借成功",
+  "data": {
+    "record_id": "BR001",
+    "old_due_date": "2024-07-01T23:59:59",
+    "new_due_date": "2024-07-31T23:59:59Z",
+    "renewal_count": 2,
+    "renew_date": "2024-06-24T13:00:00Z"
+  },
+  "timestamp": "2024-06-24T12:30:00Z",
+  "version": "v1.0"
+}
+```
+
+## 7. 开发规范
+
+### 7.1 数据格式一致性原则
+1. **严格遵循统一响应格式**：所有接口必须返回 `{code, message, data, timestamp, version}` 结构
+2. **data字段内容标准化**：按照本文档第6章的详细格式规范实现
+3. **字段命名规范**：使用snake_case命名，保持前后端一致
+4. **必需字段与可选字段明确标识**
+5. **冗余字段处理**：为兼容前端不同命名习惯，可保留必要的冗余字段（如borrowCount和borrow_count）
+
+### 7.2 开发流程规范
+1. **设计阶段**：先定义数据格式，写入API文档
+2. **开发阶段**：前后端严格按照文档实现
+3. **测试阶段**：使用真实数据测试
+4. **上线前**：必须进行前后端联调，确保数据格式一致
+
+### 7.3 防错机制
+1. **类型检查**：前端使用TypeScript定义接口类型
+2. **Schema验证**：后端返回数据前进行格式验证
+3. **单元测试**：为每个API编写响应格式测试用例
+4. **集成测试**：前后端联调时重点测试数据格式匹配
+
+### 7.4 常见问题解决方案
+
+#### 问题1：前端期望字段A，后端返回字段B
+**解决方案**：
+- 立即检查API文档，确认标准格式
+- 修改后端代码，使用文档规定的字段名
+- 前端代码也要对应调整
+
+#### 问题2：嵌套层级不一致（如 response.data vs response.data.data）
+**解决方案**：
+- 统一使用 `response.data.xxx` 格式访问业务数据
+- 检查胶水层是否正确包装了data字段
+- 确保所有API返回的data字段在同一层级
+
+#### 问题3：模拟数据与真实数据格式不一致
+**解决方案**：
+- 废弃所有模拟数据，全部使用真实API
+- 真实API返回空数据时，返回符合文档格式的空结构
+- 禁止在生产环境使用模拟数据
+
+#### 问题4：图书馆数据缺失或格式不匹配
+**解决方案**：
+- 按照6.6-6.12节的规范实现图书馆模块API
+- 确保返回的数据包含前端需要的所有字段
+- 特别关注日期格式、状态字段和嵌套对象结构
+
+### 7.5 学期格式标准
+- **统一格式**：`YYYY-YYYY-S` （如：`2024-2025-1`）
+- **学年表示**：开始年份-结束年份
+- **学期编号**：1表示第一学期，2表示第二学期
+- **示例**：
+  - `2024-2025-1`：2024-2025学年第一学期
+  - `2023-2024-2`：2023-2024学年第二学期
+
+### 7.6 图书馆模块特殊说明
+1. **图书状态**：`available`（可借）、`borrowed`（已借）、`reserved`（已预约）
+2. **借阅状态**：`borrowed`（借阅中）、`returned`（已归还）、`overdue`（逾期）
+3. **日期字段**：同时提供ISO格式和简化格式以兼容不同显示需求
+4. **座位数据**：必须包含楼层区域信息和实时统计数据
+5. **评分系统**：图书评分使用1-5分制，支持小数点
+
+## 8. 图书馆模块详细数据格式规范
+
+### 8.1 图书搜索响应 `GET /api/v1/library/books/search`
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "books": [
+      {
+        "book_id": "B001",
+        "id": "B001",
+        "isbn": "978-7-111-54742-6",
+        "title": "深入理解计算机系统",
+        "subtitle": "原书第3版",
+        "author": "Randal E. Bryant, David R. O'Hallaron",
+        "publisher": "机械工业出版社",
+        "publish_date": "2016-11-01",
+        "category": "计算机科学",
+        "call_number": "TP3/B877",
+        "total_copies": 5,
+        "available_copies": 2,
+        "borrowed_copies": 3,
+        "location": "计算机类图书区",
+        "floor": "三楼",
+        "description": "系统性地介绍了计算机系统的各个方面",
+        "borrow_count": 156,
+        "borrowCount": 156,
+        "rating": 4.5,
+        "status": "available",
+        "cover": "https://via.placeholder.com/120x160?text=深入理解\n计算机系统",
+        "is_new": false,
+        "arrivalDate": null
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "size": 20,
+      "total": 1,
+      "pages": 1
+    },
+    "search_info": {
+      "keyword": "计算机",
+      "category": "popular",
+      "author": null
+    }
+  },
+  "timestamp": "2024-06-24T12:30:00Z",
+  "version": "v1.0"
+}
+```
+
+### 8.2 借阅记录响应 `GET /api/v1/library/borrows`
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "borrow_records": [
+      {
+        "record_id": "BR001",
+        "book_id": "B001",
+        "id": "BR001",
+        "title": "深入理解计算机系统",
+        "book_title": "深入理解计算机系统",
+        "isbn": "978-7-111-54742-6",
+        "author": "Randal E. Bryant",
+        "borrow_date": "2024-05-30",
+        "borrowDate": "2024-05-30",
+        "due_date": "2024-06-29T23:59:59",
+        "dueDate": "2024-06-29",
+        "return_date": null,
+        "status": "borrowed",
+        "renewal_count": 1,
+        "renewCount": 1,
+        "max_renewals": 2,
+        "maxRenew": 2,
+        "fine_amount": 0.0,
+        "location": "计算机类图书区",
+        "daysLeft": 5,
+        "isOverdue": false,
+        "cover": "https://via.placeholder.com/120x160?text=深入理解\n计算机系统"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "size": 20,
+      "total": 1,
+      "pages": 1
+    },
+    "statistics": {
+      "total_borrowed": 2,
+      "total_returned": 1,
+      "total_overdue": 1
+    }
+  },
+  "timestamp": "2024-06-24T12:30:00Z",
+  "version": "v1.0"
+}
+```
+
+### 8.3 图书馆座位信息响应 `GET /api/v1/library/seats`
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "seats": [
+      {
+        "seat_id": "L1-A-001",
+        "floor": 1,
+        "area": "A区",
+        "seat_number": "001",
+        "seat_type": "普通座位",
+        "is_available": true,
+        "has_power": true,
+        "has_network": true,
+        "equipment": ["台灯", "电源插座"],
+        "current_user": null,
+        "reserved_until": null
+      }
+    ],
+    "statistics": {
+      "total_seats": 300,
+      "available_seats": 66,
+      "occupied_seats": 234,
+      "occupancy_rate": 78.0
+    },
+    "areas": [
+      {
+        "id": "floor1_a",
+        "floor": 1,
+        "area": "A区",
+        "name": "一楼A区",
+        "description": "安静学习区域",
+        "total": 50,
+        "available": 12,
+        "availableSeats": 12,
+        "occupancyRate": 76.0
+      }
+    ]
+  },
+  "timestamp": "2024-06-24T12:30:00Z",
+  "version": "v1.0"
+}
+```
+
+### 8.4 座位预约响应 `POST /api/v1/library/seats/reserve`
+```json
+{
+  "code": 0,
+  "message": "座位预约成功",
+  "data": {
+    "reservation_id": "RSV20240624130000",
+    "seat_id": "L1-A-001",
+    "user_id": "P2025043213",
+    "start_time": "2024-06-24T13:00:00Z",
+    "end_time": "2024-06-24T17:00:00Z",
+    "duration": 4,
+    "status": "confirmed"
+  },
+  "timestamp": "2024-06-24T12:30:00Z",
+  "version": "v1.0"
+}
+```
+
+### 8.5 我的座位预约响应 `GET /api/v1/library/my-reservations`
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "reservations": [
+      {
+        "reservation_id": "RSV20240624130000",
+        "seat_id": "L1-A-001",
+        "seat_info": {
+          "floor": 1,
+          "area": "A区",
+          "seat_number": "001"
+        },
+        "start_time": "2024-06-24T13:00:00",
+        "end_time": "2024-06-24T17:00:00",
+        "duration": 4,
+        "status": "active",
+        "created_at": "2024-06-24T12:55:00"
+      }
+    ]
+  },
+  "timestamp": "2024-06-24T12:30:00Z",
+  "version": "v1.0"
+}
+```
+
+### 8.6 借阅图书响应 `POST /api/v1/library/borrows/{book_id}`
+```json
+{
+  "code": 0,
+  "message": "借阅成功",
+  "data": {
+    "record_id": "BR20240624130000",
+    "user_id": "P2025043213",
+    "book_id": "B001",
+    "borrow_date": "2024-06-24T13:00:00Z",
+    "due_date": "2024-07-24T23:59:59Z",
+    "status": "borrowed"
+  },
+  "timestamp": "2024-06-24T12:30:00Z",
+  "version": "v1.0"
+}
+```
+
+### 8.7 续借图书响应 `PUT /api/v1/library/borrows/{record_id}/renew`
+```json
+{
+  "code": 0,
+  "message": "续借成功",
+  "data": {
+    "record_id": "BR001",
+    "old_due_date": "2024-07-01T23:59:59",
+    "new_due_date": "2024-07-31T23:59:59Z",
+    "renewal_count": 2,
+    "renew_date": "2024-06-24T13:00:00Z"
+  },
+  "timestamp": "2024-06-24T12:30:00Z",
+  "version": "v1.0"
+}
+```
+
+## 9. 图书馆模块特殊说明
+
+### 9.1 数据格式一致性原则
+1. **冗余字段兼容性**：为确保前后端兼容，图书馆模块采用双字段策略
+   - `borrow_count` 和 `borrowCount`（借阅次数）
+   - `dueDate` 和 `due_date`（到期日期）
+   - `renewCount` 和 `renewal_count`（续借次数）
+2. **日期格式标准**：
+   - ISO格式用于API传输：`2024-06-24T13:00:00Z`
+   - 简化格式用于显示：`2024-06-24`
+3. **状态字段标准化**：
+   - 图书状态：`available`、`borrowed`、`reserved`
+   - 借阅状态：`borrowed`、`returned`、`overdue`
+   - 座位状态：`available`、`occupied`、`reserved`
+
+### 9.2 前端显示字段映射
+```javascript
+// 前端期望的字段映射
+const bookDisplayFields = {
+  id: item.id || item.book_id,
+  title: item.title || item.book_title,
+  borrowCount: item.borrowCount || item.borrow_count,
+  daysLeft: item.daysLeft,
+  isOverdue: item.isOverdue,
+  renewCount: item.renewCount || item.renewal_count,
+  maxRenew: item.maxRenew || item.max_renewals
+};
+```
+
+### 9.3 API一致性检查清单
+✅ **路径一致性**：
+- API文档：`/api/v1/library/books/search`
+- 后端实现：`@router.get("/books/search")` + `/library` 前缀
+- 前端调用：`BASE_URL + '/library/books/search'`
+
+✅ **响应格式一致性**：
+- 统一响应结构：`{code, message, data, timestamp, version}`
+- data字段包含业务数据
+- 分页信息包含在pagination对象中
+
+✅ **字段命名一致性**：
+- 主要字段使用snake_case
+- 兼容字段使用camelCase
+- 前端可选择使用任一格式
+
+### 9.4 错误处理标准
+```json
+{
+  "code": 500,
+  "message": "图书搜索失败: 服务器内部错误",
+  "data": null,
+  "timestamp": "2024-06-24T12:30:00Z",
+  "version": "v1.0"
+}
+```
+
+常见错误码：
+- `400`：参数错误
+- `401`：未授权
+- `404`：资源不存在
+- `422`：参数验证失败
+- `500`：服务器内部错误 

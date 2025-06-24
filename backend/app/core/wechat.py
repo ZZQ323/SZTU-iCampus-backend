@@ -182,7 +182,7 @@ class WechatService:
             处理后的用户信息
         """
         if use_mock or not all([self.app_id, self.app_secret]) or \
-           self.app_id == 'your_app_id':
+            self.app_id == 'your_app_id':
             # 开发模式或配置未完成，使用模拟数据
             logger.info("使用模拟微信数据")
             return await self.get_user_info_mock(code)

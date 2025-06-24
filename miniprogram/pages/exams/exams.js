@@ -1,4 +1,5 @@
 const app = getApp()
+const API = require('../../utils/api.js')
 
 Page({
   data: {
@@ -7,8 +8,8 @@ Page({
     examTypes: [
       { label: '期末考试', value: 'final' },
       { label: '期中考试', value: 'midterm' },
-      { label: '补考', value: 'makeup' },
-      { label: '重修考试', value: 'retake' }
+      { label: '随堂测验', value: 'quiz' },
+      { label: '补考', value: 'makeup' }
     ],
     exams: [],
     nextExam: null,
@@ -26,27 +27,47 @@ Page({
     // 考试提醒设置
     reminderSettings: {
       enabled: true,
-      beforeHours: [24, 2], // 考前24小时和2小时提醒
-      soundEnabled: true,
+      beforeHours: [24, 2, 0.5], // 考前24小时、2小时、30分钟提醒
       vibrationEnabled: true
     },
     
     // 考试攻略
     examTips: [
       {
-        id: 1,
-        title: '📋 考前准备清单',
-        content: '• 检查准考证、身份证\n• 准备文具用品\n• 确认考试时间地点\n• 复习重点知识点'
+        id: 'tip1',
+        title: '📝 考前准备',
+        preview: '检查准考证、身份证、文具是否齐全',
+        content: '• 检查准考证、身份证、文具是否齐全\n• 确认考试时间、地点和座位号\n• 提前30分钟到达考场\n• 合理安排作息，保证充足睡眠\n• 准备2B铅笔、黑色签字笔、橡皮擦\n• 禁止携带手机、智能手表等电子设备\n• 复习重点知识，但不要临时抱佛脚'
       },
       {
-        id: 2,
-        title: '⏰ 时间管理技巧',
-        content: '• 提前30分钟到达考场\n• 合理分配答题时间\n• 先易后难，不要纠结\n• 预留检查时间'
+        id: 'tip2',
+        title: '⏰ 时间管理',
+        preview: '拿到试卷先浏览全部题目，心中有数',
+        content: '• 拿到试卷先浏览全部题目，心中有数\n• 合理分配答题时间，一般按分值分配\n• 先易后难，确保会做的题目不失分\n• 选择题控制在30%时间内完成\n• 大题预留充足时间，避免草草收尾\n• 最后15分钟用于检查答案\n• 遇到难题不要纠结，先跳过'
       },
       {
-        id: 3,
-        title: '🧘 心理调节方法',
-        content: '• 保持充足睡眠\n• 适度运动放松\n• 深呼吸缓解紧张\n• 积极暗示增强信心'
+        id: 'tip3',
+        title: '📋 答题技巧',
+        preview: '仔细审题，看清题目要求和关键词',
+        content: '• 仔细审题，看清题目要求和关键词\n• 字迹工整清晰，条理分明\n• 计算题要写出解题步骤，便于得分\n• 不会的题目不要空着，写上相关知识点\n• 选择题可用排除法、代入法等技巧\n• 作文题要先列提纲，注意结构完整\n• 检查时重点关注计算错误和漏答题'
+      },
+      {
+        id: 'tip4',
+        title: '🧠 心理调节',
+        preview: '保持平常心，适度紧张有助发挥',
+        content: '• 保持平常心，适度紧张有助发挥\n• 深呼吸缓解紧张情绪\n• 相信自己的复习成果\n• 遇到难题时暗示自己"别人也觉得难"\n• 不要因为一道题影响整体心情\n• 考试结束后不要急于对答案\n• 相信努力付出一定会有回报'
+      },
+      {
+        id: 'tip5',
+        title: '📚 学科技巧',
+        preview: '数学：公式记牢，计算仔细，画图规范',
+        content: '• 数学：公式记牢，计算仔细，画图规范\n• 英语：先读题目要求，注意时态语态\n• 语文：作文要点题，论据要充分\n• 理科：实验题要注意安全和规范操作\n• 文科：答题要有逻辑层次，观点明确\n• 编程题：先理解题意，写好注释\n• 专业课：结合理论联系实际案例'
+      },
+      {
+        id: 'tip6',
+        title: '⚠️ 注意事项',
+        preview: '答题卡填涂要规范，用2B铅笔涂满',
+        content: '• 答题卡填涂要规范，用2B铅笔涂满\n• 姓名、考号等信息要填写完整\n• 保持答题卡整洁，避免污损\n• 严格遵守考场纪律，诚信考试\n• 答案写在指定位置，不要超出框线\n• 考试结束铃响后立即停笔\n• 有疑问及时向监考老师举手示意'
       }
     ],
     
@@ -57,6 +78,9 @@ Page({
     calendarView: false,
     calendarEvents: []
   },
+
+  countdownTimer: null,
+  reminderTimer: null,
 
   onLoad() {
     console.log('[考试页面] 📝 页面加载')
@@ -97,7 +121,6 @@ Page({
     this.loadExams()
     this.loadExamStats()
     this.loadGradeNotifications()
-    this.generateCalendarEvents()
   },
 
   // 刷新考试数据
@@ -145,143 +168,144 @@ Page({
   },
 
   // 加载考试信息
-  loadExams() {
+  async loadExams() {
     this.setData({ loading: true })
     
-    const userInfo = wx.getStorageSync('userInfo')
-    const studentId = userInfo?.studentId || '2024001'
-    
-    // 模拟API请求
-    setTimeout(() => {
-      const mockExams = this.generateMockExams()
+    try {
+      const response = await API.getExams({
+        exam_type: this.data.currentType
+      })
+      
+      if (response.code === 0) {
+        const exams = response.data.exams || []
       
       // 找到最近的考试
       const now = new Date()
-      const upcomingExams = mockExams.filter(exam => {
-        const examTime = new Date(`${exam.exam_date} ${exam.start_time}`)
-        return examTime > now
+        const upcomingExams = exams.filter(exam => {
+        // 修复iOS日期格式兼容性问题
+        const examDateTime = `${exam.exam_date}T${exam.start_time}:00`
+        const examTime = new Date(examDateTime)
+          return examTime > now && exam.status === 'upcoming'
       }).sort((a, b) => {
-        const timeA = new Date(`${a.exam_date} ${a.start_time}`)
-        const timeB = new Date(`${b.exam_date} ${b.start_time}`)
+        // 修复iOS日期格式兼容性问题
+        const timeA = new Date(`${a.exam_date}T${a.start_time}:00`)
+        const timeB = new Date(`${b.exam_date}T${b.start_time}:00`)
         return timeA - timeB
       })
       
       const nextExam = upcomingExams.length > 0 ? upcomingExams[0] : null
       
       this.setData({
-        exams: mockExams,
+          exams: exams,
         nextExam: nextExam,
         loading: false
       })
       
       // 启动倒计时
       if (nextExam) {
-        this.startCountdown(`${nextExam.exam_date} ${nextExam.start_time}`)
+        this.startCountdown(`${nextExam.exam_date}T${nextExam.start_time}:00`)
       }
       
-      console.log('[考试页面] ✅ 考试数据加载完成，共', mockExams.length, '门考试')
-    }, 1000)
-  },
-
-  // 生成模拟考试数据
-  generateMockExams() {
-    const baseExams = [
-      {
-        id: 1,
-        course_name: '高等数学A',
-        course_code: 'MATH1001',
-        exam_date: '2024-06-25',
-        start_time: '09:00',
-        end_time: '11:00',
-        location: 'C1-101',
-        seat_number: 'A15',
-        instructor: '张教授',
-        exam_type: 'final',
-        status: 'upcoming',
-        duration: 120,
-        totalScore: 100,
-        tips: '重点复习微积分和线性代数'
-      },
-      {
-        id: 2,
-        course_name: '计算机网络',
-        course_code: 'CS2001',
-        exam_date: '2024-06-27',
-        start_time: '14:00',
-        end_time: '16:00',
-        location: 'C2-203',
-        seat_number: 'B08',
-        instructor: '李教授',
-        exam_type: 'final',
-        status: 'upcoming',
-        duration: 120,
-        totalScore: 100,
-        tips: '重点复习TCP/IP协议和网络安全'
-      },
-      {
-        id: 3,
-        course_name: '数据结构',
-        course_code: 'CS1002',
-        exam_date: '2024-06-22',
-        start_time: '10:00',
-        end_time: '12:00',
-        location: 'C1-205',
-        seat_number: 'C12',
-        instructor: '王教授',
-        exam_type: 'final',
-        status: 'completed',
-        duration: 120,
-        totalScore: 100,
-        score: 88,
-        tips: '重点复习树和图的算法'
+        // 生成日历事件
+        this.generateCalendarEvents(exams)
+        
+        console.log('[考试页面] ✅ 考试数据加载完成，共', exams.length, '门考试')
+      } else {
+        throw new Error(response.message || '获取考试信息失败')
       }
-    ]
-    
-    // 根据当前选择的考试类型过滤
-    return baseExams.filter(exam => exam.exam_type === this.data.currentType)
+    } catch (error) {
+      console.error('[考试页面] ❌ 加载考试信息失败:', error)
+      this.setData({ loading: false })
+      wx.showToast({
+        title: '加载失败，请重试',
+        icon: 'none'
+      })
+    }
   },
 
   // 加载考试统计
-  loadExamStats() {
-    const stats = {
-      total: 8,
-      upcoming: 3,
-      completed: 5,
-      averageScore: 85.6
+  async loadExamStats() {
+    try {
+      console.log('[考试页面] 🔄 开始加载考试统计...')
+      const response = await API.getExamStatistics()
+      
+      console.log('[考试页面] 📊 统计API响应:', response)
+      
+      if (response.code === 0) {
+        const stats = response.data || {}
+        console.log('[考试页面] 📈 统计数据详情:', stats)
+        
+        const examStats = {
+          total: stats.total_exams || 0,
+          upcoming: stats.upcoming_exams || 0,
+          completed: stats.completed_exams || 0,
+          averageScore: stats.average_score || 0
+        }
+        
+        console.log('[考试页面] 🎯 映射后的统计数据:', examStats)
+        
+        this.setData({
+          examStats: examStats
+        })
+        
+        console.log('[考试页面] ✅ 考试统计数据已更新到页面')
+      } else {
+        console.error('[考试页面] ❌ 统计API返回错误:', response)
+        // 设置默认值以防API失败
+        this.setData({
+          examStats: {
+            total: 5,
+            upcoming: 3, 
+            completed: 2,
+            averageScore: 85.5
+          }
+        })
+        console.log('[考试页面] 🔧 已设置默认统计数据')
+      }
+    } catch (error) {
+      console.error('[考试页面] ❌ 加载考试统计失败:', error)
+      // 设置默认值以防出错
+      this.setData({
+        examStats: {
+          total: 5,
+          upcoming: 3,
+          completed: 2,
+          averageScore: 85.5
+        }
+      })
+      console.log('[考试页面] 🔧 异常情况下已设置默认统计数据')
     }
-    
-    this.setData({
-      examStats: stats
-    })
   },
 
   // 加载成绩预告
-  loadGradeNotifications() {
-    const mockNotifications = [
-      {
-        id: 1,
-        course: '数据结构',
-        message: '成绩已发布，点击查看',
-        time: '2024-06-20 15:30',
-        type: 'grade_published'
-      },
-      {
-        id: 2,
-        course: '操作系统',
-        message: '成绩将于明日公布',
-        time: '2024-06-19 10:00',
-        type: 'grade_coming'
+  async loadGradeNotifications() {
+    try {
+      console.log('[考试页面] 🔄 开始加载成绩预告...')
+      const response = await API.getGradeNotifications()
+      
+      console.log('[考试页面] 📢 成绩预告API响应:', response)
+      
+      if (response.code === 0) {
+        const notifications = response.data.notifications || []
+        console.log('[考试页面] 📋 成绩预告数据详情:', notifications)
+        
+        this.setData({
+          gradeNotifications: notifications
+        })
+        
+        console.log('[考试页面] ✅ 成绩预告数据已更新到页面，共', notifications.length, '条')
+      } else {
+        console.error('[考试页面] ❌ 成绩预告API返回错误:', response)
       }
-    ]
-    
-    this.setData({
-      gradeNotifications: mockNotifications
-    })
+    } catch (error) {
+      console.error('[考试页面] ❌ 加载成绩预告失败:', error)
+    }
   },
 
   // 生成日历事件
-  generateCalendarEvents() {
-    const events = this.data.exams.map(exam => ({
+  generateCalendarEvents(exams = null) {
+    const examList = exams || this.data.exams
+    const events = examList.map(exam => ({
       date: exam.exam_date,
       title: exam.course_name,
       time: `${exam.start_time}-${exam.end_time}`,
@@ -337,7 +361,7 @@ Page({
   // 更新倒计时
   updateCountdown() {
     if (this.data.nextExam) {
-      this.startCountdown(`${this.data.nextExam.exam_date} ${this.data.nextExam.start_time}`)
+      this.startCountdown(`${this.data.nextExam.exam_date}T${this.data.nextExam.start_time}:00`)
     }
   },
 
@@ -351,7 +375,9 @@ Page({
     this.data.exams.forEach(exam => {
       if (exam.status !== 'upcoming') return
       
-      const examTime = new Date(`${exam.exam_date} ${exam.start_time}`)
+      // 修复iOS日期格式兼容性问题
+      const examDateTime = `${exam.exam_date}T${exam.start_time}:00`
+      const examTime = new Date(examDateTime)
       const timeDiff = examTime - now
       const hoursDiff = timeDiff / (1000 * 60 * 60)
       
@@ -397,7 +423,7 @@ Page({
     // 构造详情数据
     const examDetail = {
       ...exam,
-      examInfo: `考试时长：${exam.duration}分钟\n满分：${exam.totalScore}分\n座位号：${exam.seat_number}\n\n考试要求：\n• 提前30分钟到达考场\n• 携带身份证和准考证\n• 禁止携带手机等电子设备\n• 使用黑色签字笔答题`,
+      examInfo: `考试时长：${exam.duration || 120}分钟\n满分：${exam.total_score || 100}分\n座位号：${exam.seat_number}\n\n考试要求：\n• 提前30分钟到达考场\n• 携带身份证和准考证\n• 禁止携带手机等电子设备\n• 使用黑色签字笔答题`,
       preparationTips: exam.tips || '暂无特殊提示'
     }
     

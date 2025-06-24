@@ -1,245 +1,371 @@
 """
 考试接口
-提供考试查询、倒计时等功能
+提供考试查询、倒计时等功能 - 通过data-service获取数据
 """
-import sqlite3
-from datetime import datetime, timedelta
-from typing import Optional
+from datetime import datetime
+from typing import Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Query, Depends
 from app.api.deps import get_current_user
+# 🔄 使用HTTP客户端进行真正的HTTP请求，不导入Python模块
+from app.core.http_client import http_client
 
 router = APIRouter()
 
-def get_db_connection():
-    """获取数据库连接"""
-    conn = sqlite3.connect('../../data-service/sztu_campus.db')
-    conn.row_factory = sqlite3.Row
-    return conn
-
-@router.get("/", summary="获取考试列表")
+@router.get("", summary="获取考试列表")
 async def get_exams(
     semester: Optional[str] = Query(None, description="学期"),
+    exam_type: Optional[str] = Query(None, description="考试类型"),
     status: Optional[str] = Query(None, description="考试状态"),
     limit: int = Query(20, description="返回条数"),
     offset: int = Query(0, description="偏移量"),
-    current_user = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """获取考试列表"""
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
     try:
-        person_id = current_user.get("person_id")
-        cursor.execute("SELECT student_id FROM persons WHERE person_id = ?", (person_id,))
-        student_info = cursor.fetchone()
+        # 🔄 从enrollments和course_instances表获取考试数据
+        enrollments_result = await http_client.query_table(
+            "enrollments",
+            filters={
+                "student_id": current_user.get("student_id"),
+                "enrollment_status": "completed",
+                "is_deleted": False
+            },
+            limit=100
+        )
         
-        if not student_info or not student_info["student_id"]:
-            raise HTTPException(status_code=403, detail="仅限学生查询考试")
+        enrollments = enrollments_result.get("data", {}).get("records", [])
+        exams = []
         
-        student_id = student_info["student_id"]
+        for enrollment in enrollments:
+            instance_id = enrollment.get("course_instance_id")
+            if not instance_id:
+                continue
+                
+            # 获取课程实例信息（包含考试信息）
+            instance_result = await http_client.query_table(
+                "course_instances",
+                filters={
+                    "instance_id": instance_id,
+                    "is_deleted": False
+                },
+                limit=1
+            )
+            
+            instances = instance_result.get("data", {}).get("records", [])
+            if not instances:
+                continue
+                
+            instance = instances[0]
+            
+            # 获取课程基本信息
+            course_result = await http_client.query_table(
+                "courses",
+                filters={
+                    "course_id": instance.get("course_id"),
+                    "is_deleted": False
+                },
+                limit=1
+            )
+            
+            courses = course_result.get("data", {}).get("records", [])
+            
+            # 如果有考试信息，则添加到列表
+            if instance.get("exam_date"):
+                exam = {
+                    "exam_id": f"EX{instance_id}",
+                    "course_name": courses[0].get("course_name") if courses else None,
+                    "course_code": instance.get("course_id"),
+                    "exam_date": instance.get("exam_date"),
+                    "exam_location": instance.get("exam_location"),
+                    "makeup_exam_date": instance.get("makeup_exam_date")
+                }
+                exams.append(exam)
         
-        # 构建查询条件 - 通过选课记录获取考试信息
-        where_conditions = ["e.student_id = ?", "e.is_deleted = 0", "ci.is_deleted = 0"]
-        params = [student_id]
-        
-        if semester:
-            where_conditions.append("ci.semester = ?")
-            params.append(semester)
-        
-        where_clause = " AND ".join(where_conditions)
-        
-        # 查询考试列表
-        sql = f"""
-            SELECT ci.instance_id, ci.exam_date, ci.exam_location, ci.makeup_exam_date,
-                   c.course_id, c.course_name, c.course_code, c.credit_hours,
-                   ci.semester, ci.academic_year, ci.teacher_id,
-                   p.name as teacher_name,
-                   CASE 
-                       WHEN ci.exam_date IS NULL THEN 'not_scheduled'
-                       WHEN ci.exam_date > datetime('now') THEN 'upcoming'
-                       ELSE 'completed'
-                   END as exam_status
-            FROM enrollments e
-            JOIN course_instances ci ON e.course_instance_id = ci.instance_id
-            JOIN courses c ON ci.course_id = c.course_id
-            LEFT JOIN persons p ON ci.teacher_id = p.employee_id
-            WHERE {where_clause}
-            ORDER BY ci.exam_date ASC
-            LIMIT ? OFFSET ?
-        """
-        cursor.execute(sql, params + [limit, offset])
-        exams = [dict(row) for row in cursor.fetchall()]
-        
-        # 计算倒计时
-        for exam in exams:
-            if exam["exam_date"]:
-                exam_time = datetime.fromisoformat(exam["exam_date"])
-                now = datetime.now()
-                if exam_time > now:
-                    countdown = exam_time - now
-                    exam["countdown_days"] = countdown.days
-                    exam["countdown_hours"] = countdown.seconds // 3600
-                else:
-                    exam["countdown_days"] = 0
-                    exam["countdown_hours"] = 0
+        # 分页处理
+        total = len(exams)
+        paginated_exams = exams[offset:offset + limit]
         
         return {
             "code": 0,
             "message": "success",
             "data": {
-                "exams": exams,
-                "pagination": {
-                    "limit": limit,
-                    "offset": offset,
-                    "has_more": len(exams) == limit
-                }
+                "exams": paginated_exams,
+                "total": total,
+                "limit": limit,
+                "offset": offset,
+                "has_more": offset + limit < total
             },
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
+            "version": "v1.0"
         }
         
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"数据库查询失败: {str(e)}")
-    finally:
-        conn.close()
+        return {
+            "code": 500,
+            "message": f"获取考试列表失败: {str(e)}",
+            "data": {
+                "exams": [],
+                "total": 0,
+                "limit": limit,
+                "offset": offset,
+                "has_more": False
+            },
+            "timestamp": datetime.now().isoformat(),
+            "version": "v1.0"
+        }
+
+
+@router.get("/statistics", summary="获取考试统计")
+async def get_exam_statistics(
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """获取考试统计"""
+    try:
+        # 🔄 从实际数据计算统计
+        enrollments_result = await http_client.query_table(
+            "enrollments",
+            filters={
+                "student_id": current_user.get("student_id"),
+                "enrollment_status": "completed",
+                "is_deleted": False
+            },
+            limit=100
+        )
+        
+        enrollments = enrollments_result.get("data", {}).get("records", [])
+        total_exams = 0
+        upcoming_exams = 0
+        completed_exams = 0
+        
+        for enrollment in enrollments:
+            instance_id = enrollment.get("course_instance_id")
+            if not instance_id:
+                continue
+                
+            instance_result = await http_client.query_table(
+                "course_instances", 
+                filters={
+                    "instance_id": instance_id,
+                    "is_deleted": False
+                },
+                limit=1
+            )
+            
+            instances = instance_result.get("data", {}).get("records", [])
+            if instances and instances[0].get("exam_date"):
+                total_exams += 1
+                exam_date = instances[0].get("exam_date")
+                if exam_date:
+                    from datetime import datetime
+                    try:
+                        exam_datetime = datetime.fromisoformat(exam_date.replace('Z', '+00:00'))
+                        if exam_datetime > datetime.now():
+                            upcoming_exams += 1
+                        else:
+                            completed_exams += 1
+                    except:
+                        upcoming_exams += 1
+        
+        # 🔥 删除所有模拟数据，只返回真实计算结果
+        statistics = {
+            "total_exams": total_exams,
+            "upcoming_exams": upcoming_exams,
+            "completed_exams": completed_exams,
+            "not_scheduled_count": len(enrollments) - total_exams
+        }
+        
+        return {
+            "code": 0,
+            "message": "success",
+            "data": statistics,
+            "timestamp": datetime.now().isoformat(),
+            "version": "v1.0"
+        }
+        
+    except Exception as e:
+        return {
+            "code": 500,
+            "message": f"获取考试统计失败: {str(e)}",
+            "data": {
+                "total_exams": 0,
+                "upcoming_exams": 0,
+                "completed_exams": 0,
+                "not_scheduled_count": 0,
+                "average_score": 0,
+                "next_exam": None,
+                "recent_exams": []
+            },
+            "timestamp": datetime.now().isoformat(),
+            "version": "v1.0"
+        }
 
 
 @router.get("/{exam_id}", summary="获取考试详情")
 async def get_exam_detail(
     exam_id: str,
-    current_user = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """获取考试详情"""
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
     try:
-        # 查询考试详情
-        sql = """
-            SELECT ci.instance_id, ci.exam_date, ci.exam_location, ci.makeup_exam_date,
-                   c.course_id, c.course_name, c.course_code, c.credit_hours,
-                   ci.semester, ci.academic_year, ci.teacher_id,
-                   p.name as teacher_name, ci.class_start_date, ci.class_end_date,
-                   c.assessment_method, c.exam_form
-            FROM course_instances ci
-            JOIN courses c ON ci.course_id = c.course_id
-            LEFT JOIN persons p ON ci.teacher_id = p.employee_id
-            WHERE ci.instance_id = ? AND ci.is_deleted = 0
-        """
-        cursor.execute(sql, (exam_id,))
-        exam = cursor.fetchone()
+        instance_id = exam_id.replace("EX", "") if exam_id.startswith("EX") else exam_id
         
-        if not exam:
-            raise HTTPException(status_code=404, detail="考试不存在")
+        instance_result = await http_client.query_table(
+            "course_instances",
+            filters={
+                "instance_id": instance_id,
+                "is_deleted": False
+            },
+            limit=1
+        )
         
-        exam_dict = dict(exam)
+        instances = instance_result.get("data", {}).get("records", [])
+        if not instances:
+            return {
+                "code": 404,
+                "message": "考试不存在",
+                "data": None,
+                "timestamp": datetime.now().isoformat(),
+                "version": "v1.0"
+            }
         
-        # 计算详细倒计时
-        if exam_dict["exam_date"]:
-            exam_time = datetime.fromisoformat(exam_dict["exam_date"])
-            now = datetime.now()
-            if exam_time > now:
-                countdown = exam_time - now
-                exam_dict["countdown"] = {
-                    "days": countdown.days,
-                    "hours": countdown.seconds // 3600,
-                    "minutes": (countdown.seconds % 3600) // 60,
-                    "total_seconds": int(countdown.total_seconds())
-                }
-            else:
-                exam_dict["countdown"] = {
-                    "days": 0,
-                    "hours": 0,
-                    "minutes": 0,
-                    "total_seconds": 0
-                }
+        instance = instances[0]
+        
+        # 获取课程基本信息
+        course_result = await http_client.query_table(
+            "courses",
+            filters={
+                "course_id": instance.get("course_id"),
+                "is_deleted": False
+            },
+            limit=1
+        )
+        
+        courses = course_result.get("data", {}).get("records", [])
+        
+        # 🔥 删除所有模拟数据，只返回数据库真实数据
+        exam_detail = {
+            "exam_id": exam_id,
+            "course_name": courses[0].get("course_name") if courses else None,
+            "course_code": instance.get("course_id"),
+            "exam_date": instance.get("exam_date"),
+            "exam_location": instance.get("exam_location"),
+            "makeup_exam_date": instance.get("makeup_exam_date"),
+            "teacher_id": instance.get("teacher_id"),
+            "instance_status": instance.get("instance_status")
+        }
         
         return {
             "code": 0,
             "message": "success",
-            "data": exam_dict,
-            "timestamp": datetime.now().isoformat()
+            "data": exam_detail,
+            "timestamp": datetime.now().isoformat(),
+            "version": "v1.0"
         }
         
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"数据库查询失败: {str(e)}")
-    finally:
-        conn.close()
+        return {
+            "code": 500,
+            "message": f"获取考试详情失败: {str(e)}",
+            "data": None,
+            "timestamp": datetime.now().isoformat(),
+            "version": "v1.0"
+        }
 
 
 @router.get("/{exam_id}/countdown", summary="获取考试倒计时")
-async def get_exam_countdown(exam_id: str):
+async def get_exam_countdown(
+    exam_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
     """获取考试倒计时"""
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
     try:
-        # 查询考试时间
-        cursor.execute(
-            "SELECT exam_date, course_id FROM course_instances WHERE instance_id = ? AND is_deleted = 0",
-            (exam_id,)
+        # 🔄 修复：从course_instances表获取考试信息（exam_id格式为EXinstance_id）
+        instance_id = exam_id.replace("EX", "") if exam_id.startswith("EX") else exam_id
+        
+        # 获取课程实例信息（包含考试信息）
+        instance_result = await http_client.query_table(
+            "course_instances",
+            filters={
+                "instance_id": instance_id,
+                "is_deleted": False
+            },
+            limit=1
         )
-        exam = cursor.fetchone()
         
-        if not exam:
-            raise HTTPException(status_code=404, detail="考试不存在")
-        
-        if not exam["exam_date"]:
+        instances = instance_result.get("data", {}).get("records", [])
+        if not instances:
             return {
-                "code": 0,
-                "message": "success",
-                "data": {
-                    "exam_id": exam_id,
-                    "status": "not_scheduled",
-                    "message": "考试时间未安排"
-                },
-                "timestamp": datetime.now().isoformat()
+                "code": 404,
+                "message": "考试不存在",
+                "data": None,
+                "timestamp": datetime.now().isoformat(),
+                "version": "v1.0"
             }
         
-        exam_time = datetime.fromisoformat(exam["exam_date"])
-        now = datetime.now()
+        instance = instances[0]
+        exam_date = instance.get("exam_date")
         
-        if exam_time <= now:
-            status = "completed"
+        # 计算倒计时
+        if not exam_date:
             countdown_data = {
-                "days": 0,
-                "hours": 0,
-                "minutes": 0,
-                "seconds": 0,
-                "total_seconds": 0
+                "exam_id": exam_id,
+                "status": "not_scheduled",
+                "message": "考试时间未安排",
+                "countdown": None
             }
         else:
-            status = "upcoming"
-            countdown = exam_time - now
-            countdown_data = {
-                "days": countdown.days,
-                "hours": countdown.seconds // 3600,
-                "minutes": (countdown.seconds % 3600) // 60,
-                "seconds": countdown.seconds % 60,
-                "total_seconds": int(countdown.total_seconds())
-            }
+            try:
+                exam_time = datetime.fromisoformat(exam_date.replace("Z", "+00:00"))
+                now = datetime.now()
+                
+                if exam_time <= now:
+                    countdown_data = {
+                        "exam_id": exam_id,
+                        "exam_date": exam_date,
+                        "status": "completed",
+                        "countdown": {
+                            "days": 0,
+                            "hours": 0,
+                            "minutes": 0,
+                            "seconds": 0,
+                            "total_seconds": 0
+                        }
+                    }
+                else:
+                    countdown = exam_time - now
+                    countdown_data = {
+                        "exam_id": exam_id,
+                        "exam_date": exam_date,
+                        "status": "upcoming",
+                        "countdown": {
+                            "days": countdown.days,
+                            "hours": countdown.seconds // 3600,
+                            "minutes": (countdown.seconds % 3600) // 60,
+                            "seconds": countdown.seconds % 60,
+                            "total_seconds": int(countdown.total_seconds())
+                        }
+                    }
+            except (ValueError, TypeError):
+                countdown_data = {
+                    "exam_id": exam_id,
+                    "status": "error",
+                    "message": "考试时间格式错误",
+                    "countdown": None
+                }
         
         return {
             "code": 0,
             "message": "success",
-            "data": {
-                "exam_id": exam_id,
-                "exam_date": exam["exam_date"],
-                "status": status,
-                "countdown": countdown_data
-            },
-            "timestamp": datetime.now().isoformat()
+            "data": countdown_data,
+            "timestamp": datetime.now().isoformat(),
+            "version": "v1.0"
         }
         
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"数据库查询失败: {str(e)}")
-    finally:
-        conn.close() 
+        return {
+            "code": 500,
+            "message": f"获取考试倒计时失败: {str(e)}",
+            "data": None,
+            "timestamp": datetime.now().isoformat(),
+            "version": "v1.0"
+        } 

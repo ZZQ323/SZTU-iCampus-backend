@@ -1,4 +1,5 @@
 const app = getApp()
+const API = require('../../utils/api.js')
 
 Page({
   data: {
@@ -52,20 +53,20 @@ Page({
    * 检查登录状态和管理员权限
    */
   checkLoginStatus() {
-    const token = wx.getStorageSync('token');
-    const userInfo = wx.getStorageSync('userInfo');
+    const userInfo = wx.getStorageSync('userInfo')
     
-    if (!token || !userInfo) {
-      this.showLoginPrompt();
-      return false;
+    if (!userInfo) {
+      this.showLoginPrompt()
+      return
     }
 
     this.setData({
       isLoggedIn: true,
       userInfo: userInfo
-    });
+    })
 
-    return this.checkAdminPermission();
+    // 验证管理员权限
+    this.checkAdminPermission()
   },
 
   /**
@@ -74,28 +75,30 @@ Page({
   showLoginPrompt() {
     wx.showModal({
       title: '需要登录',
-      content: '访问管理员页面需要先登录，是否前往登录？',
+      content: '管理页面需要登录后才能访问，请先登录',
+      showCancel: true,
+      cancelText: '返回首页',
+      confirmText: '去登录',
       success: (res) => {
         if (res.confirm) {
           wx.navigateTo({
             url: '/pages/login/login'
-          });
+          })
         } else {
           wx.switchTab({
             url: '/pages/index/index'
-          });
+          })
         }
       }
-    });
-    return false;
+    })
   },
 
   // 检查管理员权限
   checkAdminPermission() {
-    const userInfo = this.data.userInfo;
+    const userInfo = this.data.userInfo
     
-    // 检查是否为管理员身份
-    const adminTypes = ['admin', 'department_head', 'dean', 'major_director'];
+    // 定义可以访问管理页面的用户类型
+    const adminTypes = ['admin', 'dean', 'department_head', 'major_director', 'counselor', 'class_advisor', 'librarian']
     const isAdmin = adminTypes.includes(userInfo.person_type);
     
     if (!isAdmin) {
@@ -265,7 +268,6 @@ Page({
     this.setData({ loading: true })
     
     try {
-      // 模拟获取统计数据
       const stats = await this.fetchStats()
       this.setData({ stats })
     } catch (error) {
@@ -281,56 +283,102 @@ Page({
 
   // 获取统计数据
   async fetchStats() {
-    // 根据管理员类型返回不同的统计数据
-    const userType = this.data.userInfo.person_type;
-    
-    return new Promise((resolve) => {
-      setTimeout(() => {
+    try {
+      const response = await API.getAdminStats()
+      
+      if (response.code === 0) {
+        const data = response.data || {}
+        const userType = this.data.userInfo.person_type;
+        
+        // 根据管理员类型返回相应的统计数据
         let stats = {};
         
         if (userType === 'admin') {
           // 系统管理员可以看到全局数据
           stats = {
-            userCount: 63460,
-            adminCount: 20,
-            announcementCount: 156,
-            noticeCount: 89,
-            activeUsers: 1250,
-            systemLoad: '23%'
+            userCount: data.total_users || 0,
+            adminCount: data.admin_count || 0,
+            announcementCount: data.total_announcements || 0,
+            noticeCount: data.total_notices || 0,
+            activeUsers: data.active_users || 0,
+            systemLoad: data.system_load || '0%'
           };
         } else if (userType === 'dean') {
           // 院长看到学院数据
           stats = {
-            userCount: 2800, // 学院人数
-            adminCount: 5,   // 学院管理员
-            announcementCount: 23,
-            noticeCount: 45,
-            facultyCount: 120,
-            studentCount: 2680
+            userCount: data.college_users || 0,
+            adminCount: data.college_admins || 0,
+            announcementCount: data.college_announcements || 0,
+            noticeCount: data.college_notices || 0,
+            facultyCount: data.faculty_count || 0,
+            studentCount: data.student_count || 0
           };
         } else if (userType === 'department_head') {
           // 部门主管看到部门数据
           stats = {
-            userCount: 450,  // 部门人数
-            adminCount: 2,   // 部门管理员
-            announcementCount: 12,
-            noticeCount: 28,
-            staffCount: 25,
-            activeProjects: 8
+            userCount: data.department_users || 0,
+            adminCount: data.department_admins || 0,
+            announcementCount: data.department_announcements || 0,
+            noticeCount: data.department_notices || 0,
+            staffCount: data.staff_count || 0,
+            activeProjects: data.active_projects || 0
           };
         } else {
           // 其他类型的管理员
           stats = {
-            userCount: 156,
+            userCount: data.managed_users || 0,
             adminCount: 1,
-            announcementCount: 5,
-            noticeCount: 12
+            announcementCount: data.managed_announcements || 0,
+            noticeCount: data.managed_notices || 0
           };
         }
         
-        resolve(stats);
-      }, 1000)
-    })
+        return stats;
+      } else {
+        throw new Error(response.message || '获取统计数据失败')
+      }
+    } catch (error) {
+      console.error('[管理员页面] ❌ 获取统计数据失败:', error)
+      
+      // 返回默认数据
+      const userType = this.data.userInfo.person_type;
+      
+      if (userType === 'admin') {
+        return {
+          userCount: 0,
+          adminCount: 0,
+          announcementCount: 0,
+          noticeCount: 0,
+          activeUsers: 0,
+          systemLoad: '0%'
+        };
+      } else if (userType === 'dean') {
+        return {
+          userCount: 0,
+          adminCount: 0,
+          announcementCount: 0,
+          noticeCount: 0,
+          facultyCount: 0,
+          studentCount: 0
+        };
+      } else if (userType === 'department_head') {
+        return {
+          userCount: 0,
+          adminCount: 0,
+          announcementCount: 0,
+          noticeCount: 0,
+          staffCount: 0,
+          activeProjects: 0
+        };
+      } else {
+        return {
+          userCount: 0,
+          adminCount: 1,
+          announcementCount: 0,
+          noticeCount: 0
+        };
+      }
+    }
   },
 
   // 用户管理
@@ -556,32 +604,44 @@ Page({
   },
 
   // 数据备份
-  startBackup() {
-    wx.showLoading({
-      title: '备份中...'
-    })
-    
-    // 模拟备份过程
-    setTimeout(() => {
-      wx.hideLoading()
-      wx.showToast({
-        title: '备份完成',
-        icon: 'success'
+  async startBackup() {
+    try {
+      wx.showLoading({
+        title: '备份中...'
       })
       
-      // 添加到最近操作
-      const newAction = {
-        id: Date.now(),
-        icon: '💾',
-        action: '执行了数据备份',
-        time: '刚刚',
-        status: 'success',
-        statusText: '成功'
-      }
+      const response = await API.createSystemBackup()
       
-      const recentActions = [newAction, ...this.data.recentActions.slice(0, 3)]
-      this.setData({ recentActions })
-    }, 2000)
+      if (response.code === 0) {
+        wx.hideLoading()
+        wx.showToast({
+          title: '备份完成',
+          icon: 'success'
+        })
+        
+        // 添加到最近操作
+        const newAction = {
+          id: Date.now(),
+          icon: '💾',
+          action: '执行了数据备份',
+          time: '刚刚',
+          status: 'success',
+          statusText: '成功'
+        }
+        
+        const recentActions = [newAction, ...this.data.recentActions.slice(0, 3)]
+        this.setData({ recentActions })
+      } else {
+        throw new Error(response.message || '备份失败')
+      }
+    } catch (error) {
+      console.error('[管理员页面] ❌ 备份失败:', error)
+      wx.hideLoading()
+      wx.showToast({
+        title: '备份失败，请重试',
+        icon: 'none'
+      })
+    }
   },
 
   // 刷新数据

@@ -1,299 +1,395 @@
 """
-事件驱动推送系统
-实现数据库变化监听、事件队列管理和SSE推送
+事件推送系统
+负责检测数据变化并推送事件给前端
 """
 
 import asyncio
-import json
-import time
-import uuid
-from datetime import datetime
-from typing import Dict, List, Optional, Set, Any
-from collections import defaultdict, deque
 import logging
-from enum import Enum
+from datetime import datetime, timedelta
+from typing import Dict, Any, List, Set, Optional
+
+# 🔄 使用HTTP客户端进行真正的HTTP请求，不导入Python模块
+from app.core.http_client import http_client
 
 logger = logging.getLogger(__name__)
 
-class EventType(str, Enum):
-    """事件类型枚举"""
-    # 公开事件（所有用户可见）
-    ANNOUNCEMENT = "announcement"           # 校园公告
-    NOTICE = "notice"                      # 部门通知  
-    SYSTEM_MESSAGE = "system_message"      # 系统消息
-    EMERGENCY = "emergency"                # 紧急通知
-    
-    # 私人事件（仅相关用户可见）
-    GRADE_UPDATE = "grade_update"          # 成绩更新
-    COURSE_CHANGE = "course_change"        # 课程变更
-    EXAM_REMINDER = "exam_reminder"        # 考试提醒
-    LIBRARY_REMINDER = "library_reminder"  # 图书到期提醒
-    TRANSACTION = "transaction"            # 消费流水
-    ACTIVITY_RESULT = "activity_result"    # 活动结果
-    SCHOLARSHIP = "scholarship"            # 奖学金通知
-
-class EventPriority(str, Enum):
-    """事件优先级"""
-    LOW = "low"
-    NORMAL = "normal" 
-    HIGH = "high"
-    URGENT = "urgent"
-
-class Event:
-    """事件数据模型"""
-    
-    def __init__(
-        self,
-        event_type: EventType,
-        data: Dict[str, Any],
-        target_users: Optional[List[str]] = None,
-        priority: EventPriority = EventPriority.NORMAL,
-        ttl: int = 86400  # 缓存时间（秒）
-    ):
-        self.event_id = f"evt_{int(time.time())}_{uuid.uuid4().hex[:8]}"
-        self.event_type = event_type
-        self.data = data
-        self.target_users = target_users or []
-        self.priority = priority
-        self.ttl = ttl
-        self.timestamp = datetime.now().isoformat()
-        self.is_public = event_type in [
-            EventType.ANNOUNCEMENT, 
-            EventType.NOTICE, 
-            EventType.SYSTEM_MESSAGE, 
-            EventType.EMERGENCY
-        ]
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """转换为字典格式"""
-        return {
-            "event_id": self.event_id,
-            "event_type": self.event_type,
-            "timestamp": self.timestamp,
-            "target_users": self.target_users,
-            "is_public": self.is_public,
-            "priority": self.priority,
-            "data": self.data,
-            "cache_policy": {
-                "ttl": self.ttl,
-                "persist": True
-            }
-        }
-
 class EventQueue:
-    """事件队列管理器"""
+    """事件队列系统 - 兼容旧API"""
     
     def __init__(self):
-        self.queues: Dict[str, deque] = defaultdict(deque)  # 用户ID -> 事件队列
-        self.global_queue: deque = deque()  # 全局事件队列（公开事件）
-        self.subscribers: Dict[str, Set[asyncio.Queue]] = defaultdict(set)  # 用户ID -> WebSocket连接
-        self.event_history: Dict[str, List[Event]] = defaultdict(list)  # 事件历史
-        self.max_queue_size = 1000
-        self.max_history_size = 100
-    
-    async def publish_event(self, event: Event):
-        """发布事件到队列"""
-        logger.info(f"发布事件: {event.event_type} -> {event.target_users or 'all'}")
+        self.subscribers: Dict[str, Any] = {}
+        self.queues: Dict[str, List[Dict[str, Any]]] = {}
+        self.global_queue: List[Dict[str, Any]] = []
         
-        if event.is_public:
-            # 公开事件：添加到全局队列
-            self.global_queue.append(event)
-            if len(self.global_queue) > self.max_queue_size:
-                self.global_queue.popleft()
-            
-            # 推送给所有在线用户
-            await self._broadcast_to_all(event)
-        else:
-            # 私人事件：添加到特定用户队列
-            for user_id in event.target_users:
-                self.queues[user_id].append(event)
-                if len(self.queues[user_id]) > self.max_queue_size:
-                    self.queues[user_id].popleft()
-                
-                # 添加到历史记录
-                self.event_history[user_id].append(event)
-                if len(self.event_history[user_id]) > self.max_history_size:
-                    self.event_history[user_id].pop(0)
-                
-                # 推送给在线用户
-                await self._push_to_user(user_id, event)
+    async def subscribe(self, user_id: str):
+        """订阅用户事件"""
+        if user_id not in self.queues:
+            self.queues[user_id] = []
+        if user_id not in self.subscribers:
+            self.subscribers[user_id] = asyncio.Queue()
+        return self.subscribers[user_id]
     
-    async def _broadcast_to_all(self, event: Event):
-        """广播公开事件给所有在线用户"""
-        for user_id, connections in self.subscribers.items():
-            for connection in connections.copy():
-                try:
-                    await connection.put(event.to_dict())
-                except Exception as e:
-                    logger.error(f"推送失败 {user_id}: {e}")
-                    connections.discard(connection)
-    
-    async def _push_to_user(self, user_id: str, event: Event):
-        """推送事件给特定用户"""
+    async def unsubscribe(self, user_id: str, connection=None):
+        """取消订阅"""
         if user_id in self.subscribers:
-            for connection in self.subscribers[user_id].copy():
-                try:
-                    await connection.put(event.to_dict())
-                except Exception as e:
-                    logger.error(f"推送失败 {user_id}: {e}")
-                    self.subscribers[user_id].discard(connection)
+            del self.subscribers[user_id]
+        if user_id in self.queues:
+            del self.queues[user_id]
     
-    async def subscribe(self, user_id: str) -> asyncio.Queue:
-        """用户订阅事件流"""
-        connection = asyncio.Queue(maxsize=100)
-        self.subscribers[user_id].add(connection)
-        logger.info(f"用户 {user_id} 订阅事件流")
-        
-        # 立即推送未读的事件
-        await self._push_unread_events(user_id, connection)
-        
-        return connection
+    def get_events_since(self, user_id: str, since: str) -> List[Dict[str, Any]]:
+        """获取指定时间后的事件"""
+        try:
+            since_time = datetime.fromisoformat(since.replace('Z', '+00:00'))
+            user_events = self.queues.get(user_id, [])
+            return [
+                event for event in user_events 
+                if datetime.fromisoformat(event.get('timestamp', '')) > since_time
+            ]
+        except:
+            return []
     
-    async def unsubscribe(self, user_id: str, connection: asyncio.Queue):
-        """用户取消订阅"""
+    async def publish(self, user_id: str, event_data: Dict[str, Any]):
+        """发布事件到用户队列"""
+        # 添加到用户队列
+        if user_id not in self.queues:
+            self.queues[user_id] = []
+        
+        event_data['timestamp'] = datetime.now().isoformat()
+        self.queues[user_id].append(event_data)
+        
+        # 限制队列长度
+        if len(self.queues[user_id]) > 100:
+            self.queues[user_id] = self.queues[user_id][-100:]
+        
+        # 推送到订阅者
         if user_id in self.subscribers:
-            self.subscribers[user_id].discard(connection)
-            if not self.subscribers[user_id]:
-                del self.subscribers[user_id]
-        logger.info(f"用户 {user_id} 取消订阅")
-    
-    async def _push_unread_events(self, user_id: str, connection: asyncio.Queue):
-        """推送未读事件"""
-        # 推送公开事件（最近10条）
-        recent_public = list(self.global_queue)[-10:]
-        for event in recent_public:
             try:
-                await connection.put(event.to_dict())
+                await self.subscribers[user_id].put(event_data)
             except:
-                break
-        
-        # 推送私人事件（最近20条）
-        recent_private = list(self.queues[user_id])[-20:]
-        for event in recent_private:
-            try:
-                await connection.put(event.to_dict())
-            except:
-                break
-    
-    def get_events_since(self, user_id: str, since_timestamp: str) -> List[Dict[str, Any]]:
-        """获取指定时间之后的事件（增量同步）"""
-        since_time = datetime.fromisoformat(since_timestamp.replace('Z', '+00:00'))
-        events = []
-        
-        # 获取公开事件
-        for event in self.global_queue:
-            event_time = datetime.fromisoformat(event.timestamp)
-            if event_time > since_time:
-                events.append(event.to_dict())
-        
-        # 获取私人事件
-        for event in self.queues[user_id]:
-            event_time = datetime.fromisoformat(event.timestamp)
-            if event_time > since_time:
-                events.append(event.to_dict())
-        
-        # 按时间排序
-        events.sort(key=lambda x: x['timestamp'])
-        return events
+                pass
 
-class DatabaseChangeListener:
-    """数据库变化监听器"""
+class EventManager:
+    """事件管理器"""
     
-    def __init__(self, event_queue: EventQueue):
-        self.event_queue = event_queue
-        self.last_check = {}  # 记录各表的最后检查时间
-    
-    async def start_monitoring(self):
-        """开始监控数据库变化"""
-        logger.info("开始监控数据库变化...")
+    def __init__(self):
+        self.subscribers: Dict[str, Set[Any]] = {}
+        self.last_check: Dict[str, datetime] = {}
+        self.running = False
+        self.event_queue = EventQueue()  # 添加事件队列
         
-        while True:
+    async def start(self):
+        """启动事件系统"""
+        if self.running:
+            return
+            
+        self.running = True
+        logger.info("🚀 事件推送系统启动")
+        
+        # 启动各种检查任务
+        asyncio.create_task(self._monitor_announcements())
+        asyncio.create_task(self._monitor_grades())
+        asyncio.create_task(self._monitor_transactions())
+        asyncio.create_task(self._monitor_library())
+        
+    async def stop(self):
+        """停止事件系统"""
+        self.running = False
+        logger.info("🛑 事件推送系统停止")
+    
+    def subscribe(self, event_type: str, callback: Any):
+        """订阅事件"""
+        if event_type not in self.subscribers:
+            self.subscribers[event_type] = set()
+        self.subscribers[event_type].add(callback)
+        
+    def unsubscribe(self, event_type: str, callback: Any):
+        """取消订阅"""
+        if event_type in self.subscribers:
+            self.subscribers[event_type].discard(callback)
+    
+    async def emit(self, event_type: str, data: Dict[str, Any]):
+        """发射事件"""
+        if event_type in self.subscribers:
+            for callback in self.subscribers[event_type]:
+                try:
+                    if asyncio.iscoroutinefunction(callback):
+                        await callback(event_type, data)
+                    else:
+                        callback(event_type, data)
+                except Exception as e:
+                    logger.error(f"事件回调失败: {e}")
+                    
+        # 同时推送到事件队列（用于流式推送）
+        if "student_id" in data:
+            await self.event_queue.publish(data["student_id"], {
+                "event_type": event_type,
+                **data
+            })
+        elif "person_id" in data:
+            await self.event_queue.publish(data["person_id"], {
+                "event_type": event_type,
+                **data
+            })
+    
+    async def _monitor_announcements(self):
+        """监控公告更新"""
+        while self.running:
             try:
                 await self._check_announcements()
-                await self._check_grades()
-                await self._check_transactions()
-                await self._check_library_reminders()
-                
-                # 每30秒检查一次
-                await asyncio.sleep(30)
+                await asyncio.sleep(30)  # 每30秒检查一次
             except Exception as e:
-                logger.error(f"数据库监控错误: {e}")
+                logger.error(f"监控公告失败: {e}")
                 await asyncio.sleep(60)
     
     async def _check_announcements(self):
         """检查公告更新"""
-        # TODO: 实际实现中需要连接数据库检查
-        # 这里是模拟逻辑
-        pass
+        try:
+            # 🔄 HTTP请求data-service查询最近的公告（移除Django风格的时间过滤）
+            recent_announcements = await http_client.query_table(
+                "announcements",
+                filters={
+                    "is_deleted": False,
+                    "status": "published"
+                },
+                order_by="publish_time DESC",
+                limit=10
+            )
+            
+            # 手动过滤时间（由于SQLite不支持Django风格的查询）
+            last_check_time = self.last_check.get('announcements', 
+                                                datetime.now() - timedelta(minutes=5))
+            
+            # 处理新公告
+            for announcement in recent_announcements.get("records", []):
+                try:
+                    # 检查发布时间
+                    publish_time_str = announcement.get("publish_time")
+                    if publish_time_str:
+                        publish_time = datetime.fromisoformat(publish_time_str.replace('Z', '+00:00'))
+                        if publish_time > last_check_time:
+                            await self.emit("announcement", {
+                                "announcement_id": announcement.get("announcement_id"),
+                                "title": announcement.get("title"),
+                                "category": announcement.get("category"),
+                                "priority": announcement.get("priority"),
+                                "publish_time": announcement.get("publish_time"),
+                                "is_urgent": announcement.get("is_urgent", False),
+                                "is_pinned": announcement.get("is_pinned", False),
+                                "is_public": True  # 公告是公开的
+                            })
+                except Exception as e:
+                    logger.warning(f"处理公告记录失败: {e}")
+                    continue
+            
+            # 更新检查时间
+            self.last_check['announcements'] = datetime.now()
+            
+        except Exception as e:
+            logger.error(f"检查公告更新失败: {e}")
+    
+    async def _monitor_grades(self):
+        """监控成绩更新"""
+        while self.running:
+            try:
+                await self._check_grades()
+                await asyncio.sleep(60)  # 每1分钟检查一次
+            except Exception as e:
+                logger.error(f"监控成绩失败: {e}")
+                await asyncio.sleep(120)
     
     async def _check_grades(self):
         """检查成绩更新"""
-        # TODO: 实际实现中需要连接数据库检查
-        pass
+        try:
+            # 🔄 HTTP请求data-service查询最近更新的成绩记录
+            recent_grades = await http_client.query_table(
+                "grades",
+                filters={
+                    "is_deleted": False,
+                    "grade_status": "confirmed"
+                },
+                order_by="created_at DESC",
+                limit=50
+            )
+            
+            # 手动过滤时间
+            last_check_time = self.last_check.get('grades', 
+                                                datetime.now() - timedelta(minutes=5))
+            
+            # 检查是否有新成绩
+            for grade in recent_grades.get("records", []):
+                try:
+                    # 检查成绩时间字段
+                    grade_time_str = grade.get("created_at") or grade.get("updated_at") or grade.get("grade_time")
+                    if grade_time_str:
+                        grade_time = datetime.fromisoformat(grade_time_str.replace('Z', '+00:00'))
+                        if grade_time > last_check_time:
+                            # 🔄 HTTP请求获取课程信息
+                            course_info = await http_client.query_table(
+                                "courses",
+                                filters={"course_id": grade.get("course_id")},
+                                limit=1
+                            )
+                            
+                            course_records = course_info.get("records", [])
+                            course_name = course_records[0].get("course_name", "未知课程") if course_records else "未知课程"
+                            
+                            await self.emit("grade_update", {
+                                "student_id": grade.get("student_id"),
+                                "course_name": course_name,
+                                "total_score": grade.get("total_score"),
+                                "grade_level": grade.get("grade_level"),
+                                "is_passed": grade.get("is_passed", False),
+                                "grade_time": grade_time_str,
+                                "is_public": False  # 成绩是私人的
+                            })
+                except Exception as e:
+                    logger.warning(f"处理成绩记录失败: {e}")
+                    continue
+            
+            # 更新检查时间
+            self.last_check['grades'] = datetime.now()
+            
+        except Exception as e:
+            logger.error(f"检查成绩更新失败: {e}")
+    
+    async def _monitor_transactions(self):
+        """监控消费交易"""
+        while self.running:
+            try:
+                await self._check_transactions()
+                await asyncio.sleep(30)  # 每30秒检查一次
+            except Exception as e:
+                logger.error(f"监控交易失败: {e}")
+                await asyncio.sleep(60)
     
     async def _check_transactions(self):
-        """检查消费记录更新"""
-        # TODO: 实际实现中需要连接数据库检查
-        pass
+        """检查交易更新"""
+        try:
+            # 🔄 HTTP请求data-service查询最近的交易记录
+            recent_transactions = await http_client.query_table(
+                "transactions",
+                filters={
+                    "is_deleted": False,
+                    "transaction_status": "success"
+                },
+                order_by="transaction_time DESC",
+                limit=20
+            )
+            
+            # 手动过滤时间
+            last_check_time = self.last_check.get('transactions', 
+                                                datetime.now() - timedelta(minutes=5))
+            
+            # 处理新交易
+            for transaction in recent_transactions.get("records", []):
+                try:
+                    trans_time_str = transaction.get("transaction_time")
+                    if trans_time_str:
+                        trans_time = datetime.fromisoformat(trans_time_str.replace('Z', '+00:00'))
+                        if trans_time > last_check_time:
+                            await self.emit("transaction", {
+                                "person_id": transaction.get("person_id"),
+                                "amount": transaction.get("amount"),
+                                "transaction_type": transaction.get("transaction_type"),
+                                "merchant_name": transaction.get("merchant_name"),
+                                "transaction_time": trans_time_str,
+                                "balance_after": transaction.get("balance_after"),
+                                "is_public": False  # 交易是私人的
+                            })
+                except Exception as e:
+                    logger.warning(f"处理交易记录失败: {e}")
+                    continue
+            
+            # 更新检查时间
+            self.last_check['transactions'] = datetime.now()
+            
+        except Exception as e:
+            logger.error(f"检查交易更新失败: {e}")
     
-    async def _check_library_reminders(self):
-        """检查图书到期提醒"""
-        # TODO: 实际实现中需要连接数据库检查
-        pass
+    async def _monitor_library(self):
+        """监控图书馆操作"""
+        while self.running:
+            try:
+                await self._check_library()
+                await asyncio.sleep(120)  # 每2分钟检查一次
+            except Exception as e:
+                logger.error(f"监控图书馆失败: {e}")
+                await asyncio.sleep(180)
+    
+    async def _check_library(self):
+        """检查图书馆更新"""
+        try:
+            # 🔄 HTTP请求data-service查询最近的借阅记录
+            borrow_records = await http_client.query_table(
+                "borrow_records",
+                filters={
+                    "is_deleted": False
+                },
+                order_by="borrow_date DESC",
+                limit=20
+            )
+            
+            # 处理到期提醒
+            for record in borrow_records.get("records", []):
+                try:
+                    due_date_str = record.get("due_date")
+                    if due_date_str:
+                        due_date = datetime.fromisoformat(due_date_str.replace('Z', '+00:00'))
+                        days_left = (due_date - datetime.now()).days
+                        
+                        # 提前3天提醒
+                        if days_left <= 3 and days_left >= 0:
+                            # 🔄 HTTP请求获取图书信息
+                            book_result = await http_client.query_table(
+                                "books",
+                                filters={"book_id": record.get("book_id")},
+                                limit=1
+                            )
+                            
+                            book_records = book_result.get("records", [])
+                            book_title = book_records[0].get("title", "未知图书") if book_records else "未知图书"
+                            
+                            await self.emit("library_reminder", {
+                                "borrower_id": record.get("borrower_id"),
+                                "person_id": record.get("borrower_id"),  # 添加person_id用于推送
+                                "book_title": book_title,
+                                "due_date": due_date_str,
+                                "days_left": days_left,
+                                "record_id": record.get("record_id"),
+                                "is_public": False  # 借阅提醒是私人的
+                            })
+                except Exception as e:
+                    logger.warning(f"处理借阅记录失败: {e}")
+                    continue
+            
+            # 更新检查时间
+            self.last_check['library'] = datetime.now()
+            
+        except Exception as e:
+            logger.error(f"检查图书馆更新失败: {e}")
 
-# 全局事件队列实例
-event_queue = EventQueue()
+# 全局事件管理器实例
+event_manager = EventManager()
 
-# 数据库监听器实例
-db_listener = DatabaseChangeListener(event_queue)
+# 导出兼容的event_queue对象
+event_queue = event_manager.event_queue
 
 async def start_event_system():
     """启动事件系统"""
-    logger.info("启动事件驱动推送系统...")
-    
-    # 启动数据库监听器
-    asyncio.create_task(db_listener.start_monitoring())
-    
-    logger.info("事件系统启动完成")
+    await event_manager.start()
 
-def create_announcement_event(title: str, content: str, department: str) -> Event:
-    """创建公告事件"""
-    return Event(
-        event_type=EventType.ANNOUNCEMENT,
-        data={
-            "title": title,
-            "content": content,
-            "department": department,
-            "category": "system",
-            "urgent": False
-        },
-        priority=EventPriority.NORMAL
-    )
+async def stop_event_system():
+    """停止事件系统"""
+    await event_manager.stop()
 
-def create_grade_event(student_id: str, course_name: str, score: float, grade_level: str) -> Event:
-    """创建成绩更新事件"""
-    return Event(
-        event_type=EventType.GRADE_UPDATE,
-        data={
-            "course_name": course_name,
-            "score": score,
-            "grade_level": grade_level,
-            "semester": "2024-2025-1"
-        },
-        target_users=[student_id],
-        priority=EventPriority.HIGH
-    )
+def subscribe_to_event(event_type: str, callback: Any):
+    """订阅事件"""
+    event_manager.subscribe(event_type, callback)
 
-def create_transaction_event(user_id: str, amount: float, location: str, balance: float) -> Event:
-    """创建消费流水事件"""
-    return Event(
-        event_type=EventType.TRANSACTION,
-        data={
-            "amount": amount,
-            "location": location,
-            "balance": balance,
-            "time": datetime.now().strftime("%H:%M:%S")
-        },
-        target_users=[user_id],
-        priority=EventPriority.LOW
-    ) 
+def unsubscribe_from_event(event_type: str, callback: Any):
+    """取消订阅事件"""
+    event_manager.unsubscribe(event_type, callback)
+
+async def emit_event(event_type: str, data: Dict[str, Any]):
+    """发射事件"""
+    await event_manager.emit(event_type, data) 

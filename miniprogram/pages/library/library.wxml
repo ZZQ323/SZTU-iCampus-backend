@@ -88,12 +88,12 @@
                   </view>
                 </view>
                 <view class="book-actions">
-                  <t-button size="small" theme="light" data-book="{{item}}" bindtap="renewBook" 
+                  <t-button size="extra-small" theme="light" data-book="{{item}}" bindtap="renewBook" 
                     disabled="{{item.renewCount >= item.maxRenew}}">
                     续借 ({{item.renewCount}}/{{item.maxRenew}})
                   </t-button>
-                  <t-button size="small" theme="outline" data-book="{{item}}" bindtap="onViewBookDetail">
-                    详情
+                  <t-button size="extra-small" shape="round" theme="outline" data-book="{{item}}" bindtap="onViewBookDetail">
+                    详情  
                   </t-button>
                 </view>
               </view>
@@ -225,7 +225,7 @@
             <view class="seat-stats">
               <view class="seat-progress">
                 <view class="progress-bar">
-                  <view class="progress-fill" style="width: {{(totalSeats - availableSeats) / totalSeats * 100}}%;"></view>
+                  <view class="progress-fill" style="width: {{(totalSeats - availableSeats) / totalSeats * 100}}\%;"></view>
                 </view>
                 <view class="progress-text">{{totalSeats - availableSeats}}/{{totalSeats}} 已占用</view>
               </view>

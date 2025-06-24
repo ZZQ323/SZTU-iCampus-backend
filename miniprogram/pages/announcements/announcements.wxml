@@ -52,8 +52,11 @@
       >
         <view class="item-header">
           <view class="title">{{item.title}}</view>
+          <view class="header-badges">
+            <view wx:if="{{item.isCollected}}" class="collection-badge">⭐</view>
           <view class="badge {{item.priority === 'high' ? 'urgent' : 'normal'}}">
             {{item.priority === 'high' ? '重要' : '一般'}}
+            </view>
           </view>
         </view>
         <view class="item-content">
@@ -70,7 +73,7 @@
               theme="light" 
               bindtap="shareAnnouncement"
               data-announcement="{{item}}"
-              catchtap="true"
+              catchtap="shareAnnouncement"
             >
               分享
             </t-button>

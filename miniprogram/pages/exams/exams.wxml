@@ -58,16 +58,16 @@
       <view class="section-title">📊 成绩动态</view>
     </view>
     <view class="notification-list">
-      <view class="notification-item" wx:for="{{gradeNotifications}}" wx:key="id">
-        <view class="notification-icon {{item.type}}">
-          <t-icon name="{{item.type === 'grade_published' ? 'check-circle' : 'time'}}" 
+      <view class="notification-item" wx:for="{{gradeNotifications}}" wx:key="notification_id">
+        <view class="notification-icon {{item.status}}">
+          <t-icon name="{{item.status === 'almost_ready' ? 'check-circle' : 'time'}}" 
                   size="16" 
-                  color="{{item.type === 'grade_published' ? '#00a870' : '#ff9500'}}" />
+                  color="{{item.status === 'almost_ready' ? '#00a870' : '#ff9500'}}" />
         </view>
         <view class="notification-info">
-          <view class="notification-course">{{item.course}}</view>
+          <view class="notification-course">{{item.course_name}}</view>
           <view class="notification-message">{{item.message}}</view>
-          <view class="notification-time">{{item.time}}</view>
+          <view class="notification-time">预计{{item.expected_release_date}}公布</view>
         </view>
       </view>
     </view>
@@ -158,18 +158,18 @@
   </view>
 
   <!-- 考试攻略 -->
-  <view class="tips-section">
+  <view class="tips-section" >
     <view class="section-header">
       <view class="section-title">💡 考试攻略</view>
     </view>
     <view class="tips-grid">
       <view class="tip-card" wx:for="{{examTips}}" wx:key="id" data-tip="{{item}}" bindtap="onViewTips">
         <view class="tip-icon">
-          <text>{{item.title.substring(0, 2)}}</text>
+          <icon type="success_no_circle"/>
         </view>
         <view class="tip-content">
           <view class="tip-title">{{item.title.substring(3)}}</view>
-          <view class="tip-preview">{{item.content.split('\\n')[0]}}</view>
+          <view class="tip-preview">{{item.preview}}</view>
         </view>
         <t-icon name="chevron-right" size="16" color="#ccc" />
       </view>

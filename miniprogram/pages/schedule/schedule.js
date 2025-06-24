@@ -1,4 +1,5 @@
 const app = getApp()
+const API = require('../../utils/api.js')
 
 Page({
   data: {
@@ -152,148 +153,170 @@ Page({
     });
   },
 
-  initializeSchedule() {
+  async initializeSchedule() {
     if (!this.data.userInfo) {
       return;
     }
 
+    this.setData({ loading: true });
+
+    try {
     const userType = this.data.userInfo.person_type;
-    let mockSchedule = {};
 
     if (userType === 'student') {
-      // 学生课表
-      mockSchedule = {
-        monday: [
-          {
-            id: 1,
-            course_name: "高等数学A",
-            teacher: "张教授",
-            time: "08:30-10:10",
-            time_slot: "1-2",
-            location: "C2-301",
-            course_type: "required",
-            weeks: "1-16周",
-            status: "upcoming",
-            note: "请携带教材"
-          },
-          {
-            id: 2,
-            course_name: "程序设计基础",
-            teacher: "李教授",
-            time: "10:30-12:10",
-            time_slot: "3-4",
-            location: "C2-305",
-            course_type: "required",
-            weeks: "1-16周",
-            status: "upcoming"
-          }
-        ],
-        tuesday: [
-          {
-            id: 3,
-            course_name: "英语",
-            teacher: "王教授",
-            time: "08:30-10:10",
-            time_slot: "1-2",
-            location: "B3-201",
-            course_type: "required",
-            weeks: "1-16周",
-            status: "upcoming"
-          }
-        ],
-        wednesday: [
-          {
-            id: 4,
-            course_name: "体育",
-            teacher: "赵教练",
-            time: "14:00-15:40",
-            time_slot: "5-6",
-            location: "体育馆",
-            course_type: "required",
-            weeks: "1-16周",
-            status: "upcoming"
-          }
-        ],
-        thursday: [],
-        friday: [],
-        saturday: [],
-        sunday: []
-      };
+        // 学生获取课表数据
+        const response = await API.getCurrentWeekSchedule();
+        
+        if (response.code === 0) {
+          const scheduleData = response.data || {};
+          
+          // 转换API数据格式为前端需要的格式
+          const formattedSchedule = this.formatScheduleData(scheduleData.courses || []);
+          
+          this.setData({
+            'scheduleData.schedule': formattedSchedule,
+            'scheduleData.week_info': {
+              current_week: scheduleData.current_week || 1,
+              total_weeks: scheduleData.total_weeks || 18,
+              semester: scheduleData.semester || "2024-2025学年第一学期"
+            }
+          });
+        } else {
+          throw new Error(response.message || '获取学生课表失败');
+        }
     } else if (userType === 'teacher' || userType === 'assistant_teacher') {
-      // 教师课表
-      mockSchedule = {
-        monday: [
-          {
-            id: 1,
-            course_name: "软件工程",
-            class_name: "软工2024-1班",
-            time: "08:30-10:10",
-            time_slot: "1-2",
-            location: "C2-301",
-            course_type: "required",
-            weeks: "1-16周",
-            status: "upcoming",
-            student_count: 58
-          },
-          {
-            id: 2,
-            course_name: "软件工程",
-            class_name: "软工2024-2班",
-            time: "10:30-12:10",
-            time_slot: "3-4",
-            location: "C2-305",
-            course_type: "required",
-            weeks: "1-16周",
-            status: "upcoming",
-            student_count: 56
-          }
-        ],
-        tuesday: [],
-        wednesday: [
-          {
-            id: 3,
-            course_name: "数据库原理",
-            class_name: "计科2024-1班",
-            time: "14:00-15:40",
-            time_slot: "5-6",
-            location: "C3-201",
-            course_type: "required",
-            weeks: "1-16周",
-            status: "upcoming",
-            student_count: 62
-          }
-        ],
-        thursday: [],
-        friday: [],
-        saturday: [],
-        sunday: []
-      };
+        // 教师获取教学安排
+        const response = await API.getTeacherSchedule();
+        
+        if (response.code === 0) {
+          const scheduleData = response.data || {};
+          
+          // 转换教师课表数据格式
+          const formattedSchedule = this.formatTeacherScheduleData(scheduleData.teaching_schedule || []);
+          
+          this.setData({
+            'scheduleData.schedule': formattedSchedule,
+            'scheduleData.week_info': {
+              current_week: scheduleData.current_week || 1,
+              total_weeks: scheduleData.total_weeks || 18,
+              semester: scheduleData.semester || "2024-2025学年第一学期"
+            }
+          });
+        } else {
+          throw new Error(response.message || '获取教师课表失败');
+        }
     } else {
       // 管理员等其他角色没有课表
-      mockSchedule = {
-        monday: [],
-        tuesday: [],
-        wednesday: [],
-        thursday: [],
-        friday: [],
-        saturday: [],
-        sunday: []
+        const emptySchedule = {
+          monday: [], tuesday: [], wednesday: [], thursday: [],
+          friday: [], saturday: [], sunday: []
       };
       
-      // 显示提示信息
+        this.setData({
+          'scheduleData.schedule': emptySchedule
+        });
+        
       wx.showToast({
         title: '您的身份无课表安排',
         icon: 'none',
         duration: 2000
       });
     }
+      
+      // 计算课程统计
+      this.calculateWeekSummary();
+      
+    } catch (error) {
+      console.error('[课表页面] ❌ 加载课表失败:', error);
+      
+      // 出错时使用空课表
+      const emptySchedule = {
+        monday: [], tuesday: [], wednesday: [], thursday: [],
+        friday: [], saturday: [], sunday: []
+      };
 
     this.setData({
-      'scheduleData.schedule': mockSchedule
+        'scheduleData.schedule': emptySchedule
     });
 
-    // 计算课程统计
-    this.calculateWeekSummary();
+      wx.showToast({
+        title: '加载课表失败',
+        icon: 'none'
+      });
+    } finally {
+      this.setData({ loading: false });
+    }
+  },
+
+  /**
+   * 格式化学生课表数据
+   */
+  formatScheduleData(courses) {
+    const schedule = {
+      monday: [], tuesday: [], wednesday: [], thursday: [],
+      friday: [], saturday: [], sunday: []
+    };
+    
+    const weekdayMap = {
+      1: 'monday', 2: 'tuesday', 3: 'wednesday', 4: 'thursday',
+      5: 'friday', 6: 'saturday', 7: 'sunday'
+    };
+    
+    courses.forEach(course => {
+      const schedule_info = course.schedule || {};
+      const weekday = weekdayMap[schedule_info.weekday];
+      if (weekday) {
+        schedule[weekday].push({
+          id: course.instance_id,
+          course_name: course.course_name,
+          teacher: course.teacher_name,
+          time: `${schedule_info.start_time}-${schedule_info.end_time}`,
+          time_slot: course.time_slot || "1-2",
+          location: schedule_info.location,
+          course_type: course.course_type || "required",
+          weeks: schedule_info.weeks || "1-16周",
+          status: "upcoming",
+          note: course.note || ""
+        });
+      }
+    });
+    
+    return schedule;
+  },
+
+  /**
+   * 格式化教师课表数据
+   */
+  formatTeacherScheduleData(teachingSchedule) {
+    const schedule = {
+      monday: [], tuesday: [], wednesday: [], thursday: [],
+      friday: [], saturday: [], sunday: []
+    };
+    
+    const weekdayMap = {
+      1: 'monday', 2: 'tuesday', 3: 'wednesday', 4: 'thursday',
+      5: 'friday', 6: 'saturday', 7: 'sunday'
+    };
+    
+    teachingSchedule.forEach(course => {
+      const weekday = weekdayMap[course.weekday];
+      if (weekday) {
+        schedule[weekday].push({
+          id: course.course_id,
+          course_name: course.course_name,
+          class_name: course.class_name,
+          time: `${course.start_time}-${course.end_time}`,
+          time_slot: course.time_slot || "1-2",
+          location: course.location,
+          course_type: course.course_type || "required",
+          weeks: course.weeks || "1-16周",
+          status: "upcoming",
+          student_count: course.student_count || 0
+        });
+      }
+    });
+    
+    return schedule;
   },
 
   /**
@@ -368,7 +391,7 @@ Page({
     });
   },
 
-  onWeekChange(e) {
+  async onWeekChange(e) {
     const weekIndex = e.detail.value;
     const weekData = this.data.weekRange[weekIndex];
     
@@ -377,8 +400,56 @@ Page({
       'scheduleData.week_info.current_week': weekData.value
     });
     
-    // 这里可以调用API获取对应周次的课表
-    console.log(`切换到第${weekData.value}周`);
+    // 调用API获取对应周次的课表
+    await this.loadWeekSchedule(weekData.value);
+  },
+
+  /**
+   * 加载指定周次的课表
+   */
+  async loadWeekSchedule(weekNumber) {
+    if (!this.data.userInfo) return;
+    
+    try {
+      this.setData({ loading: true });
+      
+      const userType = this.data.userInfo.person_type;
+      let response;
+      
+      if (userType === 'student') {
+        response = await API.getWeekSchedule(weekNumber);
+      } else if (userType === 'teacher' || userType === 'assistant_teacher') {
+        response = await API.getTeacherWeekSchedule(weekNumber);
+      } else {
+        return;
+      }
+      
+      if (response.code === 0) {
+        const scheduleData = response.data || {};
+        let formattedSchedule;
+        
+        if (userType === 'student') {
+          formattedSchedule = this.formatScheduleData(scheduleData.courses || []);
+        } else {
+          formattedSchedule = this.formatTeacherScheduleData(scheduleData.teaching_schedule || []);
+        }
+        
+        this.setData({
+          'scheduleData.schedule': formattedSchedule
+        });
+        
+        this.calculateWeekSummary();
+        this.updateSelectedDayCourses();
+      }
+    } catch (error) {
+      console.error('[课表页面] ❌ 加载周课表失败:', error);
+      wx.showToast({
+        title: '加载失败，请重试',
+        icon: 'none'
+      });
+    } finally {
+      this.setData({ loading: false });
+    }
   },
 
   showCourseDetail(e) {
@@ -398,7 +469,7 @@ Page({
 
   onPullDownRefresh() {
     this.checkLoginStatus();
-    this.loadScheduleData().finally(() => {
+    this.initializeSchedule().finally(() => {
       wx.stopPullDownRefresh();
     });
   },
@@ -410,23 +481,7 @@ Page({
 
     try {
       this.setData({ loading: true });
-      
-      // TODO: 调用后端API获取课表数据
-      // const token = wx.getStorageSync('token');
-      // const res = await wx.request({
-      //   url: 'http://localhost:8000/api/v1/simple/schedule',
-      //   method: 'GET',
-      //   data: {
-      //     week: this.data.scheduleData.week_info.current_week
-      //   },
-      //   header: {
-      //     'Authorization': 'Bearer ' + token
-      //   }
-      // });
-      
-      // 模拟API调用延迟
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
+      await this.initializeSchedule();
       console.log('课表数据加载完成');
     } catch (error) {
       console.error('加载课表数据失败:', error);
