@@ -15,21 +15,53 @@
     </view>
   </view>
 
-  <!-- 分类标签 -->
-  <view class="filter-tabs">
-    <scroll-view scroll-x class="tabs-scroll">
-      <view class="tabs-container">
+  <!-- 分类标签和排序 -->
+  <view class="filter-section">
+    <view class="filter-tabs">
+      <scroll-view scroll-x class="tabs-scroll">
+        <view class="tabs-container">
+          <view 
+            wx:for="{{categories}}" 
+            wx:key="index"
+            class="tab-item {{currentCategory === item.value ? 'active' : ''}}"
+            bindtap="onCategoryChange"
+            data-category="{{item.value}}"
+          >
+            {{item.label}}
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+    
+    <!-- 排序按钮 -->
+    <view class="sort-section">
+      <view class="sort-button" bindtap="toggleSortMenu">
+        <text class="sort-text">{{currentSortLabel}}</text>
+        <text class="sort-icon">{{showSortMenu ? '▲' : '▼'}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 排序菜单 -->
+  <view wx:if="{{showSortMenu}}" class="sort-menu-overlay" bindtap="hideSortMenu">
+    <view class="sort-menu" catchtap="">
+      <view class="sort-menu-header">
+        <text class="sort-menu-title">选择排序方式</text>
+      </view>
+      <view class="sort-options">
         <view 
-          wx:for="{{categories}}" 
-          wx:key="index"
-          class="tab-item {{currentCategory === item.value ? 'active' : ''}}"
-          bindtap="onCategoryChange"
-          data-category="{{item.value}}"
+          wx:for="{{sortOptions}}" 
+          wx:key="value"
+          class="sort-option {{currentSort === item.value ? 'active' : ''}}"
+          bindtap="onSortChange"
+          data-sort="{{item.value}}"
         >
-          {{item.label}}
+          <text class="sort-option-icon">{{item.icon}}</text>
+          <text class="sort-option-label">{{item.label}}</text>
+          <text wx:if="{{currentSort === item.value}}" class="sort-option-check">✓</text>
         </view>
       </view>
-    </scroll-view>
+    </view>
   </view>
 
   <!-- 公告列表 -->

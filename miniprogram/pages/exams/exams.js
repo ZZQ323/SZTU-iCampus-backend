@@ -232,21 +232,29 @@ Page({
       console.log('[考试页面] 📊 统计API响应:', response)
       
       if (response.code === 0) {
-        const stats = response.data || {}
+        const data = response.data || {}
+        const stats = data.statistics || {}
+        const nextExam = data.nextExam || null
         console.log('[考试页面] 📈 统计数据详情:', stats)
+        console.log('[考试页面] 🎯 下次考试信息:', nextExam)
         
         const examStats = {
-          total: stats.total_exams || 0,
-          upcoming: stats.upcoming_exams || 0,
-          completed: stats.completed_exams || 0,
-          averageScore: stats.average_score || 0
+          total: stats.total || 0,
+          upcoming: stats.upcoming || 0,
+          completed: stats.completed || 0,
+          averageScore: stats.averageScore || 0
         }
         
         console.log('[考试页面] 🎯 映射后的统计数据:', examStats)
         
-        this.setData({
-          examStats: examStats
-        })
+        // 🔧 如果有下次考试信息，更新到页面
+        const updateData = { examStats: examStats }
+        if (nextExam) {
+          updateData.nextExam = nextExam
+          console.log('[考试页面] 🎯 更新下次考试信息:', nextExam)
+        }
+        
+        this.setData(updateData)
         
         console.log('[考试页面] ✅ 考试统计数据已更新到页面')
       } else {

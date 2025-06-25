@@ -1,5 +1,22 @@
 # SZTU-iCampus 数据模型与API设计
 
+## 测试账号信息
+
+### 主要测试账号
+- **202100008036** - 主要测试学生（有完整选课、成绩数据）
+- **2025123456** - 测试学生1  
+- **2025123457** - 测试学生2
+- **2025123458** - 测试学生3
+
+### 数据概览
+- 总用户数：63,460+ 人
+- 课程数：3,120 门
+- 选课记录：406,807 条
+- 成绩记录：406,807 条  
+- 公告：11+ 条
+- 活动：10+ 条
+- 考试：13+ 条
+
 ## 基础实体表
 
 ### persons 表
@@ -726,6 +743,57 @@
   "deleted_at": null,
   "status": "active",
   "notes": null
+}
+```
+
+
+### exams 表
+数据量: 13+ 条记录
+
+```json
+{
+  "exam_id": "TEXT",  // 考试ID, 主键, 必填
+  "course_instance_id": "TEXT",  // 课程实例ID
+  "course_id": "TEXT",  // 课程ID
+  "exam_type": "TEXT",  // 考试类型 (final, midterm, quiz)
+  "exam_name": "TEXT",  // 考试名称
+  "exam_date": "TEXT",  // 考试日期
+  "exam_time": "TEXT",  // 考试时间
+  "duration": "INTEGER",  // 考试时长(分钟)
+  "location": "TEXT",  // 考试地点
+  "exam_status": "TEXT",  // 考试状态 (scheduled, ongoing, completed)
+  "total_score": "REAL",  // 总分
+  "weight": "REAL",  // 权重
+  "instructions": "TEXT",  // 考试说明
+  "created_at": "TEXT",  // 创建时间
+  "updated_at": "TEXT",  // 更新时间
+  "is_deleted": "INTEGER"  // 删除标记, 默认值:0
+}
+```
+
+**外键关系:**
+- course_instance_id → course_instances.instance_id
+- course_id → courses.course_id
+
+**样本数据:**
+```json
+{
+  "exam_id": "EXAM_20241225_001",
+  "course_instance_id": "CI2025000001",
+  "course_id": "C080901001",
+  "exam_type": "final",
+  "exam_name": "计算机科学与技术专业课程1期末考试",
+  "exam_date": "2025-01-14",
+  "exam_time": "8:30-10:30",
+  "duration": 120,
+  "location": "教学楼A101",
+  "exam_status": "scheduled",
+  "total_score": 100.0,
+  "weight": 0.6,
+  "instructions": "请携带学生证和文具，禁止使用电子设备",
+  "created_at": "2024-12-25T04:07:28.309000",
+  "updated_at": "2024-12-25T04:07:28.309000",
+  "is_deleted": 0
 }
 ```
 

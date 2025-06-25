@@ -1,0 +1,220 @@
+<view class="exam-detail-container">
+  <!-- 自定义导航栏 -->
+  <custom-navbar title="考试详情" showBack="{{true}}" background="{{'#2E8B57'}}"></custom-navbar>
+
+  <!-- 加载状态 -->
+  <view class="loading-container" wx:if="{{loading}}">
+    <t-loading size="24" />
+    <text>加载考试详情中...</text>
+  </view>
+
+  <!-- 考试详情内容 -->
+  <view class="exam-detail-content" wx:else>
+    
+    <!-- 考试基础信息卡片 -->
+    <view class="exam-info-card">
+      <view class="exam-header">
+        <view class="course-info">
+          <view class="course-name">{{exam.course_name}}</view>
+          <view class="course-code">{{exam.course_code}}</view>
+        </view>
+        <view class="exam-status {{exam.status}}">
+          {{exam.status === 'upcoming' ? '待考试' : exam.status === 'completed' ? '已完成' : '进行中'}}
+        </view>
+      </view>
+      
+      <view class="exam-basic-info">
+        <view class="info-row">
+          <t-icon name="time" size="18" color="#0052d9" />
+          <view class="info-content">
+            <view class="info-label">考试时间</view>
+            <view class="info-value">{{exam.exam_date}} {{exam.start_time}}-{{exam.end_time}}</view>
+          </view>
+        </view>
+        
+        <view class="info-row">
+          <t-icon name="location" size="18" color="#0052d9" />
+          <view class="info-content">
+            <view class="info-label">考试地点</view>
+            <view class="info-value">{{exam.location || seatInfo.building + ' ' + seatInfo.room}}</view>
+          </view>
+        </view>
+        
+        <view class="info-row">
+          <t-icon name="user" size="18" color="#0052d9" />
+          <view class="info-content">
+            <view class="info-label">座位号</view>
+            <view class="info-value">{{exam.seat_number || seatInfo.seat}}</view>
+          </view>
+        </view>
+        
+        <view class="info-row">
+          <t-icon name="edit" size="18" color="#0052d9" />
+          <view class="info-content">
+            <view class="info-label">考试时长</view>
+            <view class="info-value">{{examDetail.duration}}分钟</view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 考试进度 -->
+    <view class="progress-section">
+      <view class="section-title">考试进度</view>
+      <view class="progress-steps">
+        <view class="step {{examProgress.registration ? 'completed' : ''}}">
+          <view class="step-icon">
+            <t-icon name="{{examProgress.registration ? 'check-circle-filled' : 'circle'}}" 
+                    size="20" 
+                    color="{{examProgress.registration ? '#00a870' : '#ccc'}}" />
+          </view>
+          <view class="step-text">考试报名</view>
+        </view>
+        
+        <view class="step-line {{examProgress.preparation ? 'active' : ''}}"></view>
+        
+        <view class="step {{examProgress.preparation ? 'completed' : ''}}">
+          <view class="step-icon">
+            <t-icon name="{{examProgress.preparation ? 'check-circle-filled' : 'circle'}}" 
+                    size="20" 
+                    color="{{examProgress.preparation ? '#00a870' : '#ccc'}}" />
+          </view>
+          <view class="step-text">考前准备</view>
+        </view>
+        
+        <view class="step-line {{examProgress.examination ? 'active' : ''}}"></view>
+        
+        <view class="step {{examProgress.examination ? 'completed' : ''}}">
+          <view class="step-icon">
+            <t-icon name="{{examProgress.examination ? 'check-circle-filled' : 'circle'}}" 
+                    size="20" 
+                    color="{{examProgress.examination ? '#00a870' : '#ccc'}}" />
+          </view>
+          <view class="step-text">正在考试</view>
+        </view>
+        
+        <view class="step-line {{examProgress.completed ? 'active' : ''}}"></view>
+        
+        <view class="step {{examProgress.completed ? 'completed' : ''}}">
+          <view class="step-icon">
+            <t-icon name="{{examProgress.completed ? 'check-circle-filled' : 'circle'}}" 
+                    size="20" 
+                    color="{{examProgress.completed ? '#00a870' : '#ccc'}}" />
+          </view>
+          <view class="step-text">考试完成</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 座位信息 -->
+    <view class="seat-section">
+      <view class="section-title">座位信息</view>
+      <view class="seat-card">
+        <view class="seat-info">
+          <view class="seat-detail">
+            <view class="seat-label">考场</view>
+            <view class="seat-value">{{seatInfo.building}} {{seatInfo.room}}</view>
+          </view>
+          <view class="seat-detail">
+            <view class="seat-label">楼层</view>
+            <view class="seat-value">{{seatInfo.floor}}层</view>
+          </view>
+          <view class="seat-detail">
+            <view class="seat-label">座位</view>
+            <view class="seat-value">{{seatInfo.seat}}</view>
+          </view>
+        </view>
+        <view class="seat-actions">
+          <view class="action-btn" bindtap="onViewMap">
+            <t-icon name="location" size="16" color="#0052d9" />
+            <text>查看地图</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 考试要求 -->
+    <view class="requirements-section">
+      <view class="section-title">考试要求</view>
+      <view class="requirement-cards">
+        <view class="requirement-card" bindtap="onViewMaterials">
+          <view class="requirement-icon">
+            <t-icon name="edit-1" size="24" color="#0052d9" />
+          </view>
+          <view class="requirement-content">
+            <view class="requirement-title">考试用品</view>
+            <view class="requirement-desc">查看必带和禁带物品</view>
+          </view>
+          <t-icon name="chevron-right" size="16" color="#ccc" />
+        </view>
+        
+        <view class="requirement-card" bindtap="onViewRules">
+          <view class="requirement-icon">
+            <t-icon name="file-text" size="24" color="#ff9500" />
+          </view>
+          <view class="requirement-content">
+            <view class="requirement-title">考试纪律</view>
+            <view class="requirement-desc">了解考试规则和要求</view>
+          </view>
+          <t-icon name="chevron-right" size="16" color="#ccc" />
+        </view>
+        
+        <view class="requirement-card" bindtap="onDownloadTicket">
+          <view class="requirement-icon">
+            <t-icon name="download" size="24" color="#00a870" />
+          </view>
+          <view class="requirement-content">
+            <view class="requirement-title">准考证</view>
+            <view class="requirement-desc">下载并打印准考证</view>
+          </view>
+          <t-icon name="chevron-right" size="16" color="#ccc" />
+        </view>
+      </view>
+    </view>
+
+    <!-- 提醒设置 -->
+    <view class="reminder-section">
+      <view class="section-title">考试提醒</view>
+      <view class="reminder-card">
+        <view class="reminder-info">
+          <view class="reminder-icon">
+            <t-icon name="notification" size="24" color="{{reminderEnabled ? '#0052d9' : '#ccc'}}" />
+          </view>
+          <view class="reminder-content">
+            <view class="reminder-title">考前提醒</view>
+            <view class="reminder-desc">
+              {{reminderEnabled ? '已开启考前24小时、2小时、30分钟提醒' : '点击开启考试提醒功能'}}
+            </view>
+          </view>
+        </view>
+        <t-switch value="{{reminderEnabled}}" bind:change="onSetReminder" />
+      </view>
+    </view>
+
+    <!-- 快捷操作 -->
+    <view class="quick-actions">
+      <view class="action-grid">
+        <view class="action-item" bindtap="onAddToCalendar">
+          <t-icon name="calendar" size="24" color="#0052d9" />
+          <text>添加到日历</text>
+        </view>
+        
+        <view class="action-item" bindtap="onShareExam" open-type="share">
+          <t-icon name="share" size="24" color="#ff9500" />
+          <text>分享考试</text>
+        </view>
+        
+        <view class="action-item" bindtap="onViewMap">
+          <t-icon name="location" size="24" color="#00a870" />
+          <text>考场导航</text>
+        </view>
+        
+        <view class="action-item" bindtap="onBack">
+          <t-icon name="arrow-left" size="24" color="#666" />
+          <text>返回</text>
+        </view>
+      </view>
+    </view>
+
+  </view>
+</view> 

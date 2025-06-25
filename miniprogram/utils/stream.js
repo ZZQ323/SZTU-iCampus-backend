@@ -208,6 +208,8 @@ class StreamManager {
     try {
       switch (eventType) {
         case 'announcement':
+        case 'announcement_updated':
+        case 'announcement_deleted':
         case 'notice':
         case 'system_message':
           await this.updateAnnouncementsCache(events);
@@ -240,35 +242,116 @@ class StreamManager {
   }
 
   /**
-   * 更新公告缓存
+   * 更新公告缓存 - 修复版本，支持删除和更新
    */
   async updateAnnouncementsCache(events) {
     const cached = wx.getStorageSync(this.cacheKeys.ANNOUNCEMENTS) || [];
+    let hasChanges = false;
     
     events.forEach(event => {
-      const announcement = {
-        id: event.event_id,
-        title: event.data.title,
-        content: event.data.content,
-        department: event.data.department,
-        timestamp: event.timestamp,
-        urgent: event.data.urgent || false,
-        category: event.data.category || 'general'
-      };
+      const eventType = event.event_type;
+      const announcementId = event.announcement_id;
       
-      // 避免重复
-      const existing = cached.find(item => item.id === announcement.id);
-      if (!existing) {
-        cached.unshift(announcement); // 新消息在前
+      console.log(`🔄 处理事件: ${eventType}, ID: ${announcementId}`);
+      
+      if (eventType === 'announcement_deleted') {
+        // 删除操作
+        const deleteIndex = cached.findIndex(item => item.announcement_id === announcementId);
+        if (deleteIndex >= 0) {
+          cached.splice(deleteIndex, 1);
+          hasChanges = true;
+          console.log(`🗑️ 删除公告: ${event.title} (ID: ${announcementId})`);
+        }
+      } else if (eventType === 'announcement_updated') {
+        // 更新操作
+        const updateIndex = cached.findIndex(item => item.announcement_id === announcementId);
+        if (updateIndex >= 0) {
+          // 更新现有公告，保持原有字段格式
+          cached[updateIndex] = {
+            ...cached[updateIndex],
+            announcement_id: announcementId,
+            id: announcementId, // 保持id字段兼容性
+            title: event.title,
+            content: event.content,
+            category: this.mapCategoryFromEvent(event.category),
+            priority: event.priority === 'high' ? 'high' : 'normal',
+            isUrgent: event.is_urgent || false,
+            isPinned: event.is_pinned || false,
+            publishTime: event.updated_at,
+            date: event.updated_at ? event.updated_at.split('T')[0] : new Date().toISOString().split('T')[0],
+            time: event.updated_at && event.updated_at.includes('T') 
+              ? event.updated_at.split('T')[1].substring(0, 5) 
+              : '00:00',
+            timestamp: event.timestamp
+          };
+          hasChanges = true;
+          console.log(`✏️ 更新公告: ${event.title} (ID: ${announcementId})`);
+        }
+      } else {
+        // 新增操作 (announcement, notice, system_message)
+        const announcement = {
+          announcement_id: announcementId,
+          id: announcementId, // 保持id字段兼容性
+          title: event.title,
+          content: event.content || '',
+          department: event.department || '系统',
+          category: this.mapCategoryFromEvent(event.category),
+          priority: event.priority === 'high' ? 'high' : 'normal',
+          isUrgent: event.is_urgent || false,
+          isPinned: event.is_pinned || false,
+          publishTime: event.publish_time || event.timestamp,
+          date: event.publish_time ? event.publish_time.split('T')[0] : new Date().toISOString().split('T')[0],
+          time: event.publish_time && event.publish_time.includes('T') 
+            ? event.publish_time.split('T')[1].substring(0, 5) 
+            : '00:00',
+          timestamp: event.timestamp,
+          isRead: false,
+          viewCount: 0
+        };
+        
+        // 避免重复
+        const existing = cached.find(item => item.announcement_id === announcementId);
+        if (!existing) {
+          cached.unshift(announcement); // 新消息在前
+          hasChanges = true;
+          console.log(`➕ 新增公告: ${event.title} (ID: ${announcementId})`);
+        }
       }
     });
     
-    // 保持缓存大小限制
-    if (cached.length > 100) {
-      cached.splice(100);
+    if (hasChanges) {
+      // 保持缓存大小限制
+      if (cached.length > 100) {
+        cached.splice(100);
+      }
+      
+      wx.setStorageSync(this.cacheKeys.ANNOUNCEMENTS, cached);
+      
+      // 触发公告更新事件，通知前端页面刷新
+      this.emitEvent('announcements_updated', {
+        announcements: cached,
+        changeEvents: events,
+        updateTime: new Date().toISOString()
+      });
+      
+      console.log(`📋 公告缓存已更新，共 ${cached.length} 条公告`);
     }
-    
-    wx.setStorageSync(this.cacheKeys.ANNOUNCEMENTS, cached);
+  }
+  
+  /**
+   * 映射事件分类到前端分类
+   */
+  mapCategoryFromEvent(eventCategory) {
+    const categoryMap = {
+      'education': 'academic',
+      'academic': 'academic',
+      'student_affairs': 'student',
+      'logistics': 'logistics',
+      'system': 'logistics',
+      'sports': 'student',
+      'general': 'academic'
+    };
+    return categoryMap[eventCategory] || 'academic';
   }
   
   /**
@@ -427,12 +510,99 @@ class StreamManager {
   }
   
   /**
-   * 连接事件流（当前为模拟实现）
+   * 连接事件流（WebSocket实现）
    */
   connectEventStream() {
-    console.log('🔗 模拟连接事件流');
-    // 注意：真实的微信小程序环境可能需要使用WebSocket或长轮询
-    // 这里为了简化，暂时只是模拟连接状态
+    console.log('🔗 开始连接事件流');
+    
+    const token = wx.getStorageSync('access_token');
+    const baseUrl = getApp().globalData.baseURL || 'http://localhost:8000';
+    
+    // 由于微信小程序不支持SSE，我们使用定时轮询作为替代方案
+    this.startPollingForEvents();
+  }
+  
+  /**
+   * 启动事件轮询（替代SSE）
+   */
+  startPollingForEvents() {
+    // 先清除已有的轮询
+    this.stopPollingForEvents();
+    
+    console.log('🔄 启动事件轮询');
+    
+    // 立即检查一次
+    this.pollForEvents();
+    
+    // 每10秒轮询一次新事件
+    this.pollingTimer = setInterval(() => {
+      this.pollForEvents();
+    }, 10000);
+  }
+  
+  /**
+   * 停止事件轮询
+   */
+  stopPollingForEvents() {
+    if (this.pollingTimer) {
+      clearInterval(this.pollingTimer);
+      this.pollingTimer = null;
+      console.log('⏹️ 停止事件轮询');
+    }
+  }
+  
+  /**
+   * 轮询检查新事件
+   */
+  async pollForEvents() {
+    if (!this.isOnline) {
+      return;
+    }
+    
+    try {
+      // 获取最后同步时间，如果没有则使用30秒前
+      const lastSync = this.lastSyncTime || new Date(Date.now() - 30000).toISOString();
+      
+      const token = wx.getStorageSync('access_token');
+      
+      let response;
+      if (token) {
+        // 已登录用户
+        response = await this.request({
+          url: '/stream/sync',
+          method: 'GET',
+          data: { since: lastSync },
+          header: { 'Authorization': `Bearer ${token}` }
+        });
+      } else {
+        // 访客用户，仅获取公开事件
+        response = await this.request({
+          url: '/stream/sync/guest',
+          method: 'GET',
+          data: { since: lastSync }
+        });
+      }
+      
+      if (response.status === 0 && response.data.events && response.data.events.length > 0) {
+        console.log(`📨 收到 ${response.data.events.length} 个新事件:`, response.data.events.map(e => `${e.event_type}:${e.title || e.announcement_id}`));
+        
+        // 处理新事件
+        await this.processIncrementalData(response.data.events);
+        
+        // 更新同步时间
+        this.updateLastSyncTime(response.data.sync_timestamp);
+        
+        // 触发实时更新事件
+        this.emitEvent('realtime_update', {
+          events: response.data.events,
+          count: response.data.events.length,
+          timestamp: response.data.sync_timestamp
+        });
+      }
+      
+    } catch (error) {
+      console.warn('事件轮询失败:', error);
+    }
   }
   
   /**
@@ -496,7 +666,7 @@ class StreamManager {
    * 通用请求方法
    */
   request(options) {
-    const baseUrl = getApp().globalData.apiBaseUrl || 'http://localhost:8000';
+    const baseUrl = getApp().globalData.baseURL || 'http://localhost:8000';
     
     return new Promise((resolve, reject) => {
       wx.request({

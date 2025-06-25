@@ -120,16 +120,26 @@ class EventManager:
                     logger.error(f"事件回调失败: {e}")
                     
         # 同时推送到事件队列（用于流式推送）
-        if "student_id" in data:
-            await self.event_queue.publish(data["student_id"], {
-                "event_type": event_type,
-                **data
-            })
-        elif "person_id" in data:
-            await self.event_queue.publish(data["person_id"], {
-                "event_type": event_type,
-                **data
-            })
+        event_data = {
+            "event_type": event_type,
+            "timestamp": datetime.now().isoformat(),
+            **data
+        }
+        
+        # 检查是否为公开事件（如公告）
+        if data.get("is_public", False) or event_type in ["announcement", "system_message", "notice"]:
+            # 公开事件推送给所有在线用户
+            for user_id in list(self.event_queue.subscribers.keys()):
+                try:
+                    await self.event_queue.publish(user_id, event_data)
+                except Exception as e:
+                    logger.warning(f"推送公开事件到用户 {user_id} 失败: {e}")
+        else:
+            # 私人事件只推送给特定用户
+            if "student_id" in data:
+                await self.event_queue.publish(data["student_id"], event_data)
+            elif "person_id" in data:
+                await self.event_queue.publish(data["person_id"], event_data)
     
     async def _monitor_announcements(self):
         """监控公告更新"""
@@ -144,39 +154,80 @@ class EventManager:
     async def _check_announcements(self):
         """检查公告更新"""
         try:
-            # 🔄 HTTP请求data-service查询最近的公告（移除Django风格的时间过滤）
+            # 🔄 HTTP请求data-service查询最近的公告变化（包括新增、修改、删除）
+            # 修复：移除status过滤，使用updated_at来检测所有变更（包括删除）
             recent_announcements = await http_client.query_table(
                 "announcements",
-                filters={
-                    "is_deleted": False,
-                    "status": "published"
-                },
-                order_by="publish_time DESC",
-                limit=10
+                filters={},  # 不过滤status，这样能查询到已删除的记录
+                order_by="updated_at DESC",  # 使用updated_at检测所有变更
+                limit=20
             )
             
-            # 手动过滤时间（由于SQLite不支持Django风格的查询）
+            # 手动过滤时间
             last_check_time = self.last_check.get('announcements', 
                                                 datetime.now() - timedelta(minutes=5))
             
-            # 处理新公告
+            logger.info(f"🔍 检查公告更新，最后检查时间: {last_check_time}")
+            
+            # 处理新增、修改、删除的公告
             for announcement in recent_announcements.get("records", []):
                 try:
-                    # 检查发布时间
-                    publish_time_str = announcement.get("publish_time")
-                    if publish_time_str:
-                        publish_time = datetime.fromisoformat(publish_time_str.replace('Z', '+00:00'))
-                        if publish_time > last_check_time:
-                            await self.emit("announcement", {
-                                "announcement_id": announcement.get("announcement_id"),
-                                "title": announcement.get("title"),
-                                "category": announcement.get("category"),
-                                "priority": announcement.get("priority"),
-                                "publish_time": announcement.get("publish_time"),
-                                "is_urgent": announcement.get("is_urgent", False),
-                                "is_pinned": announcement.get("is_pinned", False),
-                                "is_public": True  # 公告是公开的
-                            })
+                    # 检查更新时间
+                    updated_time_str = announcement.get("updated_at")
+                    created_time_str = announcement.get("created_at")
+                    
+                    if updated_time_str:
+                        updated_time = datetime.fromisoformat(updated_time_str.replace('Z', '+00:00'))
+                        created_time = datetime.fromisoformat(created_time_str.replace('Z', '+00:00')) if created_time_str else updated_time
+                        
+                        if updated_time > last_check_time:
+                            is_deleted = announcement.get("is_deleted", False)
+                            status = announcement.get("status", "")
+                            
+                            logger.info(f"📝 处理公告变更: {announcement.get('title')} (删除: {is_deleted}, 状态: {status})")
+                            
+                            # 判断操作类型
+                            if is_deleted:
+                                # 删除操作
+                                logger.info(f"🗑️ 发送删除事件: {announcement.get('title')}")
+                                await self.emit("announcement_deleted", {
+                                    "announcement_id": announcement.get("announcement_id"),
+                                    "title": announcement.get("title"),
+                                    "category": announcement.get("category"),
+                                    "deleted_at": announcement.get("deleted_at"),
+                                    "is_public": True,
+                                    "action": "delete"
+                                })
+                            elif status == "published" and abs((updated_time - created_time).total_seconds()) < 60:
+                                # 新增操作（创建时间和更新时间差小于1分钟，且状态为已发布）
+                                logger.info(f"➕ 发送新增事件: {announcement.get('title')}")
+                                await self.emit("announcement", {
+                                    "announcement_id": announcement.get("announcement_id"),
+                                    "title": announcement.get("title"),
+                                    "content": announcement.get("content"),
+                                    "category": announcement.get("category"),
+                                    "priority": announcement.get("priority"),
+                                    "publish_time": announcement.get("publish_time"),
+                                    "is_urgent": announcement.get("is_urgent", False),
+                                    "is_pinned": announcement.get("is_pinned", False),
+                                    "is_public": True,
+                                    "action": "create"
+                                })
+                            elif status == "published":
+                                # 更新操作（状态为已发布的更新）
+                                logger.info(f"✏️ 发送更新事件: {announcement.get('title')}")
+                                await self.emit("announcement_updated", {
+                                    "announcement_id": announcement.get("announcement_id"),
+                                    "title": announcement.get("title"),
+                                    "content": announcement.get("content"),
+                                    "category": announcement.get("category"),
+                                    "priority": announcement.get("priority"),
+                                    "updated_at": updated_time_str,
+                                    "is_urgent": announcement.get("is_urgent", False),
+                                    "is_pinned": announcement.get("is_pinned", False),
+                                    "is_public": True,
+                                    "action": "update"
+                                })
                 except Exception as e:
                     logger.warning(f"处理公告记录失败: {e}")
                     continue

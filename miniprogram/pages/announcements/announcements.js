@@ -17,6 +17,17 @@ Page({
       { label: '重要', value: 'important' },
       { label: '收藏', value: 'collected' }
     ],
+    currentSort: 'time_desc',
+    currentSortLabel: '最新发布',
+    showSortMenu: false,
+    sortOptions: [
+      { label: '最新发布', value: 'time_desc', icon: '⏰' },
+      { label: '最早发布', value: 'time_asc', icon: '📅' },
+      { label: '重要在前', value: 'priority_desc', icon: '⚠️' },
+      { label: '置顶在前', value: 'pinned_desc', icon: '📌' },
+      { label: '浏览量高', value: 'views_desc', icon: '👁️' },
+      { label: '标题排序', value: 'title_asc', icon: '🔤' }
+    ],
     loading: false,
     showRefreshTip: false
   },
@@ -36,6 +47,169 @@ Page({
       this.updateCollectionStatus()
       this.filterAnnouncements()
     }
+    
+    // 注册实时更新事件监听
+    this.setupRealtimeUpdates()
+  },
+
+  onHide() {
+    // 页面隐藏时移除事件监听
+    this.removeRealtimeListeners()
+  },
+
+  onUnload() {
+    // 页面卸载时移除事件监听
+    this.removeRealtimeListeners()
+  },
+
+  // 设置实时更新监听
+  setupRealtimeUpdates() {
+    console.log('🎧 公告页面：开始设置实时更新监听...');
+    
+    const streamManager = getApp().globalData.streamManager
+    if (!streamManager) {
+      console.error('❌ StreamManager 未找到！');
+      return;
+    }
+    
+    console.log('✅ StreamManager 已找到，设置监听器...');
+    
+    // 监听实时更新事件
+    streamManager.addEventListener('realtime_update', this.handleRealtimeUpdate.bind(this))
+    
+    // 监听增量同步事件
+    streamManager.addEventListener('incremental_sync', this.handleIncrementalSync.bind(this))
+    
+    // 监听公告更新事件（重要：直接监听缓存更新）
+    streamManager.addEventListener('announcements_updated', this.handleAnnouncementsUpdated.bind(this))
+    
+    console.log('📡 公告页面已注册实时更新监听');
+    
+    // 添加调试：检查轮询状态
+    if (streamManager.pollingTimer) {
+      console.log('✅ 事件轮询已启动');
+    } else {
+      console.warn('⚠️ 事件轮询未启动，手动启动...');
+      streamManager.startPollingForEvents();
+    }
+  },
+
+  // 移除实时更新监听
+  removeRealtimeListeners() {
+    const streamManager = getApp().globalData.streamManager
+    if (streamManager) {
+      streamManager.removeEventListener('realtime_update', this.handleRealtimeUpdate.bind(this))
+      streamManager.removeEventListener('incremental_sync', this.handleIncrementalSync.bind(this))
+      streamManager.removeEventListener('announcements_updated', this.handleAnnouncementsUpdated.bind(this))
+    }
+  },
+
+  // 处理实时更新
+  handleRealtimeUpdate(data) {
+    if (data.events && data.events.length > 0) {
+      // 检查是否有新公告
+      const newAnnouncements = data.events.filter(event => 
+        event.event_type === 'announcement' || 
+        event.event_type === 'notice' || 
+        event.event_type === 'system_message'
+      )
+      
+      if (newAnnouncements.length > 0) {
+        console.log(`📢 收到 ${newAnnouncements.length} 个新公告，刷新列表`)
+        
+        // 显示新公告提示
+        wx.showToast({
+          title: `收到${newAnnouncements.length}条新公告`,
+          icon: 'success',
+          duration: 2000
+        })
+        
+        // 刷新公告列表
+        this.fetchAnnouncements()
+      }
+    }
+  },
+
+  // 处理增量同步
+  handleIncrementalSync(data) {
+    if (data.eventsByType && data.eventsByType.announcement) {
+      console.log('📋 检测到公告增量同步，刷新数据')
+      this.fetchAnnouncements()
+    }
+  },
+
+  // 处理公告缓存更新事件（重要：直接更新UI）
+  handleAnnouncementsUpdated(data) {
+    console.log('🔥🔥🔥 公告页面收到缓存更新事件:', data)
+    
+    if (data.announcements) {
+      // 直接使用缓存的公告数据，转换为页面需要的格式
+      const announcements = data.announcements.map(item => ({
+        id: item.announcement_id || item.id,
+        announcement_id: item.announcement_id || item.id,
+        title: item.title,
+        content: item.content || '',
+        department: item.department || '系统',
+        category: this.mapCategoryFromCache(item.category),
+        priority: item.priority || 'normal',
+        publishTime: item.publish_time || item.publishTime || item.timestamp,
+        date: item.publish_time ? item.publish_time.split('T')[0] : 
+              item.publishTime ? item.publishTime.split('T')[0] : 
+              new Date().toISOString().split('T')[0],
+        time: item.publish_time && item.publish_time.includes('T') 
+          ? item.publish_time.split('T')[1].substring(0, 5) 
+          : item.publishTime && item.publishTime.includes('T')
+          ? item.publishTime.split('T')[1].substring(0, 5)
+          : '00:00',
+        isRead: item.isRead || false,
+        isUrgent: item.is_urgent || item.isUrgent || false,
+        isPinned: item.is_pinned || item.isPinned || false,
+        viewCount: item.viewCount || 0
+      }))
+      
+      console.log(`📋📋📋 实时更新公告列表，共 ${announcements.length} 条`)
+      
+      // 🔥 关键修复：同时更新两个数据源，确保页面立即更新
+      this.setData({
+        announcements: announcements,
+        filteredAnnouncements: announcements  // 强制同时更新显示数据
+      })
+      
+      // 立即重新应用过滤和排序
+      this.filterAnnouncements()
+      
+      // 显示更新提示
+      const changeCount = data.changeEvents ? data.changeEvents.length : 0
+      if (changeCount > 0) {
+        console.log(`🎉 强制页面更新完成: ${changeCount} 个变更`);
+        
+        wx.showToast({
+          title: `公告实时更新`,
+          icon: 'success',
+          duration: 1500
+        })
+      }
+      
+      console.log(`🎉🎉🎉 页面数据已强制更新！announcements: ${this.data.announcements.length}, filtered: ${this.data.filteredAnnouncements.length}`)
+    } else {
+      console.warn('⚠️ 公告更新事件中没有announcements数据');
+    }
+  },
+
+  /**
+   * 映射缓存分类到前端分类
+   */
+  mapCategoryFromCache(cacheCategory) {
+    const categoryMap = {
+      'education': 'academic',
+      'academic': 'academic',
+      'student_affairs': 'student',
+      'logistics': 'logistics',
+      'system': 'logistics',
+      'sports': 'student',
+      'general': 'academic'
+    }
+    return categoryMap[cacheCategory] || 'academic'
   },
 
   async fetchAnnouncements() {
@@ -58,13 +232,14 @@ Page({
         department: item.department,
         category: this.mapCategoryFromApi(item.category),
         priority: item.priority === 'high' ? 'high' : 'normal',
-        date: item.publish_time ? item.publish_time.split('T')[0] : '',
+        publishTime: item.publish_time || new Date().toISOString(), // 保存完整时间用于排序
+        date: item.publish_time ? item.publish_time.split('T')[0] : new Date().toISOString().split('T')[0],
         time: item.publish_time && item.publish_time.includes('T') 
           ? item.publish_time.split('T')[1].substring(0, 5) 
-          : item.publish_time || '',
+          : '00:00',
         isRead: false, // 后续可以通过阅读记录API获取
-        isUrgent: item.is_urgent,
-        isPinned: item.is_pinned,
+        isUrgent: item.is_urgent || false,
+        isPinned: item.is_pinned || false,
         viewCount: item.view_count || 0
       }))
       
@@ -109,8 +284,6 @@ Page({
     return categoryMap[apiCategory] || 'academic'
   },
 
-
-
   // 搜索功能
   onSearchChange(e) {
     this.setData({
@@ -137,7 +310,7 @@ Page({
 
   // 过滤公告
   filterAnnouncements() {
-    const { announcements, searchText, currentCategory } = this.data
+    const { announcements, searchText, currentCategory, currentSort } = this.data
     
     let filtered = announcements
 
@@ -165,8 +338,154 @@ Page({
       )
     }
 
+    // 应用排序
+    filtered = this.sortAnnouncements(filtered, currentSort)
+
     this.setData({
       filteredAnnouncements: filtered
+    })
+  },
+
+  // 排序功能 - 修复版本
+  sortAnnouncements(announcements, sortType) {
+    if (!announcements || announcements.length === 0) {
+      return []
+    }
+    
+    const sorted = [...announcements]
+    
+    // 安全的时间解析函数
+    const parseTime = (item) => {
+      try {
+        // 优先使用publishTime，如果没有则构造
+        if (item.publishTime) {
+          return new Date(item.publishTime).getTime()
+        }
+        
+        // 从date和time构造时间
+        if (item.date && item.time) {
+          const dateStr = `${item.date}T${item.time}:00`
+          return new Date(dateStr).getTime()
+        }
+        
+        // 只有date
+        if (item.date) {
+          return new Date(item.date).getTime()
+        }
+        
+        // 都没有，返回当前时间
+        return new Date().getTime()
+      } catch (e) {
+        console.warn('时间解析失败:', item, e)
+        return new Date().getTime()
+      }
+    }
+    
+    switch (sortType) {
+      case 'time_desc':
+        return sorted.sort((a, b) => {
+          const timeA = parseTime(a)
+          const timeB = parseTime(b)
+          return timeB - timeA
+        })
+      
+      case 'time_asc':
+        return sorted.sort((a, b) => {
+          const timeA = parseTime(a)
+          const timeB = parseTime(b)
+          return timeA - timeB
+        })
+      
+      case 'priority_desc':
+        return sorted.sort((a, b) => {
+          // 置顶 > 紧急 > 高优先级 > 普通
+          const pinnedA = a.isPinned || false
+          const pinnedB = b.isPinned || false
+          const urgentA = a.isUrgent || false
+          const urgentB = b.isUrgent || false
+          const priorityA = a.priority || 'normal'
+          const priorityB = b.priority || 'normal'
+          
+          if (pinnedA !== pinnedB) return pinnedB - pinnedA
+          if (urgentA !== urgentB) return urgentB - urgentA
+          if (priorityA !== priorityB) {
+            return priorityA === 'high' ? -1 : priorityB === 'high' ? 1 : 0
+          }
+          
+          // 相同优先级按时间倒序
+          return parseTime(b) - parseTime(a)
+        })
+      
+      case 'pinned_desc':
+        return sorted.sort((a, b) => {
+          const pinnedA = a.isPinned || false
+          const pinnedB = b.isPinned || false
+          
+          if (pinnedA !== pinnedB) return pinnedB - pinnedA
+          
+          // 置顶相同时按时间倒序
+          return parseTime(b) - parseTime(a)
+        })
+      
+      case 'views_desc':
+        return sorted.sort((a, b) => {
+          const viewsA = a.viewCount || 0
+          const viewsB = b.viewCount || 0
+          
+          if (viewsA !== viewsB) return viewsB - viewsA
+          
+          // 浏览量相同按时间倒序
+          return parseTime(b) - parseTime(a)
+        })
+      
+      case 'title_asc':
+        return sorted.sort((a, b) => {
+          const titleA = (a.title || '').toLowerCase()
+          const titleB = (b.title || '').toLowerCase()
+          
+          const result = titleA.localeCompare(titleB, 'zh-CN')
+          if (result !== 0) return result
+          
+          // 标题相同按时间倒序
+          return parseTime(b) - parseTime(a)
+        })
+      
+      default:
+        console.warn('未知排序类型:', sortType)
+        return sorted
+    }
+  },
+
+  // 排序菜单控制
+  toggleSortMenu() {
+    this.setData({
+      showSortMenu: !this.data.showSortMenu
+    })
+  },
+
+  hideSortMenu() {
+    this.setData({
+      showSortMenu: false
+    })
+  },
+
+  // 切换排序方式
+  onSortChange(e) {
+    const sortType = e.currentTarget.dataset.sort
+    const sortOption = this.data.sortOptions.find(option => option.value === sortType)
+    
+    this.setData({
+      currentSort: sortType,
+      currentSortLabel: sortOption ? sortOption.label : '排序',
+      showSortMenu: false
+    })
+    this.filterAnnouncements()
+    
+    // 显示排序提示
+    wx.showToast({
+      title: `已切换为${sortOption.label}`,
+      icon: 'success',
+      duration: 1500
     })
   },
 

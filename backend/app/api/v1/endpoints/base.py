@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Query, Depends
 from app.api.deps import get_current_user
 # 🔄 使用HTTP客户端进行真正的HTTP请求，不导入Python模块
 from app.core.http_client import http_client
+from app.core.response import APIResponse
 
 router = APIRouter()
 
@@ -253,4 +254,49 @@ async def get_location_occupations(
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"查询场所占用情况失败: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"查询场所占用情况失败: {str(e)}")
+
+@router.get("/cache/stats", summary="获取缓存统计信息")
+async def get_cache_stats():
+    """获取缓存统计信息"""
+    try:
+        from app.core.cache import cache_manager
+        
+        stats = cache_manager.get_all_stats()
+        
+        return APIResponse.success(stats, "获取缓存统计成功")
+        
+    except Exception as e:
+        return APIResponse.error(f"获取缓存统计失败: {str(e)}")
+
+@router.post("/cache/clear", summary="清空缓存")
+async def clear_cache(
+    cache_type: Optional[str] = Query(None, description="缓存类型: user/course/schedule/general")
+):
+    """清空指定类型的缓存"""
+    try:
+        from app.core.cache import cache_manager
+        
+        if cache_type == "user":
+            cache_manager.user_cache.clear()
+            message = "用户缓存已清空"
+        elif cache_type == "course":
+            cache_manager.course_cache.clear()
+            message = "课程缓存已清空"
+        elif cache_type == "schedule":
+            cache_manager.schedule_cache.clear()
+            message = "课表缓存已清空"
+        elif cache_type == "general":
+            cache_manager.general_cache.clear()
+            message = "通用缓存已清空"
+        else:
+            cache_manager.user_cache.clear()
+            cache_manager.course_cache.clear()
+            cache_manager.schedule_cache.clear()
+            cache_manager.general_cache.clear()
+            message = "所有缓存已清空"
+        
+        return APIResponse.success({"cache_type": cache_type or "all"}, message)
+        
+    except Exception as e:
+        return APIResponse.error(f"清空缓存失败: {str(e)}") 

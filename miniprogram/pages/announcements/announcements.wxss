@@ -26,15 +26,149 @@
   width: 100%;
 }
 
-/* 分类标签 */
-.filter-tabs {
+/* 分类和排序区域 */
+.filter-section {
   background: white;
-  border-bottom: 1rpx solid #e0e0e0;
   margin: auto;
   width: 90vw;
-  padding:0 2%;
-  border-bottom-left-radius:20rpx;
-  border-bottom-right-radius:20rpx;
+  border-bottom-left-radius: 20rpx;
+  border-bottom-right-radius: 20rpx;
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1rpx solid #e0e0e0;
+}
+
+/* 分类标签 */
+.filter-tabs {
+  padding: 0 2%;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+/* 排序区域 */
+.sort-section {
+  padding: 20rpx 2%;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.sort-button {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 24rpx;
+  background: #f8f9fa;
+  border-radius: 20rpx;
+  border: 1rpx solid #e0e0e0;
+  transition: all 0.3s ease;
+}
+
+.sort-button:active {
+  background: #e9ecef;
+  transform: scale(0.98);
+}
+
+.sort-text {
+  font-size: 26rpx;
+  color: #333;
+  margin-right: 8rpx;
+}
+
+.sort-icon {
+  font-size: 20rpx;
+  color: #666;
+  transition: transform 0.3s ease;
+}
+
+/* 排序菜单 */
+.sort-menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.sort-menu {
+  background: white;
+  border-radius: 24rpx;
+  width: 80%;
+  max-width: 600rpx;
+  max-height: 70vh;
+  overflow: hidden;
+  animation: sortMenuShow 0.3s ease-out;
+}
+
+@keyframes sortMenuShow {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(20rpx);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.sort-menu-header {
+  padding: 32rpx 32rpx 16rpx 32rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+  text-align: center;
+}
+
+.sort-menu-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.sort-options {
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.sort-option {
+  display: flex;
+  align-items: center;
+  padding: 24rpx 32rpx;
+  border-bottom: 1rpx solid #f8f9fa;
+  transition: background 0.2s ease;
+}
+
+.sort-option:active {
+  background: #f8f9fa;
+}
+
+.sort-option.active {
+  background: #f0f8ff;
+}
+
+.sort-option-icon {
+  font-size: 36rpx;
+  margin-right: 24rpx;
+  min-width: 48rpx;
+  text-align: center;
+}
+
+.sort-option-label {
+  flex: 1;
+  font-size: 30rpx;
+  color: #333;
+}
+
+.sort-option.active .sort-option-label {
+  color: #0052d9;
+  font-weight: 600;
+}
+
+.sort-option-check {
+  font-size: 32rpx;
+  color: #0052d9;
+  font-weight: bold;
 }
 
 .tabs-scroll {

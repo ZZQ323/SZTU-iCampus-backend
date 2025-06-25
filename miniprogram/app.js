@@ -1,10 +1,16 @@
+const { StreamManager } = require('./utils/stream.js')
+
 App({
   globalData: {
     userInfo: null,
-    baseURL: 'http://localhost:8000'
+    baseURL: 'http://localhost:8000',
+    streamManager: null
   },
   
   onLaunch() {
+    // 初始化流式推送管理器
+    this.globalData.streamManager = new StreamManager()
+    console.log('🚀 StreamManager 已在App中初始化')
     // 检查更新
     if (wx.canIUse('getUpdateManager')) {
       const updateManager = wx.getUpdateManager()

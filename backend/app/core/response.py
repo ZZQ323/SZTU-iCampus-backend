@@ -1,96 +1,89 @@
 """
-统一API响应格式工具类
-严格按照API_DESIGN_FIXED.md文档标准实现
+统一API响应处理器
+消除Controller层中的重复响应格式代码
 """
 from datetime import datetime
 from typing import Any, Optional, Dict
+import json
 
 
 class APIResponse:
-    """
-    统一API响应格式类
-    严格按照API文档标准：
-    {
-        "code": 0,           // 0为成功，其他为错误码
-        "message": "success", // 返回消息  
-        "data": {},          // 具体数据
-        "timestamp": "2024-03-01T12:30:00Z", // ISO 8601格式时间戳
-        "version": "v1.0"
-    }
-    """
+    """统一API响应格式处理器"""
     
     @staticmethod
     def success(
         data: Any = None, 
-        message: str = "success"
+        message: str = "success",
+        code: int = 0
     ) -> Dict[str, Any]:
-        """
-        成功响应
-        
-        Args:
-            data: 响应数据
-            message: 响应消息，默认"success"
-        
-        Returns:
-            标准格式的响应字典
-        """
+        """成功响应"""
         return {
-            "code": 0,
+            "code": code,
             "message": message,
             "data": data,
-            "timestamp": datetime.now().isoformat() + "Z",
+            "timestamp": datetime.now().isoformat(),
             "version": "v1.0"
         }
     
     @staticmethod
     def error(
-        code: int,
         message: str,
+        code: int = 500,
         data: Any = None
     ) -> Dict[str, Any]:
-        """
-        错误响应
-        
-        Args:
-            code: 错误码（非0）
-            message: 错误消息
-            data: 错误详情数据
-        
-        Returns:
-            标准格式的错误响应字典
-        """
+        """错误响应"""
         return {
             "code": code,
-            "message": message, 
+            "message": message,
             "data": data,
-            "timestamp": datetime.now().isoformat() + "Z",
+            "timestamp": datetime.now().isoformat(),
             "version": "v1.0"
         }
     
     @staticmethod
-    def client_error(message: str = "Bad Request", data: Any = None) -> Dict[str, Any]:
-        """客户端错误 (400)"""
-        return APIResponse.error(400, message, data)
+    def paginated(
+        items: list,
+        total: int,
+        page: int = 1,
+        size: int = 20,
+        message: str = "success"
+    ) -> Dict[str, Any]:
+        """分页响应"""
+        return APIResponse.success(
+            data={
+                "items": items,
+                "pagination": {
+                    "page": page,
+                    "size": size,
+                    "total": total,
+                    "pages": (total + size - 1) // size if size > 0 else 0
+                }
+            },
+            message=message
+        )
     
     @staticmethod
-    def unauthorized(message: str = "Unauthorized", data: Any = None) -> Dict[str, Any]:
-        """未授权错误 (401)"""
-        return APIResponse.error(401, message, data)
+    def list_response(
+        items: list,
+        total: Optional[int] = None,
+        message: str = "success"
+    ) -> Dict[str, Any]:
+        """列表响应"""
+        return APIResponse.success(
+            data={
+                "items": items,
+                "total": total or len(items)
+            },
+            message=message
+        )
     
     @staticmethod
-    def forbidden(message: str = "Forbidden", data: Any = None) -> Dict[str, Any]:
-        """禁止访问错误 (403)"""
-        return APIResponse.error(403, message, data)
-    
-    @staticmethod
-    def not_found(message: str = "Not Found", data: Any = None) -> Dict[str, Any]:
-        """资源不存在错误 (404)"""
-        return APIResponse.error(404, message, data)
-    
-    @staticmethod
-    def server_error(message: str = "Internal Server Error", data: Any = None) -> Dict[str, Any]:
-        """服务器错误 (500)"""
-        return APIResponse.error(500, message, data)
+    def detail_response(
+        item: Any,
+        message: str = "success"
+    ) -> Dict[str, Any]:
+        """详情响应"""
+        return APIResponse.success(data=item, message=message)
 
 
 # 常用快捷方法
@@ -101,4 +94,4 @@ def success_response(data: Any = None, message: str = "success") -> Dict[str, An
 
 def error_response(code: int, message: str, data: Any = None) -> Dict[str, Any]:
     """快捷错误响应"""
-    return APIResponse.error(code, message, data) 
+    return APIResponse.error(message, code, data) 

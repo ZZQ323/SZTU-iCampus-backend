@@ -12,12 +12,16 @@ class API {
   static async request(url, options = {}) {
     const token = wx.getStorageSync('token');
     
-    console.log('🔍 [API调试] 当前存储的token:', token ? token.substring(0, 20) + '...' : 'null');
+    // 🔧 检查token有效性，避免发送无效token
+    const validToken = token && token !== '' && !token.startsWith('guest_token_');
+    
+    console.log('🔍 [API调试] 当前存储的token:', validToken ? token.substring(0, 20) + '...' : 'null');
     
     const defaultOptions = {
       header: {
         'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` })
+        // 🔧 只有在有有效token时才添加Authorization头
+        ...(validToken && { 'Authorization': `Bearer ${token}` })
       }
     };
 
@@ -54,10 +58,17 @@ class API {
         // 🔧 返回完整的响应对象，让调用方决定如何处理
         return response.data;
       } else if (response.statusCode === 401) {
-        // 处理认证失败
+        // 🔧 处理认证失败 - 区分公开接口和认证接口
         console.warn('⚠️ 认证失败，清除token');
         wx.removeStorageSync('token');
-        throw new Error('登录已过期，请重新登录');
+        
+        // 🔧 如果是公开接口（如公告），给出友好提示
+        if (url.includes('/announcements') || url.includes('/public')) {
+          console.log('💡 公开接口认证失败，可能是服务器问题');
+          throw new Error('服务暂时不可用，请稍后重试');
+        } else {
+          throw new Error('登录已过期，请重新登录');
+        }
       } else if (response.statusCode === 403) {
         throw new Error('权限不足');
       } else if (response.statusCode === 404) {
@@ -537,4 +548,4 @@ class API {
   }
 }
 
-module.exports = API; 
+module.exports = API;

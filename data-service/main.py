@@ -1,6 +1,6 @@
 """
-SZTU-iCampus 数据服务主程序
-独立的数据库服务，提供Mock数据生成和API接口
+SZTU-iCampus 数据服务主程?独立的数据库服务
+提供Mock数据生成和API接口
 """
 import os
 import uvicorn
@@ -60,13 +60,9 @@ def create_response(status: str = "success", msg: str = "", data: Any = None,
 
 
 def _build_where_conditions(filter_dict: dict, table_name: str = None) -> tuple:
-    """构建WHERE条件 - 修复表别名问题"""
+    """构建WHERE条件 - 支持批量查询操作符"""
     conditions = []
     params = {}
-    
-    # 只有在实际使用JOIN时才使用表别名
-    # 这里先不使用表别名，避免SQL错误
-    prefix = ""
     
     for key, value in filter_dict.items():
         if key == "$or":
@@ -87,8 +83,57 @@ def _build_where_conditions(filter_dict: dict, table_name: str = None) -> tuple:
                     conditions.append(f"{and_key} = :{param_key}")
                     params[param_key] = and_value
         
+        elif "__in" in key:
+            # 🚀 批量查询：IN操作符 (性能优化关键)
+            field_name = key.replace("__in", "")
+            if isinstance(value, list) and value:
+                # 为每个值创建参数
+                in_params = []
+                for i, item in enumerate(value):
+                    param_key = f"in_{field_name}_{i}_{len(params)}"
+                    in_params.append(f":{param_key}")
+                    params[param_key] = item
+                conditions.append(f"{field_name} IN ({', '.join(in_params)})")
+            else:
+                logger.warning(f"Invalid __in value for {field_name}: {value}")
+        
+        elif "__contains" in key:
+            # 模糊查询：LIKE操作符
+            field_name = key.replace("__contains", "")
+            param_key = f"like_{field_name}_{len(params)}"
+            conditions.append(f"{field_name} LIKE :{param_key}")
+            params[param_key] = f"%{value}%"
+        
+        elif "__gt" in key:
+            # 大于操作符
+            field_name = key.replace("__gt", "")
+            param_key = f"gt_{field_name}_{len(params)}"
+            conditions.append(f"{field_name} > :{param_key}")
+            params[param_key] = value
+        
+        elif "__gte" in key:
+            # 大于等于操作符
+            field_name = key.replace("__gte", "")
+            param_key = f"gte_{field_name}_{len(params)}"
+            conditions.append(f"{field_name} >= :{param_key}")
+            params[param_key] = value
+        
+        elif "__lt" in key:
+            # 小于操作符
+            field_name = key.replace("__lt", "")
+            param_key = f"lt_{field_name}_{len(params)}"
+            conditions.append(f"{field_name} < :{param_key}")
+            params[param_key] = value
+        
+        elif "__lte" in key:
+            # 小于等于操作符
+            field_name = key.replace("__lte", "")
+            param_key = f"lte_{field_name}_{len(params)}"
+            conditions.append(f"{field_name} <= :{param_key}")
+            params[param_key] = value
+        
         else:
-            # 普通条件 - 不使用表别名
+            # 普通等值条件
             param_key = f"param_{len(params)}"
             conditions.append(f"{key} = :{param_key}")
             params[param_key] = value
@@ -228,7 +273,7 @@ async def get_field_statistics(
         # 验证表名安全性
         allowed_tables = [
             "persons", "colleges", "majors", "classes", "departments", "courses", 
-            "course_instances", "enrollments", "grades", "announcements", 
+            "course_instances", "enrollments", "grades", "announcements", "announcement_reads", "exams",
             "research_projects", "assets", "books", "borrow_records", 
             "transactions", "campus_cards", "library_seats", "user_reading_records"
         ]
@@ -691,7 +736,7 @@ async def get_announcement_detail(
     api_key_valid: bool = Depends(verify_api_key),
     db: Session = Depends(get_db)
 ):
-    """获取公告详情 - 读取真实数据库"""
+    """获取公告详情 - 读取真实数据"""
     try:
         from sqlalchemy import text
         
@@ -962,7 +1007,7 @@ async def get_grade_statistics(
             "excellent_count": 0,  # 90分以上
             "good_count": 0,       # 80-89分
             "average_count": 0,    # 70-79分
-            "poor_count": 0        # 70分以下
+            "poor_count": 0         # 70分以下
         }
         
         for row in distribution:
@@ -1098,7 +1143,7 @@ async def query_table_optimized(
     filters: Optional[str] = Query(None, description="JSON格式的过滤条件"),
     fields: Optional[str] = Query(None, description="需要返回的字段，逗号分隔"),
     join_tables: Optional[str] = Query(None, description="需要JOIN的表，逗号分隔"),
-    limit: int = Query(50, description="返回条数限制，默认50"),
+    limit: int = Query(50, description="返回条数限制，默认为50"),
     offset: int = Query(0, description="偏移量"),
     order_by: Optional[str] = Query(None, description="排序字段"),
     api_key_valid: bool = Depends(verify_api_key),
@@ -1112,13 +1157,13 @@ async def query_table_optimized(
         # 验证表名安全性
         allowed_tables = [
             "persons", "colleges", "majors", "classes", "courses", "course_instances",
-            "grades", "announcements", "events", "books", "borrow_records", 
+            "grades", "announcements", "announcement_reads", "events", "books", "borrow_records", "exams",
             "transactions", "campus_cards", "locations", "assets", "enrollments",
             "class_schedules", "user_reading_records", "event_registrations",
             "research_projects", "research_applications", "paper_library",
             "network_permissions", "system_access", "platform_configs",
             "device_registrations", "audit_logs", "workflow_instances",
-            "grade_statistics", "room_occupations"
+            "grade_statistics", "room_occupations", "departments"
         ]
         
         if table_name not in allowed_tables:
@@ -1252,7 +1297,7 @@ def _build_smart_joins(table_name: str, join_tables: Optional[str]) -> str:
     
     # 为主表添加别名
     if table_name == "persons":
-        # 需要修改FROM子句为: FROM persons p
+        # 需要修改FROM子句
         if "colleges" in join_tables:
             join_clause += " LEFT JOIN colleges c ON persons.college_id = c.college_id"
         if "majors" in join_tables:
@@ -1297,7 +1342,7 @@ async def insert_record(
         # 验证表名安全性
         allowed_tables = [
             "persons", "colleges", "majors", "classes", "departments", "courses", 
-            "course_instances", "enrollments", "grades", "announcements", 
+            "course_instances", "enrollments", "grades", "announcements", "announcement_reads", "exams",
             "research_projects", "assets", "books", "borrow_records", 
             "transactions", "campus_cards", "library_seats", "user_reading_records",
             "card_operations", "seat_reservations", "user_bookmarks"
@@ -1350,7 +1395,7 @@ async def update_records(
         # 验证表名安全性
         allowed_tables = [
             "persons", "colleges", "majors", "classes", "departments", "courses", 
-            "course_instances", "enrollments", "grades", "announcements", 
+            "course_instances", "enrollments", "grades", "announcements", "announcement_reads", "exams",
             "research_projects", "assets", "books", "borrow_records", 
             "transactions", "campus_cards", "library_seats", "user_reading_records",
             "card_operations", "seat_reservations", "user_bookmarks"
@@ -1425,7 +1470,7 @@ async def delete_records(
         # 验证表名安全性
         allowed_tables = [
             "persons", "colleges", "majors", "classes", "departments", "courses", 
-            "course_instances", "enrollments", "grades", "announcements", 
+            "course_instances", "enrollments", "grades", "announcements", "announcement_reads", "exams",
             "research_projects", "assets", "books", "borrow_records", 
             "transactions", "campus_cards", "library_seats", "user_reading_records",
             "card_operations", "seat_reservations", "user_bookmarks"

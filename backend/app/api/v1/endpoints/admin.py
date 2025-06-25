@@ -346,4 +346,36 @@ async def broadcast_notification(
             "data": None,
             "timestamp": datetime.now().isoformat(),
             "version": "v1.0"
+        }
+
+@router.get("/cache/stats", summary="缓存统计")
+async def get_cache_stats(current_user: Dict[str, Any] = Depends(require_admin)):
+    """获取缓存统计信息 - 性能优化监控"""
+    try:
+        cache_stats = http_client.get_cache_stats()
+        
+        return {
+            "code": 0,
+            "message": "success",
+            "data": {
+                "cache_stats": cache_stats,
+                "description": "L1内存缓存统计",
+                "optimizations": [
+                    "用户信息缓存：10分钟TTL",
+                    "课程信息缓存：30分钟TTL", 
+                    "课表信息缓存：5分钟TTL",
+                    "通用查询缓存：5分钟TTL"
+                ]
+            },
+            "timestamp": datetime.now().isoformat(),
+            "version": "v1.0"
+        }
+        
+    except Exception as e:
+        return {
+            "code": 500,
+            "message": f"获取缓存统计失败: {str(e)}",
+            "data": None,
+            "timestamp": datetime.now().isoformat(),
+            "version": "v1.0"
         } 
