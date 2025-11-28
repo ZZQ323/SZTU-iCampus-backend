@@ -1,7 +1,0 @@
-{
-  "navigationBarTitleText": "123",
-  "navigationStyle": "custom",
-  "usingComponents": {
-    "t-navbar": "tdesign-miniprogram/navbar/navbar"
-  }
-}

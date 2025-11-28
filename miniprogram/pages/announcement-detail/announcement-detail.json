@@ -1,8 +1,0 @@
-{
-  "navigationBarTitleText": "公告详情",
-  "navigationStyle": "custom",
-  "enablePullDownRefresh": false,
-  "usingComponents": {
-    "custom-navbar": "/components/custom-navbar/custom-navbar"
-  }
-} 
