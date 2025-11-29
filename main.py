@@ -1,6 +1,6 @@
 from fastapi import FastAPI
-from sztu_sys_module.api import usr_controller  # 假设 login 是 api 模块的接口
-from sztu_sys_module.api import test_controller
+from sztu_base_module.api import usr_controller  # 假设 login 是 api 模块的接口
+from sztu_base_module.api import test_controller
 app = FastAPI(title="SZTU ICampus Backend")
 
 # 注册模块路由
