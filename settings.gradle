@@ -1,1 +1,4 @@
-rootProject.name = 'sztui-base'
+// rootProject.name = 'sztu-base'
+
+include 'main'
+include 'module-base'
