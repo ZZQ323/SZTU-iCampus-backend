@@ -6,7 +6,7 @@
 
 功能包括：校园公告+部门通知、课表查询、活动日历等。
 
-技术框架：fastapi + playwright
+技术框架：SpringBoot + playwright
 
 ## 项目亮点
 
@@ -19,14 +19,13 @@
 配置环境
 
 ```bash
-pip install -r requirements.txt
-playwright install
+
 ```
 
 启动项目
 
 ```bash
-python run.py
+
 ```
 
 ## Reference
