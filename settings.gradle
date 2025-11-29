@@ -1,4 +1,4 @@
-// rootProject.name = 'sztu-base'
+rootProject.name = 'sztu-base'
 
 include 'main'
 include 'module-base'

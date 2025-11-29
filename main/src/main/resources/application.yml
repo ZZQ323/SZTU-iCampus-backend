@@ -1,0 +1,18 @@
+server:
+  port: 8080
+  tomcat:
+    connection-timeout: 10000
+##服务监控
+management:
+  endpoints:
+    web:
+      exposure:
+        include: 'loggers,health,prometheus'
+
+spring:
+  servlet:
+    multipart:
+      max-file-size: 1024MB
+      max-request-size: 1024MB
+  profiles:
+    active: dev
