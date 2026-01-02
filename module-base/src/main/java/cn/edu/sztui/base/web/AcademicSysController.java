@@ -2,7 +2,8 @@ package cn.edu.sztui.base.web;
 
 import cn.edu.sztui.base.application.dto.command.LoginRequestCommand;
 import cn.edu.sztui.base.application.dto.query.CrouseTableQuery;
-import cn.edu.sztui.base.application.service.VPNService;
+import cn.edu.sztui.base.application.service.LoginService;
+import cn.edu.sztui.base.application.vo.LoginResultsVo;
 import jakarta.annotation.Resource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 public class AcademicSysController {
 
     @Resource
-    private VPNService vpnService;
+    private LoginService loginService;
 
     /**
      * 网关登录
@@ -20,8 +21,8 @@ public class AcademicSysController {
      * @return
      */
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody LoginRequestCommand request) {
-        String result = vpnService.login(request.getUsername(), request.getPassword());
+    public ResponseEntity<LoginResultsVo> login(@RequestBody LoginRequestCommand request) {
+        LoginResultsVo result = loginService.loginWithPasswd(request.getUserId(), request.getPassword());
         return ResponseEntity.ok(result);
     }
 
