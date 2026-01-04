@@ -42,7 +42,7 @@ public class PlaywrightBrowserPool{
     @Value("${playwright.pool.viewport-height}")
     private Integer viewportHeight;
 
-    @Value("${playwright.pool.user-agent:#{null}}")
+    @Value("${playwright.pool.user-agent}")
     private String userAgent;
 
     @PostConstruct
