@@ -11,7 +11,7 @@ public enum LoginType {
     // 用户名+OTP
     OTP(3, "tab3Con", "fs31_username", "fs31_otpOrSms","用户名+OTP"),
     // 用户名+短信验证码
-    SMS(4, "tab4Con", "fs41_username", "sms1_otpOrSms","用户名+短信验证码"),
+    SMS(4, "smsBtn1", "fs41_username", "sms1_otpOrSms","用户名+短信验证码"),
     // 用户名密码+证书
     USER_PWD_CERT(5, "tab5Con", "fs5_username", "fs5_password","用户名密码+证书"),
     // e账通二维码
