@@ -16,7 +16,7 @@ import java.util.List;
 @Component
 public class LoginSessionCacheUtil {
     private static final String LOGIN_SESSION_KEY = "login:session";
-    private static final long SESSION_EXPIRE_SECONDS = 1800; // 半个小时过期
+    private static final long SESSION_EXPIRE_SECONDS = 300; // 5分钟过期
 
     @Resource
     private CacheUtil cacheUtil;

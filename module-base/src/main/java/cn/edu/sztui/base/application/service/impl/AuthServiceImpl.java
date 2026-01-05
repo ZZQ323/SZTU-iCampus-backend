@@ -12,10 +12,12 @@ import cn.edu.sztui.common.util.enums.ResultCodeEnum;
 import cn.edu.sztui.common.util.enums.SysReturnCode;
 import cn.edu.sztui.common.util.exception.BusinessException;
 import com.microsoft.playwright.*;
+import com.microsoft.playwright.options.Cookie;
 import com.microsoft.playwright.options.LoadState;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -121,47 +123,52 @@ public class AuthServiceImpl implements AuthService {
     public LoginResultsVo loginFrame(LoginRequestCommand cmd) {
         return browserPool.executeWithContext(context -> {
             Page page = context.newPage();
-            try {
-                // 访问登录页面
-                page.navigate(loginURL);
-                // NETWORKIDLE 不等于 "JS 执行完"。需要等待目标元素可交互。
-                page.waitForLoadState(LoadState.LOAD);
-                page.waitForLoadState(LoadState.DOMCONTENTLOADED);
-                page.waitForLoadState(LoadState.NETWORKIDLE);
+            // 如果先前有cookie的话一定要注意
+            if (loginSessionCacheUtil.hasValidSession(cmd.getUserId())) {
+                List<Cookie> cookies = loginSessionCacheUtil.getCookies(cmd.getUserId());
+                context.addCookies(cookies);
+            }
+            // 访问登录页面
+            page.navigate(loginURL);
 
+            // NETWORKIDLE 不等于 "JS 执行完"。需要等待目标元素可交互。
+            page.waitForLoadState(LoadState.LOAD);
+            page.waitForLoadState(LoadState.DOMCONTENTLOADED);
+            page.waitForLoadState(LoadState.NETWORKIDLE);
+
+            // 可能直接就进去了，因为cookie 通过
+            if ( page.content().contains("登录") ){
                 handleLoginByType(page, cmd.getLoginType(), cmd.getUserId(), cmd.getCode());
-
                 // 等待登录响应，同时执行登录操作
                 Response loginResponse = page.waitForResponse(
-                    resp -> resp.url().contains("login") && resp.ok(),
-                    () -> handleLoginByType(page, cmd.getLoginType(), cmd.getUserId(), cmd.getCode())
+                        resp -> resp.url().contains("login") && resp.ok(),
+                        () -> handleLoginByType(page, cmd.getLoginType(), cmd.getUserId(), cmd.getCode())
                 );
-                // 等待登录后页面稳定
-                page.waitForLoadState(LoadState.LOAD);
-                page.waitForLoadState(LoadState.DOMCONTENTLOADED);
-                page.waitForLoadState(LoadState.NETWORKIDLE,new Page.WaitForLoadStateOptions().setTimeout(10000));
-
-                // 验证登录是否成功（避免获取到错误页面的cookies）
-                String currentUrl = page.url();
-                if (page.content().contains("error") || currentUrl.equals(loginURL))
-                    throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(),"登录失败：页面未跳转至登录成功页，当前URL=" + currentUrl,ResultCodeEnum.BAD_REQUEST.getCode());
-
-                // 获取登录后的上下文信息
-                LoginResultsVo ret = new LoginResultsVo();
-                ret.setCookies(context.cookies(loginURL));
-                ret.setPage(page);
-                if( Objects.isNull( ret.getCookies() ) || Objects.isNull( ret.getPage() ) ){
-                    throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(), "爬虫登录失败"+page.content(), ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
-                }
-                log.info("用户{}登录成功，已获取cookies", cmd.getUserId());
-                // 登录成功后保存
-                loginSessionCacheUtil.saveCookies(cmd.getUserId(), context.cookies());
-
-                return ret;
-            } catch (Exception e) {
-                log.error(e.getMessage(), e);
-                throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(), "爬虫无法进行登录！！", ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
             }
+            // 等待登录后页面稳定
+            page.waitForLoadState(LoadState.LOAD, new Page.WaitForLoadStateOptions().setTimeout(10000));
+            // 验证登录是否成功（避免获取到错误页面的cookies）
+            String currentUrl = page.url();
+             if ( currentUrl.equals(loginURL) )
+                 throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(), "登录失败：页面未跳转至登录成功页，当前URL=" + currentUrl, ResultCodeEnum.BAD_REQUEST.getCode());
+            // 获取登录后的上下文信息
+            LoginResultsVo ret = new LoginResultsVo();
+            ret.setCookies(context.cookies(loginURL));
+            ret.setPage(page);
+            if (Objects.isNull(ret.getCookies()) || Objects.isNull(ret.getPage())) {
+                throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(), "爬虫登录失败" + page.content(), ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
+            }
+            log.info("用户{}登录成功，已获取cookies：{}", cmd.getUserId(), ret.getCookies());
+            // 登录成功后缓存 cookie
+            loginSessionCacheUtil.saveCookies(cmd.getUserId(), context.cookies());
+            // 获取标题和URL
+            log.info("Title: " + page.title());
+            log.info("URL: " + currentUrl);
+            // 获取整个页面的文本内容
+            String bodyText = page.textContent("body");
+            log.info("Body text: " + bodyText);
+
+            return ret;
         });
     }
 
@@ -175,6 +182,10 @@ public class AuthServiceImpl implements AuthService {
     public LoginResultsVo getSms(String id) {
         return browserPool.executeWithContext(context -> {
             Page page = context.newPage();
+            if (loginSessionCacheUtil.hasValidSession(id)) {
+                List<Cookie> cookies = loginSessionCacheUtil.getCookies(id);
+                context.addCookies(cookies);
+            }
             // 访问登录页面
             page.navigate(loginURL);
             // NETWORKIDLE 不等于 "JS 执行完"。需要等待目标元素可交互。
@@ -195,7 +206,7 @@ public class AuthServiceImpl implements AuthService {
                 page.waitForLoadState(LoadState.LOAD);
                 page.waitForLoadState(LoadState.DOMCONTENTLOADED);
                 page.waitForLoadState(LoadState.NETWORKIDLE);
-
+                // 进入过网关后需要缓存 cookies
                 loginSessionCacheUtil.saveCookies(id, context.cookies());
                 ret.setCookies(context.cookies(loginURL));
                 ret.setPage(page);
@@ -212,7 +223,7 @@ public class AuthServiceImpl implements AuthService {
 
     /**
      * 【设计模式】
-     *
+     * <p>
      * 在登录框架中，经过测试发现，如果已有cookie的话，可以使用密码登录（是不是什么时候的cookie都行呢？）；
      * 但如果什么都没有就只能使用验证码登录；
      * 暂时未见任何其他登录方式
@@ -230,7 +241,6 @@ public class AuthServiceImpl implements AuthService {
         }
         handler.login(page, type, userId, code);
     }
-
 
 
     /**

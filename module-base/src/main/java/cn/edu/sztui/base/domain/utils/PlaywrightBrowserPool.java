@@ -24,8 +24,11 @@ public class PlaywrightBrowserPool{
     @Value("${playwright.pool.pool-size}")
     private int poolSize;
 
-    @Value("${playwright.pool.timeout-seconds}")
-    private int timeoutSeconds;
+    @Value("${playwright.pool.timeout-reqest-duration}")
+    private int timeoutReqSeconds;
+
+    @Value("${playwright.pool.timeout-poll-seconds}")
+    private int timeoutPollSeconds;
 
     @Value("${playwright.pool.headless}")
     private boolean headless;
@@ -77,14 +80,16 @@ public class PlaywrightBrowserPool{
         // 设置 User Agent
         if (userAgent != null && !userAgent.isEmpty())
             options.setUserAgent(userAgent);
-        return browser.newContext(options);
+        BrowserContext context = browser.newContext(options);
+        context.setDefaultTimeout(timeoutReqSeconds);
+        return context;
     }
 
     /**
      * 获取浏览器上下文
      */
     public BrowserContext acquireContext() throws InterruptedException {
-        BrowserContext context = contextPool.poll(timeoutSeconds, TimeUnit.SECONDS);
+        BrowserContext context = contextPool.poll(timeoutPollSeconds, TimeUnit.SECONDS);
         if (context == null)
             // 一定要报错么
             throw new RuntimeException("获取浏览器上下文超时");

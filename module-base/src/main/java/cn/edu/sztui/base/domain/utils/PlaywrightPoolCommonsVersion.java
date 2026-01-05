@@ -25,8 +25,11 @@ public class PlaywrightPoolCommonsVersion {
     @Value("${playwright.pool.pool-size}")
     private int poolSize;
 
-    @Value("${playwright.pool.timeout-seconds}")
-    private long timeoutSeconds;
+    @Value("${playwright.pool.timeout-reqest-duration}")
+    private int timeoutReqSeconds;
+
+    @Value("${playwright.pool.timeout-poll-seconds}")
+    private int timeoutPollSeconds;
 
     @Value("${playwright.pool.headless}")
     private boolean headless;
@@ -47,7 +50,7 @@ public class PlaywrightPoolCommonsVersion {
         // 最小空闲数
         config.setMinIdle(poolSize/4);
         // 等待超时
-        config.setMaxWait(Duration.ofSeconds(timeoutSeconds));
+        config.setMaxWait(Duration.ofSeconds(timeoutPollSeconds));
         // 借用时验证
         config.setTestOnBorrow(true);
         // 归还时验证
