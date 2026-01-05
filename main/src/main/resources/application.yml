@@ -2,6 +2,9 @@ server:
   port: 8080
   tomcat:
     connection-timeout: 10000
+program:
+  name: sztu
+  code: 10001
 
 ##服务监控
 management:
@@ -10,6 +13,13 @@ management:
       exposure:
         include: 'loggers,health,prometheus'
 
+middleware:
+  redis: "localhost"
+#  rocketmq: "192.168.18.79"
+#  kafka: "192.168.1.132"
+#  nacos: "192.168.18.79"
+#  edge: "192.168.1.63"
+
 spring:
   servlet:
     multipart:
@@ -17,6 +27,13 @@ spring:
       max-request-size: 1024MB
   profiles:
     active: dev
+  data:
+    redis:
+      host: ${middleware.redis}
+      port: 6379
+      password:
+      database: 0
+      timeout: 3000ms
 
 playwright:
   pool:
@@ -29,3 +46,9 @@ playwright:
     viewport-height: null
     user-agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
 
+sztu:
+  constant:
+    projectOrBrandName: ${program.name}
+    projectOrBrandCode: ${program.code}
+    projectName: ${program.name}
+    environment: ${spring.profiles.active}

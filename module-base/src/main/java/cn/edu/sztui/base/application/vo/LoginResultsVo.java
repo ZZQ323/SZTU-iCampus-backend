@@ -8,9 +8,6 @@ import java.util.List;
 
 @Data
 public class LoginResultsVo {
-    private int statusCode;
-    private String message;
-    
     private String userId;
     private String passwd;
     List<Cookie> cookies;

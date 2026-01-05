@@ -3,9 +3,9 @@ package cn.edu.sztui.base.web;
 import cn.edu.sztui.base.application.dto.command.LoginRequestCommand;
 import cn.edu.sztui.base.application.service.AuthService;
 import cn.edu.sztui.base.application.vo.LoginResultsVo;
-import cn.edu.sztui.base.domain.model.logintype.LoginType;
+import cn.edu.sztui.base.domain.model.loginhandle.LoginType;
+import cn.edu.sztui.common.util.result.Result;
 import jakarta.annotation.Resource;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -21,9 +21,9 @@ public class AuthController {
      * @return
      */
     @GetMapping("/login")
-    public ResponseEntity<LoginType> loginType() {
+    public Result loginType() {
         LoginType result = authService.loginCheck();
-        return ResponseEntity.ok(result);
+        return Result.ok(result);
     }
 
     /**
@@ -32,9 +32,9 @@ public class AuthController {
      * @return
      */
     @PostMapping("/login")
-    public ResponseEntity<LoginResultsVo> loginUsrPasswd(@RequestBody LoginRequestCommand request) {
+    public Result loginUsrPasswd(@RequestBody LoginRequestCommand request) {
         LoginResultsVo result = authService.loginFrame(request);
-        return ResponseEntity.ok(result);
+        return Result.ok(result);
     }
 
     /**
@@ -42,19 +42,13 @@ public class AuthController {
      * @return
      */
     @GetMapping("/sms")
-    public ResponseEntity<LoginResultsVo> getSms(@RequestParam("id") String id) {
+    public Result getSms(@RequestParam("id") String id) {
         LoginResultsVo result = authService.getSms(id);
-        return ResponseEntity.ok(result);
+        return Result.ok(result);
     }
 
-//    @GetMapping("/crousetable")
-//    public ResponseEntity<String> getCrousetable(@RequestBody CrouseTableQuery request) {
-//        return null;
-//    }
-
-    // @PostMapping("/logout")
-    // public ResponseEntity<String> logout(@RequestBody LoginRequestCommand request) {
-    //     String result = vpnService.login();
-    //     return ResponseEntity.ok(vpnService.logout);
-    // }
+     @PostMapping("/logout")
+     public Result logout(@RequestBody LoginRequestCommand request) {
+         return Result.ok(authService.logout());
+     }
 }
