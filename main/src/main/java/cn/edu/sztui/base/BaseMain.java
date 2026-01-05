@@ -12,7 +12,7 @@ public class BaseMain {
             SpringApplication.run(BaseMain.class, args);
             log.info("启动完成!");
         } catch (Exception e) {
-            log.error("出现问题！" + e.getMessage());
+            log.error("启动出现问题！" + e.getMessage());
         }
     }
 }

@@ -3,7 +3,7 @@ package cn.edu.sztui.base.application.service.impl;
 import cn.edu.sztui.base.application.dto.command.LoginRequestCommand;
 import cn.edu.sztui.base.application.service.AuthService;
 import cn.edu.sztui.base.application.vo.LoginResultsVo;
-import cn.edu.sztui.base.domain.model.LoginType;
+import cn.edu.sztui.base.domain.model.logintype.LoginType;
 import cn.edu.sztui.base.domain.utils.PlaywrightBrowserPool;
 import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.LoadState;
@@ -143,12 +143,12 @@ public class AuthServiceImpl implements AuthService {
             // 访问登录页面
             page.navigate(loginURL);
             // NETWORKIDLE 不等于 "JS 执行完"。需要等待目标元素可交互。
-            page.waitForLoadState(LoadState.NETWORKIDLE);
+            page.waitForLoadState(LoadState.LOAD);
             page.waitForLoadState(LoadState.DOMCONTENTLOADED);
             page.waitForLoadState(LoadState.NETWORKIDLE);
 
             page.waitForSelector("input[id='" + LoginType.SMS.getUsernameInputId() + "']",new Page.WaitForSelectorOptions());
-            page.waitForSelector("#" + LoginType.SMS.getTabConId(),new Page.WaitForSelectorOptions().setTimeout(3000));
+            page.waitForSelector("#" + LoginType.SMS.getTabConId(),new Page.WaitForSelectorOptions().setTimeout(4000));
 
             LoginResultsVo ret = new LoginResultsVo();
             try {
@@ -156,6 +156,11 @@ public class AuthServiceImpl implements AuthService {
                 usernameInput.clear();
                 usernameInput.fill(id);
                 page.locator("#" + LoginType.SMS.getTabConId()).click();
+
+                page.waitForLoadState(LoadState.LOAD);
+                page.waitForLoadState(LoadState.DOMCONTENTLOADED);
+                page.waitForLoadState(LoadState.NETWORKIDLE);
+
                 ret.setStatusCode(200);
                 ret.setMessage("成功获取短信！");
                 ret.setCookies(context.cookies(loginURL));

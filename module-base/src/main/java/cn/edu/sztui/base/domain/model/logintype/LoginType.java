@@ -1,4 +1,4 @@
-package cn.edu.sztui.base.domain.model;
+package cn.edu.sztui.base.domain.model.logintype;
 
 import lombok.Getter;
 

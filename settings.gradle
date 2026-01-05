@@ -2,3 +2,4 @@ rootProject.name = 'sztu-base'
 
 include 'main'
 include 'module-base'
+include 'module-common'

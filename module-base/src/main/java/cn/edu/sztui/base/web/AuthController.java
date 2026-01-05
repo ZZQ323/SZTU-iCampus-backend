@@ -3,7 +3,7 @@ package cn.edu.sztui.base.web;
 import cn.edu.sztui.base.application.dto.command.LoginRequestCommand;
 import cn.edu.sztui.base.application.service.AuthService;
 import cn.edu.sztui.base.application.vo.LoginResultsVo;
-import cn.edu.sztui.base.domain.model.LoginType;
+import cn.edu.sztui.base.domain.model.logintype.LoginType;
 import jakarta.annotation.Resource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
