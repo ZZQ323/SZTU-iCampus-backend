@@ -1,4 +1,4 @@
-package cn.edu.sztui.base.infrastructure.persistence.util;
+package cn.edu.sztui.base.infrastructure.util.cache;
 
 import cn.edu.sztui.common.cache.util.CacheUtil;
 import com.alibaba.fastjson2.JSONArray;

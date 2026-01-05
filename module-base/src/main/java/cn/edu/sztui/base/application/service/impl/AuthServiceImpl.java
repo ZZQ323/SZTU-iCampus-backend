@@ -2,12 +2,13 @@ package cn.edu.sztui.base.application.service.impl;
 
 import cn.edu.sztui.base.application.dto.command.LoginRequestCommand;
 import cn.edu.sztui.base.application.service.AuthService;
+import cn.edu.sztui.base.application.vo.CaptchaVO;
 import cn.edu.sztui.base.application.vo.LoginResultsVo;
 import cn.edu.sztui.base.domain.model.loginhandle.LoginHandle;
 import cn.edu.sztui.base.domain.model.loginhandle.LoginType;
-import cn.edu.sztui.base.domain.model.loginhandle.impl.*;
-import cn.edu.sztui.base.domain.utils.PlaywrightBrowserPool;
-import cn.edu.sztui.base.infrastructure.persistence.util.LoginSessionCacheUtil;
+import cn.edu.sztui.base.infrastructure.util.browserpool.PlaywrightBrowserPool;
+import cn.edu.sztui.base.infrastructure.util.cache.LoginSessionCacheUtil;
+import cn.edu.sztui.base.infrastructure.util.ocr.CaptchaOcrUtil;
 import cn.edu.sztui.common.util.enums.ResultCodeEnum;
 import cn.edu.sztui.common.util.enums.SysReturnCode;
 import cn.edu.sztui.common.util.exception.BusinessException;
@@ -17,10 +18,10 @@ import com.microsoft.playwright.options.LoadState;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-
 import static cn.edu.sztui.base.domain.model.loginhandle.LoginHandle.loginURL;
 
 @Service
@@ -113,6 +114,9 @@ public class AuthServiceImpl implements AuthService {
     @Resource
     private LoginSessionCacheUtil loginSessionCacheUtil;
 
+    @Resource
+    private CaptchaOcrUtil captchaOcrUtil;
+
     /**
      * 登录框架
      *
@@ -130,11 +134,11 @@ public class AuthServiceImpl implements AuthService {
             }
             // 访问登录页面
             page.navigate(loginURL);
-
             // NETWORKIDLE 不等于 "JS 执行完"。需要等待目标元素可交互。
             page.waitForLoadState(LoadState.LOAD);
             page.waitForLoadState(LoadState.DOMCONTENTLOADED);
             page.waitForLoadState(LoadState.NETWORKIDLE);
+            String curLogin = page.url().trim();
 
             // 可能直接就进去了，因为cookie 通过
             if ( page.content().contains("登录") ){
@@ -146,27 +150,41 @@ public class AuthServiceImpl implements AuthService {
                 );
             }
             // 等待登录后页面稳定
-            page.waitForLoadState(LoadState.LOAD, new Page.WaitForLoadStateOptions().setTimeout(10000));
-            // 验证登录是否成功（避免获取到错误页面的cookies）
-            String currentUrl = page.url();
-             if ( currentUrl.equals(loginURL) )
-                 throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(), "登录失败：页面未跳转至登录成功页，当前URL=" + currentUrl, ResultCodeEnum.BAD_REQUEST.getCode());
+            page.waitForLoadState(LoadState.LOAD, new Page.WaitForLoadStateOptions().setTimeout(3000));
+            if( page.isVisible("#j_checkcodeImgCode41") ){
+                // 检查是否出现 kaptcha
+                try {
+                    // 尝试识别
+                    Locator captchaImg = page.locator("#j_checkcodeImgCode41");
+                    byte[] imageBytes = captchaImg.screenshot();
+                    String ret = captchaOcrUtil.recognize(imageBytes);
+                    log.info("用户{}：ocr识别结果： {}",cmd.getUserId(),ret);
+                } catch (Exception e) {
+                    // getCaptcha()
+                    log.error("用户{}：ocr无法识别图片，此处应当再多一层处理方式",cmd.getUserId());
+                }
+            }else{
+                log.info("用户{}：未触发kaptcha",cmd.getUserId());
+            }
+            // 验证登录是否成功
+             if ( page.url().equals(loginURL) )
+                 throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(), cmd.getUserId()+"：登录失败：页面未跳转至登录成功页，当前URL=" + page.url(), ResultCodeEnum.BAD_REQUEST.getCode());
             // 获取登录后的上下文信息
             LoginResultsVo ret = new LoginResultsVo();
-            ret.setCookies(context.cookies(loginURL));
-            ret.setPage(page);
-            if (Objects.isNull(ret.getCookies()) || Objects.isNull(ret.getPage())) {
-                throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(), "爬虫登录失败" + page.content(), ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
-            }
-            log.info("用户{}登录成功，已获取cookies：{}", cmd.getUserId(), ret.getCookies());
+            List<Cookie> cc = context.cookies(page.url());
+            if ( Objects.isNull(cc))
+                throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(), cmd.getUserId()+"：爬虫登录失败" + page.content(), ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
+
+            log.info("用户{} 登录成功，已获取cookies：{}", cmd.getUserId(), cc );
             // 登录成功后缓存 cookie
-            loginSessionCacheUtil.saveCookies(cmd.getUserId(), context.cookies());
+            loginSessionCacheUtil.saveCookies(cmd.getUserId(), cc);
+            ret.setCookies(cc);
+            // 获取整个页面的HTML内容
+            String bodyText = page.textContent("body");
+            ret.setHtmlDoc(bodyText);
             // 获取标题和URL
             log.info("Title: " + page.title());
-            log.info("URL: " + currentUrl);
-            // 获取整个页面的文本内容
-            String bodyText = page.textContent("body");
-            log.info("Body text: " + bodyText);
+            log.info("URL: " + page.url());
 
             return ret;
         });
@@ -209,7 +227,8 @@ public class AuthServiceImpl implements AuthService {
                 // 进入过网关后需要缓存 cookies
                 loginSessionCacheUtil.saveCookies(id, context.cookies());
                 ret.setCookies(context.cookies(loginURL));
-                ret.setPage(page);
+                // String bodyText = page.textContent("body");
+                ret.setHtmlDoc("");
                 return ret;
             } catch (Exception e) {
                 log.error(e.getMessage(), e);
@@ -242,6 +261,28 @@ public class AuthServiceImpl implements AuthService {
         handler.login(page, type, userId, code);
     }
 
+
+    /**
+     * 获取验证码图片，通过人机验证
+     * @return
+     */
+    public CaptchaVO getCaptcha() {
+        return browserPool.executeWithContext(context -> {
+            Page page = context.newPage();
+            page.navigate(loginURL);
+            page.waitForLoadState(LoadState.NETWORKIDLE);
+
+            // 截图验证码
+            byte[] captchaImage = page.locator("#j_checkcodeImgCode41").screenshot();
+            // 利用工号的唯一性
+            // 缓存 page（注意：context 也要保持引用，并且不能随意清空状态）
+
+            CaptchaVO vo = new CaptchaVO();
+            vo.setCookies(context.cookies());
+            vo.setCaptchaBase64(Base64.getEncoder().encodeToString(captchaImage));
+            return vo;
+        });
+    }
 
     /**
      * 注销函数，操作缓存

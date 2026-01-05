@@ -1,4 +1,4 @@
-package cn.edu.sztui.base.domain.utils;
+package cn.edu.sztui.base.infrastructure.util.browserpool;
 
 import com.microsoft.playwright.*;
 import jakarta.annotation.PostConstruct;
