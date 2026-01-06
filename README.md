@@ -8,6 +8,23 @@
 
 技术框架：fastapi + playwright
 
+项目结构：
+```
+school-auth-proxy/
+├── src/
+│   ├── config/settings.py          # 配置
+│   ├── domain/                      # 领域层
+│   │   ├── entities/auth.py         # 实体
+│   │   ├── repositories/            # 仓储接口
+│   │   └── services/                # 服务接口
+│   ├── infrastructure/              # 基础设施层
+│   │   ├── http/school_auth_client.py   # 核心 HTTP 客户端
+│   │   └── repositories/            # Redis 实现
+│   ├── application/use_cases/       # 应用层
+│   └── api/                         # 接口层
+└── main.py
+```
+
 ## 项目亮点
 
 - 结合爬虫与推送技术，组织一个联合多平台的信息聚合平台，简化用户登录多个平台并总结信息的操作
@@ -19,7 +36,7 @@
 配置环境
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirementsV1.txt
 playwright install
 ```
 

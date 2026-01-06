@@ -1,6 +1,12 @@
-fastapi==0.111.0
-uvicorn[standard]==0.23.1
-playwright==1.42.0
-pydantic==2.6.0
-python-dotenv==1.0.0
+fastapi
+uvicorn[standard]
+python-multipart
+httpx
+aiohttp
+redis
+pydantic
 pydantic-settings
+python-dotenv
+beautifulsoup4
+lxml
+loguru
