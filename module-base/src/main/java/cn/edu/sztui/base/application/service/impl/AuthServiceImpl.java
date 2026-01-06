@@ -30,6 +30,12 @@ public class AuthServiceImpl implements AuthService {
 
     @Resource
     private PlaywrightBrowserPool browserPool;
+    @Resource
+    private LoginSessionCacheUtil loginSessionCacheUtil;
+    @Resource
+    private CaptchaOcrUtil captchaOcrUtil;
+    @Resource
+    private Map<LoginType, LoginHandle> loginHandlers;
 
     /**
      * 多维度判断当前激活的登录方式
@@ -111,11 +117,52 @@ public class AuthServiceImpl implements AuthService {
         return null; // 所有维度都失效，走兜底定位
     }
 
-    @Resource
-    private LoginSessionCacheUtil loginSessionCacheUtil;
+    /**
+     * 只获取短信，获取全新后就清空context，但缓存 cookies
+     *
+     * @param id
+     * @return
+     */
+    @Override
+    public LoginResultsVo getSms(String id) {
+        return browserPool.executeWithContext(context -> {
+            Page page = context.newPage();
+            if (loginSessionCacheUtil.hasValidSession(id)) {
+                List<Cookie> cookies = loginSessionCacheUtil.getCookies(id);
+                context.addCookies(cookies);
+            }
+            // 访问登录页面
+            page.navigate(loginURL);
+            // NETWORKIDLE 不等于 "JS 执行完"。需要等待目标元素可交互。
+            page.waitForLoadState(LoadState.LOAD);
+            page.waitForLoadState(LoadState.DOMCONTENTLOADED);
+            page.waitForLoadState(LoadState.NETWORKIDLE);
 
-    @Resource
-    private CaptchaOcrUtil captchaOcrUtil;
+            page.waitForSelector("input[id='" + LoginType.SMS.getConfig().getUsernameInputId() + "']", new Page.WaitForSelectorOptions());
+            // 进行必要的等待，因为太快模拟点击会失败
+            page.waitForSelector("#" + LoginType.SMS.getConfig().getSendSmsButtonId(), new Page.WaitForSelectorOptions().setTimeout(4000));
+
+            LoginResultsVo ret = new LoginResultsVo();
+            try {
+                Locator usernameInput = page.locator("input[id='" + LoginType.SMS.getConfig().getUsernameInputId() + "']");
+                usernameInput.clear();
+                usernameInput.fill(id);
+                page.locator("#" + LoginType.SMS.getConfig().getSendSmsButtonId()).click();
+                page.waitForLoadState(LoadState.LOAD);
+                page.waitForLoadState(LoadState.DOMCONTENTLOADED);
+                page.waitForLoadState(LoadState.NETWORKIDLE);
+                // 进入过网关后需要缓存 cookies
+                loginSessionCacheUtil.saveCookies(id, context.cookies());
+                ret.setCookies(context.cookies(loginURL));
+                // String bodyText = page.textContent("body");
+                ret.setHtmlDoc("");
+                return ret;
+            } catch (Exception e) {
+                log.error(e.getMessage(), e);
+                throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(), "爬虫无法进行验证码获取！！", ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
+            }
+        });
+    }
 
     /**
      * 登录框架
@@ -167,7 +214,7 @@ public class AuthServiceImpl implements AuthService {
                 log.info("用户{}：未触发kaptcha",cmd.getUserId());
             }
             // 验证登录是否成功
-             if ( page.url().equals(loginURL) )
+            if ( page.url().equals(loginURL) )
                  throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(), cmd.getUserId()+"：登录失败：页面未跳转至登录成功页，当前URL=" + page.url(), ResultCodeEnum.BAD_REQUEST.getCode());
             // 获取登录后的上下文信息
             LoginResultsVo ret = new LoginResultsVo();
@@ -191,61 +238,11 @@ public class AuthServiceImpl implements AuthService {
     }
 
     /**
-     * 只获取短信，获取全新后就清空context
-     *
-     * @param id
-     * @return
-     */
-    @Override
-    public LoginResultsVo getSms(String id) {
-        return browserPool.executeWithContext(context -> {
-            Page page = context.newPage();
-            if (loginSessionCacheUtil.hasValidSession(id)) {
-                List<Cookie> cookies = loginSessionCacheUtil.getCookies(id);
-                context.addCookies(cookies);
-            }
-            // 访问登录页面
-            page.navigate(loginURL);
-            // NETWORKIDLE 不等于 "JS 执行完"。需要等待目标元素可交互。
-            page.waitForLoadState(LoadState.LOAD);
-            page.waitForLoadState(LoadState.DOMCONTENTLOADED);
-            page.waitForLoadState(LoadState.NETWORKIDLE);
-
-            page.waitForSelector("input[id='" + LoginType.SMS.getConfig().getUsernameInputId() + "']", new Page.WaitForSelectorOptions());
-            // 进行必要的等待，因为太快模拟点击会失败
-            page.waitForSelector("#" + LoginType.SMS.getConfig().getSendSmsButtonId(), new Page.WaitForSelectorOptions().setTimeout(4000));
-
-            LoginResultsVo ret = new LoginResultsVo();
-            try {
-                Locator usernameInput = page.locator("input[id='" + LoginType.SMS.getConfig().getUsernameInputId() + "']");
-                usernameInput.clear();
-                usernameInput.fill(id);
-                page.locator("#" + LoginType.SMS.getConfig().getSendSmsButtonId()).click();
-                page.waitForLoadState(LoadState.LOAD);
-                page.waitForLoadState(LoadState.DOMCONTENTLOADED);
-                page.waitForLoadState(LoadState.NETWORKIDLE);
-                // 进入过网关后需要缓存 cookies
-                loginSessionCacheUtil.saveCookies(id, context.cookies());
-                ret.setCookies(context.cookies(loginURL));
-                // String bodyText = page.textContent("body");
-                ret.setHtmlDoc("");
-                return ret;
-            } catch (Exception e) {
-                log.error(e.getMessage(), e);
-                throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(), "爬虫无法进行验证码获取！！", ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
-            }
-        });
-    }
-
-    @Resource
-    private Map<LoginType, LoginHandle> loginHandlers;
-
-    /**
-     * 【设计模式】
+     * 策略模式处理不同登录方式
      * <p>
-     * 在登录框架中，经过测试发现，如果已有cookie的话，可以使用密码登录（是不是什么时候的cookie都行呢？）；
-     * 但如果什么都没有就只能使用验证码登录；
-     * 暂时未见任何其他登录方式
+     * 经过测试发现，如果已有cookie的话，可以使用密码登录（是不是什么时候的cookie都行呢？）；
+     * <li>但如果什么都没有就只能使用验证码登录；
+     * <li>暂时未见任何其他登录方式
      *
      * @param page
      * @param type
@@ -261,13 +258,13 @@ public class AuthServiceImpl implements AuthService {
         handler.login(page, type, userId, code);
     }
 
-
     /**
-     * 获取验证码图片，通过人机验证
+     * 获取验证码图片，缓存上下文，并等待前端传值
      * @return
      */
     public CaptchaVO getCaptcha() {
         return browserPool.executeWithContext(context -> {
+
             Page page = context.newPage();
             page.navigate(loginURL);
             page.waitForLoadState(LoadState.NETWORKIDLE);
@@ -281,6 +278,36 @@ public class AuthServiceImpl implements AuthService {
             vo.setCookies(context.cookies());
             vo.setCaptchaBase64(Base64.getEncoder().encodeToString(captchaImage));
             return vo;
+        });
+    }
+
+
+    /**
+     * 只通过未过期的cookie进行尝试登录
+     * @param cmd
+     * @return
+     */
+    @Override
+    public LoginResultsVo loginByCookie(LoginRequestCommand cmd) {
+        return browserPool.executeWithContext(context -> {
+            // 直接看看这个cookie好不好用
+            List<Cookie> cookies = cmd.getCookies();
+            context.addCookies(cookies);
+            Page page = context.newPage();
+            // 访问登录页面
+            page.navigate(loginURL);
+            // NETWORKIDLE 不等于 "JS 执行完"。需要等待目标元素可交互。
+            page.waitForLoadState(LoadState.LOAD);
+            page.waitForLoadState(LoadState.DOMCONTENTLOADED);
+            page.waitForLoadState(LoadState.NETWORKIDLE, new Page.WaitForLoadStateOptions().setTimeout(4000));
+
+            if ( page.url().equals(loginURL) )
+                throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(), cmd.getUserId()+"：登录失败，登录凭证已过期，请重新登录！" + page.content(), ResultCodeEnum.UNAUTHORIZED.getCode());
+
+            LoginResultsVo ret = new LoginResultsVo();
+            ret.setCookies(context.cookies(page.url()));
+            ret.setHtmlDoc(page.textContent("body"));
+            return ret;
         });
     }
 

@@ -9,9 +9,11 @@ public interface AuthService {
 
     LoginType loginCheck();
 
+    LoginResultsVo getSms(String id);
+
     LoginResultsVo loginFrame(LoginRequestCommand cmd);
 
-    LoginResultsVo getSms(String id);
+    LoginResultsVo loginByCookie(LoginRequestCommand cmd);
 
     String logout();
 

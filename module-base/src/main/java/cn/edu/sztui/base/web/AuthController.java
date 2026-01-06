@@ -37,6 +37,12 @@ public class AuthController {
         return Result.ok(result);
     }
 
+    @PostMapping("/freelogin")
+    public Result loginByCookies(@RequestBody LoginRequestCommand request) {
+        LoginResultsVo result = authService.loginFrame(request);
+        return Result.ok(result);
+    }
+
     /**
      * 验证码过期，再次请求
      * @return
