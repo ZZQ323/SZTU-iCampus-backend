@@ -29,7 +29,7 @@ public class ProxyController {
      *
      * 调用流程：前端首次访问时调用，获取machineId
      */
-    @PostMapping("/init")
+    @GetMapping("/init")
     public Result initSession() {
         ProxyInitVO vo = proxyService.initSession();
         return Result.ok(vo);

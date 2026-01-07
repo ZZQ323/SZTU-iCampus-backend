@@ -51,15 +51,11 @@ public class ProxyServiceImpl  implements ProxyService {
     public ProxyInitVO initSession() {
         String machineId = sessionCache.generateMachineId();
         log.info("初始化会话, machineId: {}", machineId);
-
         try {
             // 访问网关，触发OAuth重定向，获取初始Cookie
             HttpResult result = httpClient.doGetWithManualRedirect(machineId, gatewayUrl, 10);
-
-            if (CollectionUtils.isEmpty(result.getCookies())) {
-                throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(),
-                        "初始化失败：未获取到Cookie", ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
-            }
+            if (CollectionUtils.isEmpty(result.getCookies()))
+                throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(),"初始化失败：未获取到Cookie", ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
 
             // 保存机器会话
             sessionCache.saveMachineSession(machineId, result.getCookies());
