@@ -5,6 +5,6 @@ import com.microsoft.playwright.Page;
 
 
 public interface LoginHandle {
-    final String loginURL ="https://home.sztu.edu.cn/bmportal";
+
     void login(Page page, LoginType type, String userId, String code);
 }

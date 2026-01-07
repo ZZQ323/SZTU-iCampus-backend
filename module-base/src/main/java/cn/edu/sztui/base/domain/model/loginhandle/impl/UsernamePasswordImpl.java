@@ -13,6 +13,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import static cn.edu.sztui.base.domain.model.SchoolAPIs.loginURL;
+
 @Slf4j
 @Service
 public class UsernamePasswordImpl implements LoginHandle {

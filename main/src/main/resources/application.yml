@@ -34,6 +34,11 @@ spring:
     password:
     database: 0
 
+school:
+  url:
+    gateway: https://home.sztu.edu.cn/bmportal
+    login: https://auth-sztu-edu-cn-s.webvpn.sztu.edu.cn:8118/idp/authcenter/ActionAuthChain
+    sms-send: https://auth-sztu-edu-cn-s.webvpn.sztu.edu.cn:8118/idp/sendSMSCheckCode.do
 
 playwright:
   pool:

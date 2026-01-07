@@ -22,7 +22,8 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import static cn.edu.sztui.base.domain.model.loginhandle.LoginHandle.loginURL;
+import static cn.edu.sztui.base.domain.model.SchoolAPIs.gatewayURL;
+import static cn.edu.sztui.base.domain.model.SchoolAPIs.loginURL;
 
 @Service
 @Slf4j
@@ -37,6 +38,7 @@ public class AuthServiceImpl implements AuthService {
     @Resource
     private Map<LoginType, LoginHandle> loginHandlers;
 
+
     /**
      * 多维度判断当前激活的登录方式
      * 维度1：读取页面authMethodIDs隐藏框的值
@@ -45,7 +47,6 @@ public class AuthServiceImpl implements AuthService {
      *
      * @return
      */
-
     @Override
     public LoginType loginCheck() {
         try (Playwright playwright = Playwright.create()) {
@@ -132,7 +133,7 @@ public class AuthServiceImpl implements AuthService {
                 context.addCookies(cookies);
             }
             // 访问登录页面
-            page.navigate(loginURL);
+            page.navigate(gatewayURL);
             // NETWORKIDLE 不等于 "JS 执行完"。需要等待目标元素可交互。
             page.waitForLoadState(LoadState.LOAD);
             page.waitForLoadState(LoadState.DOMCONTENTLOADED);
@@ -153,7 +154,7 @@ public class AuthServiceImpl implements AuthService {
                 page.waitForLoadState(LoadState.NETWORKIDLE);
                 // 进入过网关后需要缓存 cookies
                 loginSessionCacheUtil.saveCookies(id, context.cookies());
-                ret.setCookies(context.cookies(loginURL));
+                // ret.setCookies(context.cookies(loginURL));
                 // String bodyText = page.textContent("body");
                 ret.setHtmlDoc("");
                 return ret;
@@ -180,7 +181,7 @@ public class AuthServiceImpl implements AuthService {
                 context.addCookies(cookies);
             }
             // 访问登录页面
-            page.navigate(loginURL);
+            page.navigate(gatewayURL);
             // NETWORKIDLE 不等于 "JS 执行完"。需要等待目标元素可交互。
             page.waitForLoadState(LoadState.LOAD);
             page.waitForLoadState(LoadState.DOMCONTENTLOADED);
@@ -225,7 +226,7 @@ public class AuthServiceImpl implements AuthService {
             log.info("用户{} 登录成功，已获取cookies：{}", cmd.getUserId(), cc );
             // 登录成功后缓存 cookie
             loginSessionCacheUtil.saveCookies(cmd.getUserId(), cc);
-            ret.setCookies(cc);
+            // ret.setCookies(cc);
             // 获取整个页面的HTML内容
             String bodyText = page.textContent("body");
             ret.setHtmlDoc(bodyText);
@@ -305,7 +306,7 @@ public class AuthServiceImpl implements AuthService {
                 throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(), cmd.getUserId()+"：登录失败，登录凭证已过期，请重新登录！" + page.content(), ResultCodeEnum.UNAUTHORIZED.getCode());
 
             LoginResultsVo ret = new LoginResultsVo();
-            ret.setCookies(context.cookies(page.url()));
+            // ret.setCookies(context.cookies(page.url()));
             ret.setHtmlDoc(page.textContent("body"));
             return ret;
         });
