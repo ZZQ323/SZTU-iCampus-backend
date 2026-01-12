@@ -5,7 +5,6 @@ import cn.edu.sztui.common.cache.util.service.CacheService;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.Collection;
@@ -65,8 +64,8 @@ public class CacheUtil {
         return this.cacheService.hHasKey(rkey, item);
     }
 
-    public void del(String key) {
-        String rkey = this.redisKeyGenerator.generate("cache:" + key);
-        this.cacheService.del(new String[]{rkey});
-    }
+//    public void del(String key) {
+//        String rkey = this.redisKeyGenerator.generate("cache:" + key);
+//        this.cacheService.del(new String[]{rkey});
+//    }
 }
