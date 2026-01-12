@@ -30,17 +30,18 @@ public class ProxySessionCacheUtil {
     private static final String MACHINE_SESSION_KEY = "proxy:machine:";
     private static final String USER_MAPPING_KEY = "proxy:user:";
 
-    // 机器会话过期时间：30分钟
+    // 机器会话过期时间 30分钟
     private static final long MACHINE_SESSION_EXPIRE = 1800;
-    // 登录会话过期时间：4小时
-    private static final long LOGIN_SESSION_EXPIRE = 14400;
+    // 登录会话过期时间 10分钟
+    private static final long LOGIN_SESSION_EXPIRE = 600;
 
     @Resource
     private CacheUtil cacheUtil;
 
     /**
-     * 生成机器ID
+     * 生成机器ID，前端完成
      */
+    @Deprecated
     public String generateMachineId() {
         return UUID.randomUUID().toString().replace("-", "");
     }

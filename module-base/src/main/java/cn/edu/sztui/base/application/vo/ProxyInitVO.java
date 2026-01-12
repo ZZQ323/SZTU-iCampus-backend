@@ -1,6 +1,9 @@
 package cn.edu.sztui.base.application.vo;
 
 import lombok.Data;
+import org.apache.hc.client5.http.cookie.Cookie;
+
+import java.util.List;
 
 /**
  * 代理初始化结果
@@ -24,4 +27,6 @@ public class ProxyInitVO {
     private String lt;
     private String execution;
     private String authMethodIDs;
+    // 仅调试
+    private List<Cookie> cookies;
 }

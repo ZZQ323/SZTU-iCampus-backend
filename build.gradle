@@ -1,7 +1,6 @@
 plugins {
-    id 'java'
     id 'org.springframework.boot' version '3.3.1' apply false
-    id 'io.spring.dependency-management' version '1.1.5'
+    id 'io.spring.dependency-management' version '1.1.5'  apply false
 }
 
 allprojects {
@@ -10,25 +9,53 @@ allprojects {
 
     repositories {
         mavenCentral()
+        // 补充阿里云镜像（加速国内依赖下载，可选但推荐）
+        maven { url 'https://maven.aliyun.com/repository/public/' }
     }
-
-    apply plugin: 'java'
 }
 
 subprojects {
-    dependencies {
-        // Lombok
-        compileOnly 'org.projectlombok:lombok'
-        annotationProcessor 'org.projectlombok:lombok'
+    // 强制所有子模块应用java插件（依赖配置的前提）
+    apply plugin: 'java'
 
-        // Spring Boot
-        implementation 'org.springframework.boot:spring-boot-starter'
-        implementation 'org.springframework.boot:spring-boot-starter-web'
-
-
-        implementation 'com.alibaba.fastjson2:fastjson2:2.0.48'
-    }
-
+    // 统一Java版本（与subprojects里的sourceCompatibility保持一致）
     sourceCompatibility = '17'
     targetCompatibility = '17'
+
+    dependencies {
+        // ========== Lombok补充版本号（否则可能找不到依赖） ==========
+        compileOnly 'org.projectlombok:lombok:1.18.34'
+        annotationProcessor 'org.projectlombok:lombok:1.18.34'
+        // 测试代码也需要Lombok注解处理器
+        testCompileOnly 'org.projectlombok:lombok:1.18.34'
+        testAnnotationProcessor 'org.projectlombok:lombok:1.18.34'
+
+        // 通用业务依赖
+        // 业务模块不需要 Spring Boot 插件，只需要基础依赖
+        implementation 'com.alibaba.fastjson2:fastjson2:2.0.48'
+        implementation 'org.springframework.boot:spring-boot-starter'
+        implementation 'org.springframework.boot:spring-boot-starter-web'
+        implementation 'org.springframework:spring-core'
+        implementation 'org.springframework.boot:spring-boot-starter-webflux'
+
+        // 测试依赖（JUnit 5 + Mockito）
+        // JUnit 5 核心依赖
+        testImplementation platform('org.junit:junit-bom:5.9.0')
+        testImplementation 'org.junit.jupiter:junit-jupiter-api'
+        testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
+        // Mockito 核心
+        testImplementation 'org.mockito:mockito-core:4.11.0' // 升级Mockito适配Java 17
+        testImplementation 'org.mockito:mockito-junit-jupiter:4.11.0'
+    }
+    // ========== 测试任务配置（确保 JUnit 5 生效） ==========
+    test {
+        useJUnitPlatform() // 明确指定使用 JUnit 5 运行测试
+        testLogging {
+            events 'PASSED', 'FAILED', 'SKIPPED' // 打印测试结果
+        }
+    }
 }
+
+
+
+

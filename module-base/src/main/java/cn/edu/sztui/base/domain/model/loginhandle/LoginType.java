@@ -1,9 +1,7 @@
 package cn.edu.sztui.base.domain.model.loginhandle;
 
-import cn.edu.sztui.base.domain.model.loginhandle.impl.*;
-import jakarta.annotation.Resource;
+
 import lombok.Getter;
-import java.util.Map;
 
 /**
  * 登录方式枚举 - 重构版

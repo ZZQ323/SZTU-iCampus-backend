@@ -7,6 +7,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @Slf4j
 @SpringBootApplication(scanBasePackages = "cn.edu.sztui")
 public class BaseMain {
+
     public static void main(String[] args) {
         try {
             SpringApplication.run(BaseMain.class, args);

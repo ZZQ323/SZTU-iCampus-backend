@@ -38,42 +38,44 @@ public class ProxyServiceImpl  implements ProxyService {
     @Resource
     private ProxySessionCacheUtil sessionCache;
 
-    @Value("${school.url.gateway")
+    @Value("${school.url.gateway}")
     private String gatewayUrl;
-    @Value("${school.url.login")
+    @Value("${school.url.login}")
     private String loginUrl;
-    @Value("${school.url.sms-send")
+    @Value("${school.url.sms-send}")
     private String smsSendUrl;
 
     // ==================== 1. 初始化会话 ====================
 
     @Override
-    public ProxyInitVO initSession() {
+    public ProxyInitVO initSession()
+    {
+        // 此处应当前端完成
         String machineId = sessionCache.generateMachineId();
         log.info("初始化会话, machineId: {}", machineId);
         try {
             // 访问网关，触发OAuth重定向，获取初始Cookie
-            HttpResult result = httpClient.doGetWithManualRedirect(machineId, gatewayUrl, 10);
-            if (CollectionUtils.isEmpty(result.getCookies()))
+            HttpResult result = httpClient.doGetWithManualRedirect(machineId, gatewayUrl, 15);
+            if ( CollectionUtils.isEmpty(result.getCookies()) )
                 throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(),"初始化失败：未获取到Cookie", ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
-
             // 保存机器会话
             sessionCache.saveMachineSession(machineId, result.getCookies());
-
             // 解析页面，提取表单token
             Document doc = Jsoup.parse(result.getBody());
-
             ProxyInitVO vo = new ProxyInitVO();
             vo.setMachineId(machineId);
+
+            // cookie 可视化，上线后不返回
+            vo.setCookies(result.getCookies());
+            // 最终的url停在
             vo.setFinalUrl(result.getFinalUrl());
+
             vo.setLt(extractInputValue(doc, "lt"));
             vo.setExecution(extractInputValue(doc, "execution"));
             vo.setAuthMethodIDs(extractInputValue(doc, "authMethodIDs"));
-
             log.info("会话初始化成功, machineId: {}, cookies: {}", machineId, result.getCookies().size());
             return vo;
-
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("初始化会话失败", e);
             throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(),
                     "初始化失败：" + e.getMessage(), ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
@@ -85,10 +87,8 @@ public class ProxyServiceImpl  implements ProxyService {
     @Override
     public boolean sendSms(String machineId, String phone) {
         log.info("发送短信, machineId: {}, phone: {}", machineId, phone);
-
         validateMachineSession(machineId);
         restoreCookiesToClient(machineId);
-
         try {
             // 模拟人类行为延迟
             randomDelay();
@@ -183,7 +183,7 @@ public class ProxyServiceImpl  implements ProxyService {
 
         } catch (BusinessException e) {
             throw e;
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("登录失败", e);
             throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(),
                     "登录失败：" + e.getMessage(), ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());

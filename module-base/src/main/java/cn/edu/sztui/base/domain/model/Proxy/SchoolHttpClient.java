@@ -1,5 +1,7 @@
 package cn.edu.sztui.base.domain.model.Proxy;
 
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
@@ -11,25 +13,36 @@ import org.apache.hc.client5.http.entity.UrlEncodedFormEntity;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.cookie.BasicClientCookie;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
 import org.apache.hc.client5.http.protocol.HttpClientContext;
+import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactoryBuilder;
 import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.NameValuePair;
 import org.apache.hc.core5.http.ParseException;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.message.BasicNameValuePair;
+import org.apache.hc.core5.ssl.SSLContextBuilder;
 import org.springframework.stereotype.Component;
-import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
+
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyManagementException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 /**
  * 学校网站HTTP客户端
- *
+ * <p>
  * 核心功能：
  * 1. 自动处理重定向链（OAuth2流程）
  * 2. 自动管理Cookie（每用户独立CookieStore）
@@ -153,53 +166,126 @@ public class SchoolHttpClient {
      * 手动处理重定向（当需要精细控制时使用）
      * 某些OAuth2流程需要在重定向过程中提取参数
      */
-    public HttpResult doGetWithManualRedirect(String userId, String url, int maxRedirects) throws IOException {
-        CookieStore cookieStore = getOrCreateCookieStore(userId);
+    public HttpResult doGetWithManualRedirect(String machineId, String url, int maxRedirects)
+            throws IOException, NoSuchAlgorithmException, KeyStoreException, KeyManagementException, ParseException {
 
-        // 创建不自动重定向的配置
-        RequestConfig noRedirectConfig = RequestConfig.custom()
-                .setRedirectsEnabled(false)
+        CookieStore cookieStore = getOrCreateCookieStore(machineId);
+
+        // 创建支持SSL的HttpClient
+        SSLContext sslContext = SSLContextBuilder.create()
+                .loadTrustMaterial(null, (chain, authType) -> true)
                 .build();
 
-        String currentUrl = url;
-        HttpResult lastResult = null;
-
-        for (int i = 0; i < maxRedirects; i++) {
-            HttpClientContext context = createContext(cookieStore);
-            HttpGet httpGet = new HttpGet(currentUrl);
-            httpGet.setConfig(noRedirectConfig);
-            addBrowserHeaders(httpGet);
-
-            // 设置Referer（重要：有些网站会检查）
-            if (lastResult != null) {
-                httpGet.setHeader("Referer", lastResult.getFinalUrl());
+        HostnameVerifier hostnameVerifier = (hostname, session) -> {
+            if (hostname.endsWith("webvpn.sztu.edu.cn") || hostname.endsWith("sztu.edu.cn")) {
+                return true;
             }
+            return HttpsURLConnection.getDefaultHostnameVerifier().verify(hostname, session);
+        };
 
-            try (ClassicHttpResponse response = httpClient.executeOpen(null, httpGet, context)) {
-                lastResult = buildResult(response, context);
-                lastResult.setFinalUrl(currentUrl);
+        RequestConfig noRedirectConfig = RequestConfig.custom()
+                // .setConnectTimeout(30, TimeUnit.SECONDS)
+                // .setResponseTimeout(30, TimeUnit.SECONDS)
+                .setRedirectsEnabled(false)  // 禁用自动重定向，手动处理
+                .build();
 
-                int statusCode = response.getCode();
+        try (CloseableHttpClient client = HttpClients.custom()
+                .setDefaultRequestConfig(noRedirectConfig)
+                .setConnectionManager(PoolingHttpClientConnectionManagerBuilder.create()
+                        .setSSLSocketFactory(SSLConnectionSocketFactoryBuilder.create()
+                                .setSslContext(sslContext)
+                                .setHostnameVerifier(hostnameVerifier)
+                                .build())
+                        .build())
+                .disableCookieManagement()
+                .build()) {
 
-                // 检查是否是重定向
-                if (statusCode >= 300 && statusCode < 400) {
-                    Header locationHeader = response.getFirstHeader("Location");
-                    if (locationHeader != null) {
-                        String location = locationHeader.getValue();
-                        // 处理相对路径
-                        currentUrl = resolveUrl(currentUrl, location);
-                        log.debug("重定向 {} -> {}", i + 1, currentUrl);
+            String currentUrl = url;
+            HttpResult lastResult = null;
+            List<Cookie> allCookies = new ArrayList<>();  // 累积所有Cookie
+
+            for (int i = 0; i < maxRedirects; i++) {
+                HttpClientContext context = createContext(cookieStore);
+                HttpGet httpGet = new HttpGet(currentUrl);
+                addBrowserHeaders(httpGet);
+
+                if (lastResult != null && lastResult.getFinalUrl() != null) {
+                    httpGet.setHeader("Referer", lastResult.getFinalUrl());
+                }
+
+                try (ClassicHttpResponse response = client.executeOpen(null, httpGet, context)) {
+                    lastResult = buildResult(response, context);
+                    lastResult.setFinalUrl(currentUrl);
+
+                    // 收集本次请求的Cookie
+                    List<Cookie> currentCookies = lastResult.getCookies();
+                    for (Cookie cookie : currentCookies) {
+                        // 去重添加（同名Cookie用新的覆盖）
+                        allCookies.removeIf(c -> c.getName().equals(cookie.getName())
+                                && Objects.equals(c.getDomain(), cookie.getDomain()));
+                        allCookies.add(cookie);
+                    }
+
+                    // 同时保存到cookieStore供下次请求使用
+                    for (Cookie cookie : currentCookies) {
+                        cookieStore.addCookie(cookie);
+                    }
+
+                    int statusCode = response.getCode();
+                    if (statusCode >= 300 && statusCode < 400) {
+                        Header locationHeader = response.getFirstHeader("Location");
+                        if (locationHeader != null) {
+                            currentUrl = resolveUrl(currentUrl, locationHeader.getValue());
+                            log.debug("重定向 {} -> {}", i + 1, currentUrl);
+                            continue;
+                        }
+                    }
+                    // 检查JS重定向
+                    String jsRedirectUrl = extractJsRedirectUrl(lastResult.getBody());
+                    if (jsRedirectUrl != null) {
+                        currentUrl = jsRedirectUrl;
+                        log.debug("JS重定向 {} -> {}", i + 1, currentUrl);
                         continue;
                     }
+                    break;
                 }
-                // 不是重定向或没有Location，返回结果
-                break;
-            } catch (ParseException e) {
-                throw new RuntimeException(e);
             }
+
+            // 将累积的Cookie设置到最终结果
+            if (lastResult != null) {
+                lastResult.setCookies(allCookies);
+            }
+
+            return lastResult;
+        }
+    }
+
+    /**
+     * 从页面中提取JS重定向URL
+     */
+    private String extractJsRedirectUrl(String html) {
+        if (html == null) return null;
+        // 查找所有 g_lines 赋值，取最后一个（排除注释中的）
+        Pattern pattern = Pattern.compile("g_lines\\s*=\\s*\\[\\{[^}]*url\\s*:\\s*\"(https?://[^\"]+)\"[^}]*}\\]\\s*;");
+        Matcher matcher = pattern.matcher(html);
+
+        String lastUrl = null;
+        while (matcher.find())
+            lastUrl = matcher.group(1);
+
+        if (lastUrl != null) {
+            log.info("提取到JS重定向URL: {}", lastUrl);
+            return lastUrl;
         }
 
-        return lastResult;
+        // 备用：匹配 window.location.href = "xxx"
+        pattern = Pattern.compile("window\\.location\\.href\\s*=\\s*[\"'](https?://[^\"']+)[\"']");
+        matcher = pattern.matcher(html);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+
+        return null;
     }
 
     /**
@@ -236,12 +322,22 @@ public class SchoolHttpClient {
         HttpResult result = new HttpResult();
         result.setStatusCode(response.getCode());
         result.setBody(EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8));
-        result.setCookies(new ArrayList<>(context.getCookieStore().getCookies()));
 
-        // 获取最终URL（经过重定向后的）
-        if (context.getRedirectLocations() != null && !context.getRedirectLocations().contains(URI.create("")) ) {
-            result.setFinalUrl(context.getRedirectLocations()
-                    .get(context.getRedirectLocations().size() - 1).toString());
+        // 从响应头手动解析Cookie
+        List<Cookie> cookies = new ArrayList<>();
+        Header[] setCookieHeaders = response.getHeaders("Set-Cookie");
+        for (Header header : setCookieHeaders) {
+            Cookie cookie = parseCookie(header.getValue());
+            if (cookie != null) {
+                cookies.add(cookie);
+            }
+        }
+        result.setCookies(cookies);
+
+        // 修复空列表检查
+        List<URI> redirectLocations = context.getRedirectLocations().getAll();
+        if (redirectLocations != null && !redirectLocations.isEmpty()) {
+            result.setFinalUrl(redirectLocations.get(redirectLocations.size() - 1).toString());
         }
 
         // 提取响应头
@@ -250,8 +346,36 @@ public class SchoolHttpClient {
             headers.put(header.getName(), header.getValue());
         }
         result.setHeaders(headers);
-
         return result;
+    }
+
+    /**
+     * 解析Set-Cookie头
+     */
+    private Cookie parseCookie(String setCookieValue) {
+        try {
+            String[] parts = setCookieValue.split(";");
+            String[] nameValue = parts[0].trim().split("=", 2);
+            if (nameValue.length < 2) return null;
+            BasicClientCookie cookie = new BasicClientCookie(nameValue[0].trim(), nameValue[1].trim());
+            for (int i = 1; i < parts.length; i++) {
+                String part = parts[i].trim().toLowerCase();
+                if (part.startsWith("domain=")) {
+                    cookie.setDomain(part.substring(7));
+                } else if (part.startsWith("path=")) {
+                    cookie.setPath(part.substring(5));
+                }
+            }
+            // 默认域名
+            if (cookie.getDomain() == null)
+                cookie.setDomain(".sztu.edu.cn");
+            if (cookie.getPath() == null)
+                cookie.setPath("/");
+            return cookie;
+        } catch (Exception e) {
+            log.warn("解析Cookie失败: {}", setCookieValue, e);
+            return null;
+        }
     }
 
     /**

@@ -1,0 +1,21 @@
+response = {
+  CloseableHttpResponse@9224
+  "302 Found HTTP/1.1"
+},
+context = {
+  http.request=GET
+  https: //home.sztu.edu.cn/bmportal,
+  http.request-config=[expectContinueEnabled=false, proxy=null, cookieSpec=null, redirectsEnabled=false, maxRedirects=50, circularRedirectsAllowed=false, authenticationEnabled=true, targetPreferredAuthSchemes=null, proxyPreferredAuthSchemes=null, connectionRequestTimeout=3 MINUTES, connectTimeout=30 SECONDS, responseTimeout=30 SECONDS, connectionKeepAlive=3 MINUTES, contentCompressionEnabled=true, hardCancellationEnabled=true],
+  http.ssl-session=Session(1768197675579|TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384),
+  http.connection-endpoint=192.168.3.35:63537<->210.22.9.214:443,
+  http.auth.credentials-provider=[],
+  http.protocol.redirect-locations=org.apache.hc.client5.http.protocol.RedirectLocations@255cbb9d,
+  http.exchange-id=ex-0000000004,
+  http.cookie-store=[],
+  http.cookiespec-registry={relaxed=org.apache.hc.client5.http.impl.cookie.RFC6265CookieSpecFactory@7995056a, ignore=org.apache.hc.client5.http.impl.cookie.IgnoreCookieSpecFactory@5d344d84, strict=org.apache.hc.client5.http.impl.cookie.RFC6265CookieSpecFactory@28385297},
+  http.auth.exchanges={https}://home.sztu.edu.cn=[UNCHALLENGED],https://home.sztu.edu.cn:443=[UNCHALLENGED]}, http.route={s}->https://home.sztu.edu.cn:443,
+  http.response=302 Found HTTP/1.1,
+  http.authscheme-registry={digest=org.apache.hc.client5.http.impl.auth.DigestSchemeFactory@37f98b48,
+  bearer=org.apache.hc.client5.http.impl.auth.BearerSchemeFactory@6884c678,
+  basic=org.apache.hc.client5.http.impl.auth.BasicSchemeFactory@3e85154}
+}
