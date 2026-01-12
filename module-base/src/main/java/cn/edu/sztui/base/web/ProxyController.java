@@ -42,7 +42,7 @@ public class ProxyController {
     /**
      * 3. 登录
      */
-    @PostMapping("/login")
+    @PostMapping("/sms-login")
     public Result login(@RequestBody ProxyLoginCommand command) {
         ProxyLoginResultVO vo = proxyService.login(command);
         return Result.ok(vo);

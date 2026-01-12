@@ -27,12 +27,6 @@ public class ProxyLoginCommand {
      */
     private LoginType loginType;
 
-    /**
-     * 表单token（从初始化结果获取）
-     */
-    private String lt;
-    private String execution;
-
     public enum LoginType {
         SMS,        // 短信验证码
         PASSWORD,   // 密码

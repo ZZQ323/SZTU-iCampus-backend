@@ -36,7 +36,7 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 @Slf4j
 @Service
-public class ProxyServiceImpl  implements ProxyService {
+public class ProxyServiceImpl implements ProxyService {
 
     @Resource
     private SchoolHttpClient httpClient;
@@ -57,8 +57,7 @@ public class ProxyServiceImpl  implements ProxyService {
     // ==================== 1. 初始化会话 ====================
 
     @Override
-    public ProxyInitVO initSession(String code,String deviceToken)
-    {
+    public ProxyInitVO initSession(String code, String deviceToken) {
         // 设备信息获取
         // String machineId = wechatDeviceServiceImpl.getWechatDeviceId(code,deviceToken);
         String machineId = "testing";
@@ -66,8 +65,8 @@ public class ProxyServiceImpl  implements ProxyService {
         try {
             // 访问网关，触发OAuth重定向，获取初始Cookie
             HttpResult result = httpClient.doGetWithManualRedirect(machineId, gatewayUrl, 15);
-            if ( CollectionUtils.isEmpty(result.getCookies()) )
-                throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(),"初始化失败：未获取到Cookie", ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
+            if (CollectionUtils.isEmpty(result.getCookies()))
+                throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(), "初始化失败：未获取到Cookie", ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
             // 保存机器会话
             sessionCache.saveMachineSession(machineId, result.getCookies());
             // 解析页面，提取表单token
@@ -85,7 +84,7 @@ public class ProxyServiceImpl  implements ProxyService {
             return vo;
         } catch (Exception e) {
             log.error("初始化会话失败", e);
-            throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(),"初始化失败：" + e.getMessage(), ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
+            throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(), "初始化失败：" + e.getMessage(), ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
         }
     }
 
@@ -106,7 +105,7 @@ public class ProxyServiceImpl  implements ProxyService {
             // 正确的参数名
 
             // 调试：打印发送的数据
-            log.info("发送短信参数: j_username={}, authenFlag={}",CharacterConverter.toSBC(userId), null);
+            log.info("发送短信参数: j_username={}, authenFlag={}", CharacterConverter.toSBC(userId), null);
 
             HttpResult result = httpClient.doPost(machineId, smsSendUrl, formData);
 
@@ -116,14 +115,9 @@ public class ProxyServiceImpl  implements ProxyService {
             }
 
             // 判断发送结果
-            boolean success = result.isSuccess() &&
-                    (result.getBody().contains("发送成功") ||
-                            result.getBody().contains("success") ||
-                            result.getBody().contains("\"code\":0"));
-
+            boolean success = parseSmsResponse(result);
             log.info("短信发送{}, machineId: {}", success ? "成功" : "失败", machineId);
             return success;
-
         } catch (IOException e) {
             log.error("发送短信失败", e);
             return false;
@@ -135,9 +129,9 @@ public class ProxyServiceImpl  implements ProxyService {
      * 根据JS代码逻辑解析
      */
     private boolean parseSmsResponse(HttpResult result) {
-        if (!result.isSuccess())return false;
+        if (!result.isSuccess()) return false;
         String body = result.getBody();
-        if (StringUtils.isEmpty(body))return false;
+        if (StringUtils.isEmpty(body)) return false;
         try {
             ObjectMapper mapper = new ObjectMapper();
             JsonNode jsonNode = mapper.readTree(body);
@@ -167,28 +161,42 @@ public class ProxyServiceImpl  implements ProxyService {
     @Override
     public ProxyLoginResultVO login(ProxyLoginCommand command) {
         String machineId = command.getMachineId();
-        log.info("登录, machineId: {}, userId: {}, type: {}",
-                machineId, command.getUserId(), command.getLoginType());
-
+        log.info("登录, machineId: {}, userId: {}, type: {}", machineId, command.getUserId(), command.getLoginType());
         validateMachineSession(machineId);
         restoreCookiesToClient(machineId);
-
         try {
-            randomDelay();
-
+            // randomDelay();
+            // {
+            //     "j_username": "202200202104",
+            //         "sms_checkcode": "858403",
+            //         "j_checkcode": "验证码",
+            //         "op": "login",
+            //         "spAuthChainCode": "3c21e7d55f6449df85e8cebc30518464"
+            // }
             Map<String, String> formData = buildLoginFormData(command);
-            HttpResult result = httpClient.doPost(machineId, loginUrl, formData);
-
+            // req.setRequestHeader("X-Client-Cert", x_cert); 用户密码+证书
+            // {
+            //  "请求 Cookie":{
+            //     "_idp_authn_lc_key_-_auth.sztu.edu.cn":"9493e711-7a32-472d-a443-7d9ed119770a",
+            //             "_idp_session_-_auth.sztu.edu.cn":
+            //     "MTAuMTEuNzYuMg==|MTg4YmUwZDExMWE3ZjVjYzc2ZTczYTAyZDRjMjE4ZTg1YTNiOGE5MWZmMjFiNjk5MDkxMjQ0ZGI1YzZhMmIwMg==|4QD11LFWhBR3LIehZF2Oq4+ZVKs=",
+            //             "AD_SESSION_FLAG":"ad_flag",
+            //             "SESSION":"3240ad58-dde2-4d93-b97c-7e279998e2f8",
+            //             "TWFID":"b10079642b73902d",
+            //             "username":"202200202104",
+            //             "x":"x"
+            //     }
+            //  }
+            HttpResult result = httpClient.doPost(machineId, loginUrl+"?sf_request_type=ajax", formData);
             // 检查是否需要图形验证码
             if (result.getBody().contains("j_checkcodeImgCode") ||
                     result.getBody().contains("验证码")) {
                 throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(),
                         "需要图形验证码", ResultCodeEnum.BAD_REQUEST.getCode());
             }
-
             // 检查登录错误
             if (result.getBody().contains("错误") || result.getBody().contains("失败")) {
-                String errorMsg = extractErrorMessage(result.getBody());
+                String errorMsg = result.getBody();
                 throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(),
                         "登录失败：" + errorMsg, ResultCodeEnum.BAD_REQUEST.getCode());
             }
@@ -343,14 +351,27 @@ public class ProxyServiceImpl  implements ProxyService {
      * 构建登录表单数据
      */
     private Map<String, String> buildLoginFormData(ProxyLoginCommand command) {
+        //  req.setRequestHeader("X-Client-Cert", x_cert);
         Map<String, String> formData = new HashMap<>();
-
         switch (command.getLoginType()) {
             case SMS -> {
-                formData.put("j_username1", command.getUserId());
-                formData.put("j_checkcode1", command.getCode());
-                formData.put("authMethodIDs", "1");
-                formData.put("tabFromId", "tabFrom1");
+                // validateLoginFields('authen4Form1')
+                // switch_tab('authen4Form1')
+                // if (id == 'authen4Form1') {
+                //        loginType = "4";
+                //        tabFromId = "authen4Form1";
+                //    }
+                // saveupForm()     doSubmit("j_username")
+                // /idp/authcenter/ActionAuthChain
+                //
+                // data: $('#' + tabFromId).serialize(),
+                formData.put("j_username", command.getUserId());
+                formData.put("sms_checkcode", command.getCode());
+                formData.put("j_checkcode", "验证码");
+                formData.put("op", "login");
+                formData.put("spAuthChainCode", "3c21e7d55f6449df85e8cebc30518464");
+                // formData.put("authMethodIDs", "1");  2"null"
+                // formData.put("tabFromId", "authen4Form1");
             }
             case PASSWORD -> {
                 formData.put("j_username", command.getUserId());
@@ -369,13 +390,13 @@ public class ProxyServiceImpl  implements ProxyService {
         }
 
         // 添加通用字段
-        if (command.getLt() != null) {
-            formData.put("lt", command.getLt());
-        }
-        if (command.getExecution() != null) {
-            formData.put("execution", command.getExecution());
-        }
-        formData.put("_eventId", "submit");
+//        if (command.getLt() != null) {
+//            formData.put("lt", command.getLt());
+//        }
+//        if (command.getExecution() != null) {
+//            formData.put("execution", command.getExecution());
+//        }
+        // formData.put("_eventId", "submit");
 
         return formData;
     }

@@ -62,12 +62,10 @@ public class SchoolHttpClient {
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
     // 学校网站域名（根据你的实际情况修改）
-    private static final String SCHOOL_DOMAIN = "your-school.edu.cn";
+    private static final String SCHOOL_DOMAIN = "sztu.edu.cn";
 
     @PostConstruct
-    public void init()
-            throws NoSuchAlgorithmException, KeyStoreException, KeyManagementException
-    {
+    public void init()throws NoSuchAlgorithmException, KeyStoreException, KeyManagementException{
         // // 配置信任所有证书的 SSL 上下文
         // SSLContext sslContext = SSLContextBuilder.create()
         //         .loadTrustMaterial(null, (chain, authType) -> true)
@@ -84,16 +82,14 @@ public class SchoolHttpClient {
                 .setConnectTimeout(30, TimeUnit.SECONDS)
                 .setResponseTimeout(30, TimeUnit.SECONDS)
                 .setRedirectsEnabled(true)  // 启用自动重定向
-                .setMaxRedirects(10)        // 最大重定向次数
+                .setMaxRedirects(15)        // 最大重定向次数
                 .setCircularRedirectsAllowed(false)
                 .build();
-
         httpClient = HttpClients.custom()
                 .setDefaultRequestConfig(requestConfig)
                 // 不设置全局CookieStore，每个请求使用独立的Context
                 .disableCookieManagement()  // 我们手动管理Cookie
                 .build();
-
         log.info("SchoolHttpClient 初始化完成");
     }
 
@@ -162,7 +158,7 @@ public class SchoolHttpClient {
 
         HttpPost httpPost = new HttpPost(url);
         addBrowserHeaders(httpPost);
-        httpPost.setHeader("Content-Type", "application/x-www-form-urlencoded");
+        httpPost.setHeader("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8");
 
         // 构建表单数据
         List<NameValuePair> params = new ArrayList<>();
@@ -321,12 +317,12 @@ public class SchoolHttpClient {
         request.setHeader("Accept-Encoding", "gzip, deflate, br");
         request.setHeader("Connection", "keep-alive");
         request.setHeader("Upgrade-Insecure-Requests", "1");
-        request.setHeader("Sec-Fetch-Dest", "document");
-        request.setHeader("Sec-Fetch-Mode", "navigate");
+        request.setHeader("Sec-Fetch-Dest", "empty");
+        request.setHeader("Sec-Fetch-Mode", "cors");
         request.setHeader("Sec-Fetch-Site", "same-origin");
         request.setHeader("Sec-Fetch-User", "?1");
         // 随机化一些可追踪的头
-        request.setHeader("Cache-Control", "max-age=0");
+        // request.setHeader("Cache-Control", "max-age=0");
     }
 
     /**
