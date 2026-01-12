@@ -59,12 +59,12 @@ sztu:
     projectName: ${program.name}
     environment: ${spring.profiles.active}
 
-wx:
-  miniapp:
-    configs:
-      appid:  ${WX_APPID}                    # 微信小程序的appid
-      secret: ${WX_SECRET}                    # 微信小程序的Secret
-      token:  ${WX_TOKEN}                    # 微信小程序消息服务器配置的 token
-      aesKey: ${WX_AESKEY}                  # 微信小程序消息服务器配置的 EncodingAESKey
-      rsaKey: ${WX_RSAKEY}                  # 微信小程序消息服务器配置的 EncodingRSAKEY
-      msgDataFormat: ${WX_MSG_FORMAT:JSON}  # 默认值JSON
+#wx:
+#  miniapp:
+#    configs:
+#      appid:  ${WX_APPID}                    # 微信小程序的appid
+#      secret: ${WX_SECRET}                    # 微信小程序的Secret
+#      token:  ${WX_TOKEN}                    # 微信小程序消息服务器配置的 token
+#      aesKey: ${WX_AESKEY}                  # 微信小程序消息服务器配置的 EncodingAESKey
+#      rsaKey: ${WX_RSAKEY}                  # 微信小程序消息服务器配置的 EncodingRSAKEY
+#      msgDataFormat: ${WX_MSG_FORMAT:JSON}  # 默认值JSON
