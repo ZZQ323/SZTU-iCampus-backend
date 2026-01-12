@@ -11,7 +11,11 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'org.apache.commons:commons-pool2:2.12.0'
     implementation 'net.sourceforge.tess4j:tess4j:5.8.0'
+    // 微信公众号/开放平台 SDK
+    implementation "com.github.binarywang:weixin-java-miniapp:4.7.0"
     // 依赖公共模块
+
     implementation project(':module-common')
+
     // 无需重复引入Spring Boot核心依赖（已从根目录subprojects继承）
 }

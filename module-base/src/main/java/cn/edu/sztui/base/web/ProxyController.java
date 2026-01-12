@@ -1,15 +1,11 @@
 package cn.edu.sztui.base.web;
 
-import cn.edu.sztui.base.application.dto.command.LogoutRequest;
-import cn.edu.sztui.base.application.dto.command.ProxyApiRequest;
-import cn.edu.sztui.base.application.dto.command.ProxyLoginCommand;
-import cn.edu.sztui.base.application.dto.command.SendSmsRequest;
+import cn.edu.sztui.base.application.dto.command.*;
 import cn.edu.sztui.base.application.service.ProxyService;
 import cn.edu.sztui.base.application.vo.ProxyInitVO;
 import cn.edu.sztui.base.application.vo.ProxyLoginResultVO;
 import cn.edu.sztui.common.util.result.Result;
 import jakarta.annotation.Resource;
-import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,13 +21,12 @@ public class ProxyController {
     private ProxyService proxyService;
 
     /**
-     * 1. 初始化会话（获取机器Cookie）
-     *
+     * 初始化会话（获取机器Cookie）
      * 调用流程：前端首次访问时调用，获取machineId
      */
-    @GetMapping("/init")
-    public Result initSession() {
-        ProxyInitVO vo = proxyService.initSession();
+    @PostMapping("/init")
+    public Result initSession(@RequestBody InitialRequest initialRequest) {
+        ProxyInitVO vo = proxyService.initSession(initialRequest.getCode(),initialRequest.getDeviceToken());
         return Result.ok(vo);
     }
 
@@ -40,7 +35,7 @@ public class ProxyController {
      */
     @PostMapping("/send-sms")
     public Result sendSms(@RequestBody SendSmsRequest request) {
-        boolean success = proxyService.sendSms(request.getMachineId(), request.getPhone());
+        boolean success = proxyService.sendSms(request.getMachineId(), request.getUserId());
         return Result.ok(success);
     }
 

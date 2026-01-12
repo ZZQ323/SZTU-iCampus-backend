@@ -58,8 +58,7 @@ public class ProxySessionCacheUtil {
         session.setCookiesJson(serializeCookies(cookies));
         session.setCreateTime(Instant.now().toEpochMilli());
         session.setLastUpdateTime(Instant.now().toEpochMilli());
-
-        cacheUtil.hset(MACHINE_SESSION_KEY + machineId, JSON.toJSONString(session), MACHINE_SESSION_EXPIRE);
+        cacheUtil.hset(MACHINE_SESSION_KEY ,machineId , JSON.toJSONString(session),ProxySessionCacheUtil.MACHINE_SESSION_EXPIRE);
         log.info("保存机器会话: {}", machineId);
     }
 
@@ -80,10 +79,10 @@ public class ProxySessionCacheUtil {
         session.setLoggedIn(true);
 
         // 更新机器会话（延长过期时间）
-        cacheUtil.hset(MACHINE_SESSION_KEY + machineId, JSON.toJSONString(session), LOGIN_SESSION_EXPIRE);
+        cacheUtil.hset(MACHINE_SESSION_KEY , machineId, JSON.toJSONString(session), LOGIN_SESSION_EXPIRE);
 
         // 创建用户到机器的映射
-        cacheUtil.hset(USER_MAPPING_KEY + userId, machineId, LOGIN_SESSION_EXPIRE);
+        cacheUtil.hset(USER_MAPPING_KEY , userId, machineId, LOGIN_SESSION_EXPIRE);
 
         log.info("用户 {} 绑定到机器 {}", userId, machineId);
     }
@@ -102,7 +101,7 @@ public class ProxySessionCacheUtil {
         session.setLastUpdateTime(Instant.now().toEpochMilli());
 
         long expire = session.isLoggedIn() ? LOGIN_SESSION_EXPIRE : MACHINE_SESSION_EXPIRE;
-        cacheUtil.hset(MACHINE_SESSION_KEY + machineId, JSON.toJSONString(session), expire);
+        cacheUtil.hset(MACHINE_SESSION_KEY , machineId, JSON.toJSONString(session), expire);
     }
 
     /**

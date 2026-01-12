@@ -65,7 +65,21 @@ public class SchoolHttpClient {
     private static final String SCHOOL_DOMAIN = "your-school.edu.cn";
 
     @PostConstruct
-    public void init() {
+    public void init()
+            throws NoSuchAlgorithmException, KeyStoreException, KeyManagementException
+    {
+        // // 配置信任所有证书的 SSL 上下文
+        // SSLContext sslContext = SSLContextBuilder.create()
+        //         .loadTrustMaterial(null, (chain, authType) -> true)
+        //         .build();
+        // HostnameVerifier hostnameVerifier = (hostname, session) -> {
+        //     if (hostname.endsWith("sztu.edu.cn")) {
+        //         return true;
+        //     }
+        //     return HttpsURLConnection.getDefaultHostnameVerifier().verify(hostname, session);
+        // };
+
+        // Http 请求的 config
         RequestConfig requestConfig = RequestConfig.custom()
                 .setConnectTimeout(30, TimeUnit.SECONDS)
                 .setResponseTimeout(30, TimeUnit.SECONDS)

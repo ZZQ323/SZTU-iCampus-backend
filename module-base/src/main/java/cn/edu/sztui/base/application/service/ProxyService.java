@@ -6,9 +6,9 @@ import cn.edu.sztui.base.application.vo.ProxyLoginResultVO;
 
 public interface ProxyService {
 
-    ProxyInitVO initSession();
+    ProxyInitVO initSession(String code,String deviceToken);
 
-    boolean sendSms(String machineId, String phone);
+    boolean sendSms(String machineId, String userId);
 
     ProxyLoginResultVO login(ProxyLoginCommand command);
 

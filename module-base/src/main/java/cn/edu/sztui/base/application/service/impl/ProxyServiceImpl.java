@@ -6,11 +6,15 @@ import cn.edu.sztui.base.application.vo.ProxyInitVO;
 import cn.edu.sztui.base.application.vo.ProxyLoginResultVO;
 import cn.edu.sztui.base.domain.model.Proxy.SchoolHttpClient;
 import cn.edu.sztui.base.domain.model.Proxy.SchoolHttpClient.HttpResult;
+import cn.edu.sztui.base.infrastructure.persistence.CharacterConverter;
 import cn.edu.sztui.base.infrastructure.util.cache.ProxySessionCacheUtil;
 import cn.edu.sztui.base.infrastructure.util.cache.ProxySessionCacheUtil.ProxySession;
+import cn.edu.sztui.base.domain.model.wxmini.WechatDeviceServiceImpl;
 import cn.edu.sztui.common.util.enums.ResultCodeEnum;
 import cn.edu.sztui.common.util.enums.SysReturnCode;
 import cn.edu.sztui.common.util.exception.BusinessException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.cookie.Cookie;
@@ -19,6 +23,8 @@ import org.jsoup.nodes.Document;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
+
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
@@ -38,6 +44,9 @@ public class ProxyServiceImpl  implements ProxyService {
     @Resource
     private ProxySessionCacheUtil sessionCache;
 
+    @Resource
+    private WechatDeviceServiceImpl wechatDeviceServiceImpl;
+
     @Value("${school.url.gateway}")
     private String gatewayUrl;
     @Value("${school.url.login}")
@@ -48,10 +57,11 @@ public class ProxyServiceImpl  implements ProxyService {
     // ==================== 1. 初始化会话 ====================
 
     @Override
-    public ProxyInitVO initSession()
+    public ProxyInitVO initSession(String code,String deviceToken)
     {
-        // 此处应当前端完成
-        String machineId = sessionCache.generateMachineId();
+        // 设备信息获取
+        // String machineId = wechatDeviceServiceImpl.getWechatDeviceId(code,deviceToken);
+        String machineId = "testing";
         log.info("初始化会话, machineId: {}", machineId);
         try {
             // 访问网关，触发OAuth重定向，获取初始Cookie
@@ -64,12 +74,10 @@ public class ProxyServiceImpl  implements ProxyService {
             Document doc = Jsoup.parse(result.getBody());
             ProxyInitVO vo = new ProxyInitVO();
             vo.setMachineId(machineId);
-
             // cookie 可视化，上线后不返回
             vo.setCookies(result.getCookies());
             // 最终的url停在
             vo.setFinalUrl(result.getFinalUrl());
-
             vo.setLt(extractInputValue(doc, "lt"));
             vo.setExecution(extractInputValue(doc, "execution"));
             vo.setAuthMethodIDs(extractInputValue(doc, "authMethodIDs"));
@@ -77,25 +85,28 @@ public class ProxyServiceImpl  implements ProxyService {
             return vo;
         } catch (Exception e) {
             log.error("初始化会话失败", e);
-            throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(),
-                    "初始化失败：" + e.getMessage(), ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
+            throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(),"初始化失败：" + e.getMessage(), ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
         }
     }
 
     // ==================== 2. 发送短信 ====================
 
     @Override
-    public boolean sendSms(String machineId, String phone) {
-        log.info("发送短信, machineId: {}, phone: {}", machineId, phone);
+    public boolean sendSms(String machineId, String userId) {
+        log.info("发送短信, machineId: {}, userId: {}", machineId, userId);
         validateMachineSession(machineId);
         restoreCookiesToClient(machineId);
         try {
-            // 模拟人类行为延迟
-            randomDelay();
-
+            // 构建表单数据 - 与JS代码保持一致
+            // /sendSMSCheckCode.do
+            // getSMSCheckCode1('/idp', 'sms1_otpOrSms', 'fs41_username')
             Map<String, String> formData = new HashMap<>();
-            formData.put("j_username1", phone);
-            formData.put("authtype", "1");
+            formData.put("j_username", CharacterConverter.toSBC(userId));  // 全角转半角
+            // formData.put("authenFlag", null);
+            // 正确的参数名
+
+            // 调试：打印发送的数据
+            log.info("发送短信参数: j_username={}, authenFlag={}",CharacterConverter.toSBC(userId), null);
 
             HttpResult result = httpClient.doPost(machineId, smsSendUrl, formData);
 
@@ -115,6 +126,38 @@ public class ProxyServiceImpl  implements ProxyService {
 
         } catch (IOException e) {
             log.error("发送短信失败", e);
+            return false;
+        }
+    }
+
+    /**
+     * 解析短信发送响应
+     * 根据JS代码逻辑解析
+     */
+    private boolean parseSmsResponse(HttpResult result) {
+        if (!result.isSuccess())return false;
+        String body = result.getBody();
+        if (StringUtils.isEmpty(body))return false;
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode jsonNode = mapper.readTree(body);
+
+            // 根据JS代码，检查message字段
+            if (jsonNode.has("message")) {
+                String message = jsonNode.get("message").asText();
+                // JS代码中的判断条件：returnMessage == "I18NMessage.sendSMSCheckCodeSuccessmsg"
+                // 可能是具体的字符串，也可能是国际化key
+                if ("I18NMessage.sendSMSCheckCodeSuccessmsg".equals(message) ||
+                        message.contains("发送成功") ||
+                        message.contains("success")) {
+                    return true;
+                }
+            }
+            // 如果没有明确的成功标志，检查响应体中的关键词
+            return false;
+        } catch (Exception e) {
+            // 如果不是JSON，用字符串检查
+            log.debug("响应不是JSON格式，使用字符串匹配");
             return false;
         }
     }

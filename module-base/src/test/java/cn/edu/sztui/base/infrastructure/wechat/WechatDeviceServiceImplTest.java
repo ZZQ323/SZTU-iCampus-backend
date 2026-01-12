@@ -1,6 +1,7 @@
 package cn.edu.sztui.base.infrastructure.wechat;
 
 
+import cn.edu.sztui.base.domain.model.wxmini.WechatDeviceServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -16,7 +17,7 @@ import static org.mockito.Mockito.when;
 
 
 @ExtendWith(MockitoExtension.class)
-class WechatDeviceServiceTest {
+class WechatDeviceServiceImplTest {
 
     @Mock
     private RedisTemplate<String, Object> redisTemplate;
@@ -25,7 +26,7 @@ class WechatDeviceServiceTest {
     private HashOperations<String, Object, Object> hashOperations;
 
     @InjectMocks
-    private WechatDeviceService wechatDeviceService;
+    private WechatDeviceServiceImpl wechatDeviceServiceImpl;
 
     @Test
     void testGetWechatDeviceId_WithDeviceToken() {
@@ -37,7 +38,7 @@ class WechatDeviceServiceTest {
         when(redisTemplate.opsForHash()).thenReturn(hashOperations);
 
         // 执行测试
-        String deviceId = wechatDeviceService.getWechatDeviceId(openid, deviceToken);
+        String deviceId = wechatDeviceServiceImpl.getWechatDeviceId(openid, deviceToken);
 
         // 验证结果
         assertNotNull(deviceId);
@@ -59,7 +60,7 @@ class WechatDeviceServiceTest {
         when(redisTemplate.opsForHash()).thenReturn(hashOperations);
 
         // 执行测试
-        String deviceId = wechatDeviceService.getWechatDeviceId(openid, null);
+        String deviceId = wechatDeviceServiceImpl.getWechatDeviceId(openid, null);
 
         // 验证结果
         assertNotNull(deviceId);
@@ -80,8 +81,8 @@ class WechatDeviceServiceTest {
         when(redisTemplate.opsForHash()).thenReturn(hashOperations);
 
         // 多次调用应该返回相同的结果
-        String deviceId1 = wechatDeviceService.getWechatDeviceId(openid, deviceToken);
-        String deviceId2 = wechatDeviceService.getWechatDeviceId(openid, deviceToken);
+        String deviceId1 = wechatDeviceServiceImpl.getWechatDeviceId(openid, deviceToken);
+        String deviceId2 = wechatDeviceServiceImpl.getWechatDeviceId(openid, deviceToken);
 
         assertEquals(deviceId1, deviceId2);
     }
