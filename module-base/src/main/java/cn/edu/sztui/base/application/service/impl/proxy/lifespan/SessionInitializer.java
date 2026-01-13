@@ -33,7 +33,6 @@ public class SessionInitializer {
 
     public ProxyInitVO initSession(String machineId) {
         log.info("初始化会话, machineId: {}", machineId);
-
         try {
             HttpResult result = httpClient.doGetWithManualRedirect(machineId, gatewayUrl, 15);
 

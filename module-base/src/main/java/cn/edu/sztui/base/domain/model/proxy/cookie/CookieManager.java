@@ -1,7 +1,9 @@
 package cn.edu.sztui.base.domain.model.proxy.cookie;
 
-import org.apache.hc.client5.http.cookie.Cookie;
-import org.apache.hc.client5.http.cookie.CookieStore;
+
+import org.apache.http.client.CookieStore;
+import org.apache.http.cookie.Cookie;
+
 import java.util.List;
 
 public interface CookieManager {

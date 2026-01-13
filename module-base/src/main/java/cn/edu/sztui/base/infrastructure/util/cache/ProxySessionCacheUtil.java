@@ -6,8 +6,8 @@ import com.alibaba.fastjson2.JSONArray;
 import jakarta.annotation.Resource;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.hc.client5.http.cookie.Cookie;
-import org.apache.hc.client5.http.impl.cookie.BasicClientCookie;
+import org.apache.http.cookie.Cookie;
+import org.apache.http.impl.cookie.BasicClientCookie;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
@@ -572,8 +572,8 @@ public class ProxySessionCacheUtil {
                     dto.setValue(c.getValue());
                     dto.setDomain(c.getDomain());
                     dto.setPath(c.getPath());
-                    if (c.getExpiryInstant() != null) {
-                        dto.setExpiryTime(c.getExpiryInstant().toEpochMilli());
+                    if (c.getExpiryDate() != null) {
+                        dto.setExpiryTime(c.getExpiryDate().getTime());
                     }
                     dto.setSecure(c.isSecure());
                     return dto;
@@ -598,7 +598,7 @@ public class ProxySessionCacheUtil {
                     cookie.setPath(dto.getPath());
                     cookie.setSecure(dto.isSecure());
                     if (dto.getExpiryTime() != null) {
-                        cookie.setExpiryDate(Instant.ofEpochMilli(dto.getExpiryTime()));
+                        cookie.setExpiryDate(Date.from(Instant.ofEpochSecond(dto.getExpiryTime())));
                     }
                     return (Cookie) cookie;
                 })

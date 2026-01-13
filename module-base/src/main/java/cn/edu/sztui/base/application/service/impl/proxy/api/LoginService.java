@@ -14,7 +14,7 @@ import cn.edu.sztui.common.util.exception.BusinessException;
 import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.hc.client5.http.cookie.Cookie;
+import org.apache.http.cookie.Cookie;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 

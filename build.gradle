@@ -14,6 +14,7 @@ allprojects {
     }
 }
 
+
 subprojects {
     // 强制所有子模块应用java插件（依赖配置的前提）
     apply plugin: 'java'

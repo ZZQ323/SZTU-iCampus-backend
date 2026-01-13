@@ -3,7 +3,7 @@ package cn.edu.sztui.base.domain.model.proxy.client;
 import lombok.Builder;
 import lombok.Data;
 import lombok.experimental.Accessors;
-import org.apache.hc.client5.http.cookie.Cookie;
+import org.apache.http.cookie.Cookie;
 
 import java.util.List;
 import java.util.Map;

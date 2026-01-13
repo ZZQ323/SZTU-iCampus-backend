@@ -18,7 +18,7 @@ public class HttpRedirectHandler implements RedirectHandler {
         int statusCode = result.getStatusCode();
         String resolvedUrl=null;
         if (statusCode >= 300 && statusCode < 400) {
-            resolvedUrl = result.getFinalUrl();
+            resolvedUrl = location;
         }
         log.info("HTTP重定向: {} -> {}", currentUrl, resolvedUrl);
         return Optional.of(resolvedUrl);

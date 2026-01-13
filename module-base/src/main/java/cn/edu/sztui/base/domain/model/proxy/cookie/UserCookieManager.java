@@ -1,9 +1,9 @@
 package cn.edu.sztui.base.domain.model.proxy.cookie;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.hc.client5.http.cookie.BasicCookieStore;
-import org.apache.hc.client5.http.cookie.Cookie;
-import org.apache.hc.client5.http.cookie.CookieStore;
+import org.apache.http.client.CookieStore;
+import org.apache.http.cookie.Cookie;
+import org.apache.http.impl.client.BasicCookieStore;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
@@ -12,9 +12,6 @@ import java.util.List;
 @Slf4j
 @Component
 public class UserCookieManager implements CookieManager {
-
-
-
     @Override
     public CookieStore getOrCreateCookieStore(String userId) {
         return new BasicCookieStore();

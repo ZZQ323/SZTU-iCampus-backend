@@ -1,7 +1,9 @@
 package cn.edu.sztui.base.infrastructure.util;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.http.cookie.Cookie;
 import org.springframework.stereotype.Component;
+
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -109,7 +111,7 @@ public class AntiDetectionUtils {
         Set<String> cookieNames = new HashSet<>();
         for (Object cookie : cookies) {
             // 适配不同Cookie类型
-            if (cookie instanceof org.apache.hc.client5.http.cookie.Cookie c) {
+            if (cookie instanceof Cookie c) {
                 cookieNames.add(c.getName());
             }
         }
