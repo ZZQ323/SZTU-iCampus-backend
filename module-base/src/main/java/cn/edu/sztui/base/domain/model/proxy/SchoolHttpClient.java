@@ -24,6 +24,7 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.cookie.Cookie;
 import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.cookie.BasicClientCookie;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 import org.springframework.stereotype.Component;
@@ -31,7 +32,6 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * 学校网站HTTP客户端 - 重构后的门面类
@@ -118,7 +118,6 @@ public class SchoolHttpClient {
         }
     }
 
-
     public HttpResult doGetWithManualRedirect(String machineId, String url, int maxRedirects) throws Exception {
         // TODO 补全cookie的初始化过程，合理分配 manager和 cacheutil 的工作
         CookieStore cookieStore = cookieManager.getOrCreateCookieStore(machineId);
@@ -140,10 +139,8 @@ public class SchoolHttpClient {
                     lastResult = buildResult(response, context);
                     lastResult.setFinalUrl(currentUrl);
 
-                    // 合并去重 Cookie，覆写重复的部分
-                    // TODO collectCookies(lastResult.getCookies(), allCookies, cookieStore);
-                    Set set = allCookies.stream().collect(Collectors.toSet());
-                    Header[] ret = response.getHeaders("Set-Cookie");
+                    // TODO 合并去重 Cookie，覆写重复的部分
+                    collectCookies(lastResult.getCookies(), allCookies, cookieStore);
 
                     // 尝试文档重定向
                     Optional<String> htmlRedirect = htmlRedirectHandler.extractRedirectUrl(lastResult, currentUrl);
@@ -198,24 +195,44 @@ public class SchoolHttpClient {
             throws IOException, ParseException {
         List<Cookie> cookies = new ArrayList<>();
         for (Header header : response.getHeaders("Set-Cookie")) {
-            // 一个header 一个 cookie
-            // response.getHeaders("Set-Cookie")[0] : Set-Cookie: _idp_authn_lc_key_-_auth.sztu.edu.cn=5609ef6f-ba54-47d5-b555-a43cec874760; domain=webvpn.sztu.edu.cn; Path=/; SameSite=Laxidp; HttpOnly
-            // response.getHeaders("Set-Cookie")[1] : Set-Cookie: SESSION=0d0fcd57-7e66-4c3e-b32f-eb82a2d942ee; Path=/; SameSite=Laxidp/; HttpOnly
-            // TODO Cookie cookie = cookieParser.parseHeader(header);
-//            if (cookie != null) {
-//                cookies.add(cookie);
-//            }
+            Cookie cookie = parseSetCookieHeader(header.getValue());
+            if (cookie != null)
+                cookies.add(cookie);
         }
         Map<String, String> headers = new HashMap<>();
-        for (Header header : response.getAllHeaders()) {
-            headers.put(header.getName(), header.getValue());
-        }
+        for (Header header : response.getAllHeaders())headers.put(header.getName(), header.getValue());
         return HttpResult.builder()
-                .statusCode(response.getStatusLine().getStatusCode())
-                .body(EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8))
-                .cookies(cookies)
-                .headers(headers)
-                .build();
+            .statusCode(response.getStatusLine().getStatusCode())
+            .body(EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8))
+            .cookies(cookies)
+            .headers(headers)
+            .build();
+    }
+
+    /**
+     * 解析 Set-Cookie header 为 Cookie 对象
+     */
+    private Cookie parseSetCookieHeader(String headerValue){
+        if (headerValue == null || headerValue.isEmpty()) return null;
+        String[] parts = headerValue.split(";");
+        String[] nameValue = parts[0].trim().split("=", 2);
+        if (nameValue.length < 2) return null;
+        BasicClientCookie cookie = new BasicClientCookie(nameValue[0].trim(), nameValue[1].trim());
+        // 解析属性
+        for (int i = 1; i < parts.length; i++) {
+            String part = parts[i].trim();
+            String[] attr = part.split("=", 2);
+            String attrName = attr[0].trim().toLowerCase();
+            String attrValue = attr.length > 1 ? attr[1].trim() : "";
+            switch (attrName) {
+                case "domain":cookie.setDomain(attrValue);break;
+                case "path":cookie.setPath(attrValue); break;
+                case "secure":cookie.setSecure(true);break;
+                case "httponly":cookie.setAttribute("httponly", "true");break;
+                // max-age / expires 可按需添加
+            }
+        }
+        return cookie;
     }
 
     private void collectCookies(List<Cookie> newCookies, List<Cookie> allCookies, CookieStore store) {

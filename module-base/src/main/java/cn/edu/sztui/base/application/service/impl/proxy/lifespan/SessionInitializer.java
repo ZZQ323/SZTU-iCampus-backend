@@ -35,12 +35,10 @@ public class SessionInitializer {
         log.info("初始化会话, machineId: {}", machineId);
         try {
             HttpResult result = httpClient.doGetWithManualRedirect(machineId, gatewayUrl, 15);
-
             if (CollectionUtils.isEmpty(result.getCookies())) {
                 throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(),
                         "初始化失败：未获取到Cookie", ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
             }
-
             sessionCache.saveDeviceInitSession(machineId, result.getCookies());
             Document doc = Jsoup.parse(result.getBody());
             ProxyInitVO vo = new ProxyInitVO();
