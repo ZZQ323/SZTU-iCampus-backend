@@ -1,4 +1,4 @@
-package cn.edu.sztui.base.domain.model;
+package cn.edu.sztui.base.infrastructure.constants;
 
 public interface I18NMessage {
     String smsVerificationTime = "验证码已发送;三分钟内不得重复点击";

@@ -11,6 +11,7 @@ import org.apache.hc.client5.http.impl.cookie.BasicClientCookie;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
+
 import java.time.Instant;
 import java.util.*;
 
@@ -63,27 +64,41 @@ public class ProxySessionCacheUtil {
 
     // ==================== 缓存键前缀 ====================
 
-    /** 设备初始化会话键前缀 */
+    /**
+     * 设备初始化会话键前缀
+     */
     private static final String KEY_DEVICE_INIT = "proxy:device:init:";
 
-    /** 用户登录会话键前缀 */
+    /**
+     * 用户登录会话键前缀
+     */
     private static final String KEY_SESSION = "proxy:session:";
 
-    /** 设备账号列表键前缀 */
+    /**
+     * 设备账号列表键前缀
+     */
     private static final String KEY_DEVICE_ACCOUNTS = "proxy:device:accounts:";
 
-    /** 设备当前活跃账号键前缀 */
+    /**
+     * 设备当前活跃账号键前缀
+     */
     private static final String KEY_DEVICE_ACTIVE = "proxy:device:active:";
 
     // ==================== 过期时间配置 ====================
 
-    /** 设备初始化会话过期时间：30分钟（仅用于登录流程） */
+    /**
+     * 设备初始化会话过期时间：30分钟（仅用于登录流程）
+     */
     private static final long DEVICE_INIT_EXPIRE = 1800;
 
-    /** 用户登录会话过期时间：7天（可根据需求调整） */
+    /**
+     * 用户登录会话过期时间：7天（可根据需求调整）
+     */
     private static final long USER_SESSION_EXPIRE = 7 * 24 * 3600;
 
-    /** 设备账号列表过期时间：30天 */
+    /**
+     * 设备账号列表过期时间：30天
+     */
     private static final long DEVICE_ACCOUNTS_EXPIRE = 30 * 24 * 3600;
 
     @Resource
@@ -106,8 +121,8 @@ public class ProxySessionCacheUtil {
         DeviceInitSession session = new DeviceInitSession();
         session.setCookiesJson(serializeCookies(cookies));
         session.setCreateTime(Instant.now().toEpochMilli());
-        cacheUtil.hset(machineId , machineId, JSON.toJSONString(session), DEVICE_INIT_EXPIRE);
-        log.info("保存设备初始化会话: machineId={}", machineId);
+        cacheUtil.hset(KEY_DEVICE_INIT, machineId, JSON.toJSONString(session), DEVICE_INIT_EXPIRE);
+        log.info("保存设备初始化会话: machineId={} , session 写入{}", machineId, JSON.toJSONString(session));
     }
 
     /**
@@ -120,7 +135,7 @@ public class ProxySessionCacheUtil {
         if (!StringUtils.hasText(machineId)) {
             return null;
         }
-        Object obj = cacheUtil.hget(KEY_DEVICE_INIT,machineId);
+        Object obj = cacheUtil.hget(KEY_DEVICE_INIT, machineId);
         if (obj == null) {
             return null;
         }
@@ -154,9 +169,18 @@ public class ProxySessionCacheUtil {
             log.warn("更新设备初始化会话失败: 会话不存在, machineId={}", machineId);
             return;
         }
-        session.setCookiesJson(serializeCookies(cookies));
-        cacheUtil.hset(KEY_DEVICE_INIT , machineId, JSON.toJSONString(session), DEVICE_INIT_EXPIRE);
-        log.debug("更新设备初始化会话 Cookies: machineId={}", machineId);
+        DeviceInitSession oldSession = JSON.parseObject((String) cacheUtil.hget(KEY_DEVICE_INIT, machineId), DeviceInitSession.class);
+        List<Cookie> oldCookies = deserializeCookies(oldSession.getCookiesJson());
+
+        HashSet<Cookie> set = new HashSet<>();
+        for (Cookie ele : cookies) set.add(ele);
+        for (Cookie ele : oldCookies) set.add(ele);
+        List<Cookie> newCookies = set.stream().toList();
+
+        session.setCookiesJson(serializeCookies(newCookies));
+
+        cacheUtil.hset(KEY_DEVICE_INIT, machineId, JSON.toJSONString(session), DEVICE_INIT_EXPIRE);
+        log.info("更新设备初始化会话 Cookies: machineId={}", machineId);
     }
 
     /**
@@ -169,7 +193,7 @@ public class ProxySessionCacheUtil {
         if (!StringUtils.hasText(machineId)) {
             return false;
         }
-        return cacheUtil.hHasKey(KEY_DEVICE_INIT,machineId);
+        return cacheUtil.hHasKey(KEY_DEVICE_INIT, machineId);
     }
 
     /**
@@ -180,7 +204,7 @@ public class ProxySessionCacheUtil {
      */
     public void removeDeviceInitSession(String machineId) {
         if (StringUtils.hasText(machineId)) {
-            cacheUtil.hdel(KEY_DEVICE_INIT,machineId);
+            cacheUtil.hdel(KEY_DEVICE_INIT, machineId);
             log.debug("删除设备初始化会话: machineId={}", machineId);
         }
     }
@@ -200,26 +224,20 @@ public class ProxySessionCacheUtil {
             log.warn("创建用户会话失败: machineId 或 userId 为空");
             return;
         }
-
         UserSession session = new UserSession();
         session.setMachineId(machineId);
         session.setUserId(userId);
         session.setCookiesJson(serializeCookies(cookies));
         session.setLoginTime(Instant.now().toEpochMilli());
         session.setLastAccessTime(Instant.now().toEpochMilli());
-
         // 1. 保存用户会话
-        cacheUtil.hset(KEY_SESSION,machineId+":"+userId, JSON.toJSONString(session), USER_SESSION_EXPIRE);
-
+        cacheUtil.hset(KEY_SESSION, machineId + ":" + userId, JSON.toJSONString(session), USER_SESSION_EXPIRE);
         // 2. 添加到设备账号列表
         addToDeviceAccounts(machineId, userId);
-
         // 3. 设置为当前活跃账号
         setActiveAccount(machineId, userId);
-
         // 4. 清理设备初始化会话（登录流程结束）
         removeDeviceInitSession(machineId);
-
         log.info("创建用户登录会话: machineId={}, userId={}", machineId, userId);
     }
 
@@ -234,7 +252,7 @@ public class ProxySessionCacheUtil {
         if (!StringUtils.hasText(machineId) || !StringUtils.hasText(userId)) {
             return null;
         }
-        Object obj = cacheUtil.hget(KEY_SESSION,machineId+":"+userId);
+        Object obj = cacheUtil.hget(KEY_SESSION, machineId + ":" + userId);
         if (obj == null) {
             return null;
         }
@@ -273,7 +291,7 @@ public class ProxySessionCacheUtil {
 
         session.setCookiesJson(serializeCookies(cookies));
         session.setLastAccessTime(Instant.now().toEpochMilli());
-        cacheUtil.hset(KEY_SESSION,machineId+":"+userId, JSON.toJSONString(session), USER_SESSION_EXPIRE);
+        cacheUtil.hset(KEY_SESSION, machineId + ":" + userId, JSON.toJSONString(session), USER_SESSION_EXPIRE);
         log.debug("更新用户会话 Cookies: machineId={}, userId={}", machineId, userId);
     }
 
@@ -289,9 +307,8 @@ public class ProxySessionCacheUtil {
         if (session == null) {
             return;
         }
-
         session.setLastAccessTime(Instant.now().toEpochMilli());
-        cacheUtil.hset(KEY_SESSION,machineId+":"+userId, JSON.toJSONString(session), USER_SESSION_EXPIRE);
+        cacheUtil.hset(KEY_SESSION, machineId + ":" + userId, JSON.toJSONString(session), USER_SESSION_EXPIRE);
     }
 
     /**
@@ -305,7 +322,7 @@ public class ProxySessionCacheUtil {
         if (!StringUtils.hasText(machineId) || !StringUtils.hasText(userId)) {
             return false;
         }
-        return cacheUtil.hHasKey(KEY_SESSION,machineId+":"+userId);
+        return cacheUtil.hHasKey(KEY_SESSION, machineId + ":" + userId);
     }
 
     /**
@@ -320,7 +337,7 @@ public class ProxySessionCacheUtil {
         }
 
         // 1. 删除会话
-        cacheUtil.hdel(KEY_SESSION,machineId+":"+userId);
+        cacheUtil.hdel(KEY_SESSION, machineId + ":" + userId);
 
         // 2. 从设备账号列表移除
         removeFromDeviceAccounts(machineId, userId);
@@ -345,7 +362,7 @@ public class ProxySessionCacheUtil {
     private void addToDeviceAccounts(String machineId, String userId) {
         Set<String> accounts = getDeviceAccounts(machineId);
         accounts.add(userId);
-        cacheUtil.hset(KEY_DEVICE_ACCOUNTS , machineId, JSON.toJSONString(accounts), DEVICE_ACCOUNTS_EXPIRE);
+        cacheUtil.hset(KEY_DEVICE_ACCOUNTS, machineId, JSON.toJSONString(accounts), DEVICE_ACCOUNTS_EXPIRE);
     }
 
     /**
@@ -376,7 +393,7 @@ public class ProxySessionCacheUtil {
         if (!StringUtils.hasText(machineId)) {
             return new HashSet<>();
         }
-        Object obj = cacheUtil.hget(KEY_DEVICE_ACCOUNTS , machineId);
+        Object obj = cacheUtil.hget(KEY_DEVICE_ACCOUNTS, machineId);
         if (obj == null) {
             return new HashSet<>();
         }
@@ -405,9 +422,9 @@ public class ProxySessionCacheUtil {
         // 清理无效账号
         if (validAccounts.size() != accounts.size()) {
             if (validAccounts.isEmpty()) {
-                cacheUtil.hdel(KEY_DEVICE_ACCOUNTS,machineId);
+                cacheUtil.hdel(KEY_DEVICE_ACCOUNTS, machineId);
             } else {
-                cacheUtil.hset(KEY_DEVICE_ACCOUNTS,machineId, JSON.toJSONString(validAccounts), DEVICE_ACCOUNTS_EXPIRE);
+                cacheUtil.hset(KEY_DEVICE_ACCOUNTS, machineId, JSON.toJSONString(validAccounts), DEVICE_ACCOUNTS_EXPIRE);
             }
         }
 
@@ -427,7 +444,7 @@ public class ProxySessionCacheUtil {
             return;
         }
 
-        cacheUtil.hset(KEY_DEVICE_ACTIVE,machineId, userId, DEVICE_ACCOUNTS_EXPIRE);
+        cacheUtil.hset(KEY_DEVICE_ACTIVE, machineId, userId, DEVICE_ACCOUNTS_EXPIRE);
         log.debug("设置活跃账号: machineId={}, userId={}", machineId, userId);
     }
 
@@ -441,7 +458,7 @@ public class ProxySessionCacheUtil {
         if (!StringUtils.hasText(machineId)) {
             return null;
         }
-        Object obj = cacheUtil.hget(KEY_DEVICE_ACTIVE,machineId);
+        Object obj = cacheUtil.hget(KEY_DEVICE_ACTIVE, machineId);
         return obj != null ? obj.toString() : null;
     }
 
@@ -522,17 +539,17 @@ public class ProxySessionCacheUtil {
         // 1. 删除所有用户会话
         Set<String> accounts = getDeviceAccounts(machineId);
         for (String userId : accounts) {
-            cacheUtil.hdel(KEY_SESSION ,machineId + ":" + userId);
+            cacheUtil.hdel(KEY_SESSION, machineId + ":" + userId);
         }
 
         // 2. 删除设备初始化会话
         removeDeviceInitSession(machineId);
 
         // 3. 删除账号列表
-        cacheUtil.hdel(KEY_DEVICE_ACCOUNTS,machineId);
+        cacheUtil.hdel(KEY_DEVICE_ACCOUNTS, machineId);
 
         // 4. 删除活跃账号
-        cacheUtil.hdel(KEY_DEVICE_ACTIVE,machineId);
+        cacheUtil.hdel(KEY_DEVICE_ACTIVE, machineId);
 
         log.info("清理设备所有数据: machineId={}", machineId);
     }
@@ -596,9 +613,13 @@ public class ProxySessionCacheUtil {
      */
     @Data
     public static class DeviceInitSession {
-        /** Cookie JSON */
+        /**
+         * Cookie JSON
+         */
         private String cookiesJson;
-        /** 创建时间 */
+        /**
+         * 创建时间
+         */
         private long createTime;
     }
 
@@ -608,15 +629,25 @@ public class ProxySessionCacheUtil {
      */
     @Data
     public static class UserSession {
-        /** 设备ID */
+        /**
+         * 设备ID
+         */
         private String machineId;
-        /** 用户ID */
+        /**
+         * 用户ID
+         */
         private String userId;
-        /** Cookie JSON */
+        /**
+         * Cookie JSON
+         */
         private String cookiesJson;
-        /** 登录时间 */
+        /**
+         * 登录时间
+         */
         private long loginTime;
-        /** 最后访问时间 */
+        /**
+         * 最后访问时间
+         */
         private long lastAccessTime;
     }
 

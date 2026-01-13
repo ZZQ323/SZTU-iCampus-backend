@@ -1,4 +1,4 @@
-package cn.edu.sztui.base.domain.model;
+package cn.edu.sztui.base.infrastructure.constants;
 
 public interface SchoolAPIs {
     final String gatewayURL ="https://home.sztu.edu.cn/bmportal";

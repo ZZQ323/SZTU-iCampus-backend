@@ -1,5 +1,6 @@
 package cn.edu.sztui.base.application.dto.command;
 
+import cn.edu.sztui.base.infrastructure.constants.LoginType;
 import lombok.Data;
 
 /**
@@ -27,9 +28,5 @@ public class ProxyLoginCommand {
      */
     private LoginType loginType;
 
-    public enum LoginType {
-        SMS,        // 短信验证码
-        PASSWORD,   // 密码
-        OTP         // 动态口令
-    }
+
 }
