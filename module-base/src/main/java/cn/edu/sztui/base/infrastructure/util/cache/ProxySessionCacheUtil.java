@@ -132,13 +132,9 @@ public class ProxySessionCacheUtil {
      * @return 初始化会话，不存在则返回 null
      */
     public DeviceInitSession getDeviceInitSession(String machineId) {
-        if (!StringUtils.hasText(machineId)) {
-            return null;
-        }
+        if (!StringUtils.hasText(machineId))return null;
         Object obj = cacheUtil.hget(KEY_DEVICE_INIT, machineId);
-        if (obj == null) {
-            return null;
-        }
+        if (obj == null) return null;
         return JSON.parseObject(obj.toString(), DeviceInitSession.class);
     }
 
@@ -564,21 +560,22 @@ public class ProxySessionCacheUtil {
         if (CollectionUtils.isEmpty(cookies)) {
             return "[]";
         }
-
         List<CookieDTO> dtos = cookies.stream()
-                .map(c -> {
-                    CookieDTO dto = new CookieDTO();
-                    dto.setName(c.getName());
-                    dto.setValue(c.getValue());
-                    dto.setDomain(c.getDomain());
-                    dto.setPath(c.getPath());
-                    if (c.getExpiryDate() != null) {
-                        dto.setExpiryTime(c.getExpiryDate().getTime());
-                    }
-                    dto.setSecure(c.isSecure());
-                    return dto;
-                })
-                .toList();
+            .map(c -> {
+                CookieDTO dto = new CookieDTO();
+                dto.setName(c.getName());
+                dto.setValue(c.getValue());
+                dto.setDomain(c.getDomain());
+                if(Objects.isNull(c.getDomain()))
+                    dto.setDomain("webvpn.sztu.edu.cn");
+                dto.setPath(c.getPath());
+                if (c.getExpiryDate() != null) {
+                    dto.setExpiryTime(c.getExpiryDate().getTime());
+                }
+                dto.setSecure(c.isSecure());
+                return dto;
+            })
+            .toList();
         return JSON.toJSONString(dtos);
     }
 

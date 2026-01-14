@@ -15,7 +15,7 @@ import java.util.Map;
 public class CacheUtil {
     private static final Logger log = LoggerFactory.getLogger(CacheUtil.class);
     @Resource
-    RedisKeyGenerator redisKeyGenerator;
+    private RedisKeyGenerator redisKeyGenerator;
     @Resource
     private CacheService cacheService;
 

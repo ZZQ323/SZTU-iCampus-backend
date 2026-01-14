@@ -30,7 +30,7 @@ public class AccountManager {
 
     public void logout(String machineId, String userId) {
         log.info("登出, machineId: {}, userId: {}", machineId, userId);
-        httpClient.clearUserCookies(machineId);
+        // httpClient.clearUserCookies(machineId);
         sessionCache.removeUserSession(machineId, userId);
     }
 
@@ -41,6 +41,6 @@ public class AccountManager {
         } else {
             sessionCache.removeDeviceInitSession(machineId);
         }
-        httpClient.clearUserCookies(machineId);
+        // httpClient.clearUserCookies(machineId);
     }
 }

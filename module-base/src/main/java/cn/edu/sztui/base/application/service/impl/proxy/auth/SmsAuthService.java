@@ -57,10 +57,11 @@ public class SmsAuthService implements AuthService {
         // cookieHelper.restoreDeviceInitCookies(machineId);
 
         try {
+
             Map<String, String> formData = new HashMap<>();
             formData.put("j_username", CharacterConverter.toSBC(userId));
 
-            HttpResult result = httpClient.doPost(machineId, smsSendUrl, formData);
+            HttpResult result = httpClient.doPost(machineId, smsSendUrl, formData, null);
 
             if (!CollectionUtils.isEmpty(result.getCookies())) {
                 sessionCache.updateDeviceInitCookies(machineId, result.getCookies());
@@ -73,6 +74,8 @@ public class SmsAuthService implements AuthService {
         } catch (IOException e) {
             log.error("发送短信失败", e);
             return false;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 

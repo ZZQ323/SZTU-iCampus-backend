@@ -35,7 +35,7 @@ public class ApiProxyService {
         // proxySessionCacheUtil.restoreUserSessionCookies(machineId, userId);
 
         try {
-            HttpResult result = httpClient.doGet(machineId, apiUrl);
+            HttpResult result = httpClient.doGet(machineId,userId, apiUrl);
 
             // Session 过期检查
             if (result.getFinalUrl() != null && result.getFinalUrl().contains("login")) {
@@ -57,6 +57,8 @@ public class ApiProxyService {
             log.error("代理API失败", e);
             throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(),
                     "请求失败：" + e.getMessage(), ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 

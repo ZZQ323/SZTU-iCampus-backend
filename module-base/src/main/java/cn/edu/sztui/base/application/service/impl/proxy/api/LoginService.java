@@ -6,6 +6,7 @@ import cn.edu.sztui.base.application.service.impl.proxy.auth.AuthServiceFactory;
 import cn.edu.sztui.base.application.vo.ProxyLoginResultVO;
 import cn.edu.sztui.base.domain.model.proxy.SchoolHttpClient;
 import cn.edu.sztui.base.domain.model.proxy.client.HttpResult;
+import cn.edu.sztui.base.domain.model.proxy.cookie.CookieManager;
 import cn.edu.sztui.base.domain.model.proxy.parser.LoginResultParser;
 import cn.edu.sztui.base.infrastructure.util.cache.ProxySessionCacheUtil;
 import cn.edu.sztui.common.util.enums.ResultCodeEnum;
@@ -15,6 +16,7 @@ import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.cookie.Cookie;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -40,6 +42,8 @@ public class LoginService {
 
     @Value("${school.url.login}")
     private String loginUrl;
+    @Autowired
+    private CookieManager cookieManager;
 
     public ProxyLoginResultVO login(ProxyLoginCommand command) {
         String machineId = command.getMachineId();
@@ -50,10 +54,11 @@ public class LoginService {
         proxySessionCacheUtil.hasDeviceInitSession(machineId);
         // proxySessionCacheUtil.restoreDeviceInitCookies(machineId);
         try {
+            // TODO 先检查缓存中是否已存在有效session
             AuthService authService = authServiceFactory.getAuthService(command.getLoginType());
             Map<String, String> formData = authService.buildFormData(command);
             HttpResult result = httpClient.doPostWithManualRedirect(
-                    machineId, loginUrl + "?sf_request_type=ajax", 15,formData);
+                    machineId, loginUrl + "?sf_request_type=ajax", 15,formData,null);
             // 检查是否需要图形验证码
             if (resultParser.needsCaptcha(result)) {
                 return ProxyLoginResultVO.builder()
@@ -63,7 +68,7 @@ public class LoginService {
                         .build();
             }
             if (resultParser.isLoginSuccess(result)) {
-                List<Cookie> loginCookies = httpClient.getUserCookies(machineId);
+                List<Cookie> loginCookies = cookieManager.getUserCookies(machineId);
                 sessionCache.createUserSession(machineId, userId, loginCookies);
                 log.info("登录成功, machineId: {}, userId: {}", machineId, userId);
                 return ProxyLoginResultVO.builder()

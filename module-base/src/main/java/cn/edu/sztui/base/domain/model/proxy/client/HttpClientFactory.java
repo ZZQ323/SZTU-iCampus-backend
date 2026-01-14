@@ -34,18 +34,15 @@ public class HttpClientFactory {
                 createTrustAllSSLContext(),
                 NoopHostnameVerifier.INSTANCE
         );
-
         Registry<ConnectionSocketFactory> socketFactoryRegistry =
                 RegistryBuilder.<ConnectionSocketFactory>create()
                         .register("https", sslSocketFactory)
                         .register("http", PlainConnectionSocketFactory.getSocketFactory())
                         .build();
-
         PoolingHttpClientConnectionManager connectionManager =
                 new PoolingHttpClientConnectionManager(socketFactoryRegistry);
         connectionManager.setMaxTotal(100);
         connectionManager.setDefaultMaxPerRoute(20);
-
         RequestConfig config = RequestConfig.custom()
                 .setConnectTimeout(TIMEOUT_SECONDS * 1000)
                 .setSocketTimeout(TIMEOUT_SECONDS * 1000)
@@ -54,7 +51,6 @@ public class HttpClientFactory {
                 .setMaxRedirects(MAX_REDIRECTS)
                 .setCircularRedirectsAllowed(false)
                 .build();
-
         return HttpClients.custom()
                 .setDefaultRequestConfig(config)
                 .setConnectionManager(connectionManager)

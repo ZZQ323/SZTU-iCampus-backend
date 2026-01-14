@@ -2,12 +2,13 @@ package cn.edu.sztui.base.domain.model.proxy;
 
 import cn.edu.sztui.base.domain.model.proxy.client.HttpClientFactory;
 import cn.edu.sztui.base.domain.model.proxy.client.HttpResult;
-import cn.edu.sztui.base.domain.model.proxy.cookie.CookieManager;
 import cn.edu.sztui.base.domain.model.proxy.header.BrowserHeaderBuilder;
-import cn.edu.sztui.base.domain.model.proxy.parser.CookieParser;
 import cn.edu.sztui.base.domain.model.proxy.redirect.HtmlRedirectHandler;
 import cn.edu.sztui.base.domain.model.proxy.redirect.HttpRedirectHandler;
 import cn.edu.sztui.base.domain.model.proxy.redirect.JsRedirectHandler;
+import cn.edu.sztui.base.infrastructure.util.cache.ProxySessionCacheUtil;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import jakarta.annotation.Resource;
@@ -23,6 +24,7 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.cookie.Cookie;
+import org.apache.http.impl.client.BasicCookieStore;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.cookie.BasicClientCookie;
 import org.apache.http.message.BasicNameValuePair;
@@ -45,17 +47,15 @@ public class SchoolHttpClient {
     @Resource
     private final HttpClientFactory clientFactory;
     @Resource
-    private final CookieManager cookieManager;
-    @Resource
     private final BrowserHeaderBuilder headerBuilder;
-    @Resource
-    private final CookieParser cookieParser;
     @Resource
     private final HttpRedirectHandler httpRedirectHandler;
     @Resource
     private final JsRedirectHandler jsRedirectHandler;
     @Resource
     private final HtmlRedirectHandler htmlRedirectHandler;
+    @Resource
+    private ProxySessionCacheUtil  proxySessionCacheUtil;
 
     private CloseableHttpClient httpClient;
 
@@ -65,33 +65,33 @@ public class SchoolHttpClient {
         log.info("SchoolHttpClient 初始化完成");
     }
 
-    // ==================== 委托给 CookieManager ====================
-
-    public CookieStore getOrCreateCookieStore(String userId) {
-        return cookieManager.getOrCreateCookieStore(userId);
-    }
-
-    public void clearUserCookies(String userId) {
-        cookieManager.clearUserCookies(userId);
-    }
-
-    public void addCookies(String userId, List<Cookie> cookies) {
-        cookieManager.addCookies(userId, cookies);
-    }
-
-    public List<Cookie> getUserCookies(String userId) {
-        return cookieManager.getUserCookies(userId);
+    @PreDestroy
+    public void destroy() throws IOException {
+        if (httpClient != null) {
+            httpClient.close();
+        }
+        log.info("SchoolHttpClient 已销毁");
     }
 
     // ==================== HTTP 请求方法 ====================
 
-    public HttpResult doGet(String userId, String url) throws IOException {
-        CookieStore cookieStore = cookieManager.getOrCreateCookieStore(userId);
+    public HttpResult doGet(String machineId,String userId, String url) throws Exception {
+        if(!proxySessionCacheUtil.hasUserSession(machineId,userId)){
+            return HttpResult.builder()
+                    .statusCode(403)
+                    .body("请重新初始化！！")
+                    .build();
+        }
+        List<Cookie> cookies = proxySessionCacheUtil.getDeviceInitCookies(machineId);
+        // List<Cookie> → CookieStore
+        BasicCookieStore cookieStore = new BasicCookieStore();
+        for (Cookie cookie : cookies) {
+            cookieStore.addCookie(cookie);
+        }
         HttpClientContext context = createContext(cookieStore);
 
         HttpGet httpGet = new HttpGet(url);
         headerBuilder.addBrowserHeaders(httpGet);
-
         try (CloseableHttpResponse response = httpClient.execute(httpGet, context)) {
             return buildResult(response, context);
         } catch (ParseException e) {
@@ -99,8 +99,19 @@ public class SchoolHttpClient {
         }
     }
 
-    public HttpResult doPost(String userId, String url, Map<String, String> formData) throws IOException {
-        CookieStore cookieStore = cookieManager.getOrCreateCookieStore(userId);
+    public HttpResult doPost(String machineId,String url, Map<String, String> formData,List<Cookie> oldCookies) throws Exception {
+        if(!proxySessionCacheUtil.hasDeviceInitSession(machineId)){
+            return HttpResult.builder()
+                    .statusCode(403)
+                    .body("请重新初始化！！")
+                    .build();
+        }
+        List<Cookie> cookies = proxySessionCacheUtil.getDeviceInitCookies(machineId);
+        // List<Cookie> → CookieStore
+        BasicCookieStore cookieStore = new BasicCookieStore();
+        for (Cookie cookie : cookies) {
+            cookieStore.addCookie(cookie);
+        }
         HttpClientContext context = createContext(cookieStore);
 
         HttpPost httpPost = new HttpPost(url);
@@ -118,30 +129,75 @@ public class SchoolHttpClient {
         }
     }
 
-    public HttpResult doGetWithManualRedirect(String machineId, String url, int maxRedirects) throws Exception {
-        // TODO 补全cookie的初始化过程，合理分配 manager和 cacheutil 的工作
-        CookieStore cookieStore = cookieManager.getOrCreateCookieStore(machineId);
-        List<Cookie> allCookies = new ArrayList<>();
+    public HttpResult doPost(String machineId,String userId, String url, Map<String, String> formData,List<Cookie> oldCookies) throws Exception {
+        if(!proxySessionCacheUtil.hasUserSession(machineId,userId)){
+            return HttpResult.builder()
+                    .statusCode(403)
+                    .body("请重新初始化！！")
+                    .build();
+        }
+        List<Cookie> cookies = proxySessionCacheUtil.getDeviceInitCookies(machineId);
+        // List<Cookie> → CookieStore
+        BasicCookieStore cookieStore = new BasicCookieStore();
+        for (Cookie cookie : cookies) {
+            cookieStore.addCookie(cookie);
+        }
+        HttpClientContext context = createContext(cookieStore);
+
+        HttpPost httpPost = new HttpPost(url);
+        headerBuilder.addBrowserHeaders(httpPost);
+        httpPost.setHeader("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8");
+
+        List<NameValuePair> params = new ArrayList<>();
+        formData.forEach((k, v) -> params.add(new BasicNameValuePair(k, v)));
+        httpPost.setEntity(new UrlEncodedFormEntity(params, StandardCharsets.UTF_8));
+
+        try (CloseableHttpResponse response = httpClient.execute(httpPost, context)) {
+            return buildResult(response, context);
+        } catch (ParseException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    // 没有成功登录过，所以只有 machineId
+    public HttpResult doGetWithManualRedirect(String machineId, String url, int maxRedirects,List<Cookie> oldCookies) throws Exception {
+        List<Cookie> allCookies;
+        if(Objects.isNull(oldCookies) || oldCookies.isEmpty()){
+            allCookies = new ArrayList<>();
+        }else{
+            allCookies = new ArrayList<>(oldCookies);
+        }
         try (CloseableHttpClient client = clientFactory.createNoRedirectClient()) {
             String currentUrl = url;
             HttpResult lastResult = null;
+            HttpClientContext context = null;
+            BasicCookieStore cookieStore = null;
 
             for (int i = 0; i < maxRedirects; i++) {
-                HttpClientContext context = createContext(cookieStore);
+                // 根据 cookie 进行 context 创建，所以只需要更新 allCookies 就行
+                cookieStore = new BasicCookieStore();
+                for (Cookie cookie : allCookies) cookieStore.addCookie(cookie);
+                context = createContext(cookieStore);
                 HttpGet httpGet = new HttpGet(currentUrl);
                 headerBuilder.addBrowserHeaders(httpGet);
 
-                if (lastResult != null && lastResult.getFinalUrl() != null) {
+                if (lastResult != null && lastResult.getFinalUrl() != null)
                     headerBuilder.addReferer(httpGet, lastResult.getFinalUrl());
-                }
+
                 // 执行请求
                 try ( CloseableHttpResponse response = client.execute(httpGet, context) ) {
                     lastResult = buildResult(response, context);
                     lastResult.setFinalUrl(currentUrl);
 
-                    // TODO 合并去重 Cookie，覆写重复的部分
-                    collectCookies(lastResult.getCookies(), allCookies, cookieStore);
+                    // 合并去重 Cookie，覆写重复的部分
+                    for (Cookie cookie : lastResult.getCookies()) {
+                        // allCookies.removeIf(c -> c.getName().equals(cookie.getName()) && Objects.equals(c.getDomain(), cookie.getDomain()));
+                        // 同名则替换，因为域名在网关会一直跳转
+                        allCookies.removeIf( c -> c.getName().equals(cookie.getName()) );
+                        allCookies.add(cookie);
+                    }
 
+                    // 不盲目相信 statusCode
                     // 尝试文档重定向
                     Optional<String> htmlRedirect = htmlRedirectHandler.extractRedirectUrl(lastResult, currentUrl);
                     if (htmlRedirect.isPresent() && !htmlRedirect.get().equals(lastResult.getFinalUrl()) ) {
@@ -150,7 +206,7 @@ public class SchoolHttpClient {
                         continue;
                     }
 
-                    // 尝试 HTTP头 重定向
+                    // 尝试 HTTP header 的 Location 重定向
                     Optional<String> httpRedirect = httpRedirectHandler.extractRedirectUrl(lastResult, currentUrl);
                     if (httpRedirect.isPresent()  && !httpRedirect.get().equals(lastResult.getFinalUrl()) ) {
                         currentUrl = httpRedirect.get();
@@ -162,23 +218,21 @@ public class SchoolHttpClient {
                     Optional<String> jsRedirect = jsRedirectHandler.extractRedirectUrl(lastResult, currentUrl);
                     if (jsRedirect.isPresent()  && !jsRedirect.get().equals(lastResult.getFinalUrl()) ) {
                         currentUrl = jsRedirect.get();
-                        log.debug("JS重定向 {} -> {}", i + 1, currentUrl);
+                        log.info("JS重定向 {} -> {}", i + 1, currentUrl);
                         continue;
                     }
-
                     break;
                 }
             }
-
-            if (lastResult != null) {
-                lastResult.setCookies(allCookies);
-            }
+            // 返回更新一次 cookie
+            if (lastResult != null) lastResult.setCookies(allCookies);
             return lastResult;
         }
     }
 
-    public HttpResult doPostWithManualRedirect(String machineId, String url, int maxRedirects, Map<String, String> formData) throws Exception {
-        CookieStore cookieStore = cookieManager.getOrCreateCookieStore(machineId);
+    // TODO 以登录功能为例子进行完善
+    public HttpResult doPostWithManualRedirect(String machineId, String url, int maxRedirects, Map<String, String> formData,List<Cookie> oldCookies) throws Exception {
+
         return null;
     }
 
@@ -190,7 +244,14 @@ public class SchoolHttpClient {
         return context;
     }
 
-
+    /**
+     * 解析返回的结果
+     * @param response
+     * @param context
+     * @return
+     * @throws IOException
+     * @throws ParseException
+     */
     private HttpResult buildResult(CloseableHttpResponse response, HttpClientContext context)
             throws IOException, ParseException {
         List<Cookie> cookies = new ArrayList<>();
@@ -209,9 +270,7 @@ public class SchoolHttpClient {
             .build();
     }
 
-    /**
-     * 解析 Set-Cookie header 为 Cookie 对象
-     */
+    // HACK： 手撕 String header 转 cookie，因为貌似没有直接转换的方法
     private Cookie parseSetCookieHeader(String headerValue){
         if (headerValue == null || headerValue.isEmpty()) return null;
         String[] parts = headerValue.split(";");
@@ -235,20 +294,42 @@ public class SchoolHttpClient {
         return cookie;
     }
 
-    private void collectCookies(List<Cookie> newCookies, List<Cookie> allCookies, CookieStore store) {
-        for (Cookie cookie : newCookies) {
-            allCookies.removeIf(c -> c.getName().equals(cookie.getName())
-                    && Objects.equals(c.getDomain(), cookie.getDomain()));
-            allCookies.add(cookie);
-            store.addCookie(cookie);
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+
+    /**
+     * Cookie 列表 → JSON 字符串（存储用）
+     */
+    @Deprecated
+    public String cookiesToJson(List<Cookie> cookies) throws Exception {
+        List<Map<String, String>> list = new ArrayList<>();
+        for (Cookie cookie : cookies) {
+            Map<String, String> map = new HashMap<>();
+            map.put("name", cookie.getName());
+            map.put("value", cookie.getValue());
+            map.put("domain", cookie.getDomain());
+            map.put("path", cookie.getPath());
+            map.put("secure", String.valueOf(cookie.isSecure()));
+            list.add(map);
         }
+        return objectMapper.writeValueAsString(list);
     }
 
-    @PreDestroy
-    public void destroy() throws IOException {
-        if (httpClient != null) {
-            httpClient.close();
+    /**
+     * JSON 字符串 → CookieStore（读取用）
+     */
+    @Deprecated
+    public CookieStore jsonToCookieStore(String json) throws Exception {
+        BasicCookieStore cookieStore = new BasicCookieStore();
+        if (json == null || json.isEmpty()) return cookieStore;
+        List<Map<String, String>> list = objectMapper.readValue(json,new TypeReference<List<Map<String, String>>>() {});
+        for (Map<String, String> map : list) {
+            BasicClientCookie cookie = new BasicClientCookie(map.get("name"), map.get("value"));
+            cookie.setDomain(map.get("domain"));
+            cookie.setPath(map.get("path"));
+            cookie.setSecure(Boolean.parseBoolean(map.get("secure")));
+            cookieStore.addCookie(cookie);
         }
-        log.info("SchoolHttpClient 已销毁");
+        return cookieStore;
     }
+
 }

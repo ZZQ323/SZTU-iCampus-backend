@@ -15,4 +15,6 @@ public class SztuConfig {
     private String projectName;
     @Value("${sztu.constant.environment}")
     private String environment;
+
+
 }
