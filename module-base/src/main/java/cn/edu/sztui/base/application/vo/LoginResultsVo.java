@@ -11,4 +11,5 @@ import java.util.List;
 @Data
 public class LoginResultsVo {
     List<Cookie> cookies;
+    String message;
 }

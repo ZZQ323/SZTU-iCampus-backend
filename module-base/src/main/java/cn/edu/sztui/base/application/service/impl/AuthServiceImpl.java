@@ -13,6 +13,8 @@ import cn.edu.sztui.base.infrastructure.wx.WxMaUserService;
 import cn.edu.sztui.common.util.enums.ResultCodeEnum;
 import cn.edu.sztui.common.util.enums.SysReturnCode;
 import cn.edu.sztui.common.util.exception.BusinessException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microsoft.playwright.APIRequestContext;
 import com.microsoft.playwright.APIResponse;
 import com.microsoft.playwright.Page;
@@ -22,6 +24,7 @@ import com.microsoft.playwright.options.FormData;
 import com.microsoft.playwright.options.RequestOptions;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -41,6 +44,8 @@ public class AuthServiceImpl implements AuthService {
     private CaptchaOcrUtil captchaOcrUtil;
     @Resource
     private WxMaUserService wxMaUserService;
+    @Autowired
+    private ObjectMapper  objectMapper;
 
     /**
      * 检测小程序账号的cookie活性
@@ -84,6 +89,7 @@ public class AuthServiceImpl implements AuthService {
                 isUpdated = true;
             }
             // 访问登录页面
+            LoginResultsVo ret = new LoginResultsVo();
             try {
                 Page page = context.newPage();
                 // page.navigate(gatewayStartURL);
@@ -92,16 +98,15 @@ public class AuthServiceImpl implements AuthService {
                         resp -> resp.url().equals(gatewayEndURL),
                         () -> page.navigate(gatewayStartURL)  // 这是在等待期间执行的动作
                 );
+                ret.setMessage(response.text());
+                // TODO 以后返回签发的token或者其他东西，返回cookie不安全
+                ret.setCookies(context.cookies());
             } catch (Exception e) {
                 log.error("会话初始化出现错误：" + e.getMessage());
-                throw new BusinessException(SysReturnCode.WECHAT_PROXY.getCode(), "会话初始化出现错误：" + e.getMessage(), ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
+                throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(), "会话初始化出现错误：" + e.getMessage(), ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
             }
-
-            LoginResultsVo ret = new LoginResultsVo();
             if (isUpdated) authSessionCacheUtil.saveOrUpdateSession(unionID, context.cookies());
             else authSessionCacheUtil.saveOrUpdateSession(unionID, context.cookies());
-            // TODO 以后返回签发的token或者其他东西，返回cookie不安全
-            ret.setCookies(context.cookies());
             return ret;
         });
     }
@@ -134,14 +139,15 @@ public class AuthServiceImpl implements AuthService {
                 .setHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0")
             );
 
-            log.info("SMS请求URL: {}", smsURL);
-            log.info("SMS请求状态: {}", res.status());
-            log.info("SMS响应头: {}", res.headers());
-            log.info("SMS响应体: {}", res.text());
+            // log.info("SMS请求URL: {}", smsURL);
+            // log.info("SMS请求状态: {}", res.status());
+            // log.info("SMS响应头: {}", res.headers());
+            // log.info("SMS响应体: {}", res.text());
 
             // FIXME 如何确保 webvpn的cookie到账？
             authSessionCacheUtil.saveOrUpdateSession(unionID, context.cookies());
             LoginResultsVo ret = new LoginResultsVo();
+            ret.setMessage(res.text());
             ret.setCookies(context.cookies());
             return ret;
         });
@@ -159,23 +165,75 @@ public class AuthServiceImpl implements AuthService {
     }
 
     public LoginResultsVo loginFrame(LoginRequestCommand cmd) {
-        // TODO
+        // TODO 1111
         return browserPool.executeWithContext(context -> {
-            // 缓存检测
             // TODO wx换unicode模块暂未测试
 //            String unionID = wxMaUserService.login(cmd.getWxCode()).getUnionid();
             String unionID = cmd.getWxCode();
+            LoginResultsVo ret = new LoginResultsVo();
             if (authSessionCacheUtil.hasSession(unionID)) {
+                // 缓存检测
                 ProxySession session = authSessionCacheUtil.getSession(unionID);
                 List<Cookie> preCookies = CookieConverter.fromCookieDTOs(session.getCookiesJson());
                 context.addCookies(preCookies);
             }
+
+            // ============ 第一步：AJAX 验证 ============
             // 访问登录页面
+            FormData ajaxData = FormData.create();
+            ajaxData.set("j_username", CharacterConverter.toSBC(cmd.getUserId()));
+            ajaxData.set("sms_checkcode",cmd.getSmsCode());
+            ajaxData.set("j_checkcode","验证码");
+            ajaxData.set("op","login");
+            ajaxData.set("spAuthChainCode",spAuthChainCode);
+            // j_username=202200202104&sms_checkcode=017979&j_checkcode=%E9%AA%8C%E8%AF%81%E7%A0%81&op=login&spAuthChainCode=3c21e7d55f6449df85e8cebc30518464
+            // j_username=202200202104
+            // sms_checkcode=017979
+            // j_checkcode=%E9%AA%8C%E8%AF%81%E7%A0%81
+            // op=login
+            // spAuthChainCode=3c21e7d55f6449df85e8cebc30518464
+            // #authen4Form1
+
             APIRequestContext req = context.request();
-            APIResponse res = req.post(loginURL);
-            // FIXME 如何确保 webvpn的cookie到账？
+            APIResponse ajaxRes = req.post(loginURL+ "?sf_request_type=ajax",
+                RequestOptions.create()
+                    .setForm(ajaxData)
+                    .setHeader("X-Requested-With", "XMLHttpRequest")
+                    .setHeader("Referer", gatewayEndURL)
+                    .setHeader("Origin", extractOrigin(loginURL))  // 注意这里应该是loginURL的origin
+                    .setHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0")
+                    .setHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+                    .setHeader("Accept", "*/*")
+            );
+            String ajaxBody = ajaxRes.text();
+            log.info("AJAX验证响应: {}", ajaxBody); // 一般是响应 {"loginFailed":"false"}
+            // jackson 库中的核心类
+            JsonNode json = objectMapper.readTree(ajaxBody);
+            boolean loginFailed = json.path("loginFailed").asBoolean(true);
+
+            if (loginFailed)
+                throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(), "登录验证失败: " + ajaxBody, ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
+
+            // ============ 第二步：模拟表单提交（处理重定向链） ============
+
+            // 如果重定向都是 HTTP 302，只用 API？
+            APIResponse formRes = req.post(
+                A4tLoginFormActionURL,
+                RequestOptions.create()
+                    .setForm(ajaxData)
+                    .setHeader("Referer", gatewayEndURL)
+                    .setHeader("X-Requested-With", "XMLHttpRequest")
+                    .setHeader("Origin", extractOrigin(loginURL))
+                    .setHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0")
+            );
+
+            log.info("表单提交状态: {}", formRes.status());
+            log.info("表单提交后 cookies: {}", context.cookies());
+
+            // FIXME 等待登录的成功
+
+            // ============ 更新cookie，完成登录  ============
             authSessionCacheUtil.saveOrUpdateSession(unionID, context.cookies());
-            LoginResultsVo ret = new LoginResultsVo();
             ret.setCookies(context.cookies());
             return ret;
         });
@@ -196,7 +254,8 @@ public class AuthServiceImpl implements AuthService {
             // 访问登录页面
             APIRequestContext req = context.request();
             APIResponse res = req.get(logoutURL);
-            // FIXME 如何确保 webvpn的cookie到账？
+            log.info("退出响应:{} {}", res.status(),res.text());
+
             authSessionCacheUtil.saveOrUpdateSession(unionID, context.cookies());
             LoginResultsVo ret = new LoginResultsVo();
             ret.setCookies(context.cookies());
