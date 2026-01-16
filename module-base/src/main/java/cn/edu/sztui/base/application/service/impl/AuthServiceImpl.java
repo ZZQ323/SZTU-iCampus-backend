@@ -18,14 +18,13 @@ import com.microsoft.playwright.APIResponse;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Response;
 import com.microsoft.playwright.options.Cookie;
+import com.microsoft.playwright.options.FormData;
 import com.microsoft.playwright.options.RequestOptions;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 import static cn.edu.sztui.base.domain.model.SchoolAPIs.*;
@@ -62,7 +61,7 @@ public class AuthServiceImpl implements AuthService {
 //        String unionID = wxMaUserService.login(tempCode).getUnionid();
         // TODO wx换unicode模块暂未测试
         String unionID = tempCode;
-        return refreshingCookies(unionID, null);
+        return refreshingCookies(unionID, authSessionCacheUtil.getSession(unionID));
     }
 
     @Override
@@ -121,12 +120,24 @@ public class AuthServiceImpl implements AuthService {
             }
             // 访问登录页面
             APIRequestContext req = context.request();
-            Map<String, Object> formData = new HashMap<>();
-            formData.put("j_username", CharacterConverter.toSBC(usrId));
-            APIResponse res = req.post(smsURL, RequestOptions
-                    .create()
-                    .setData(formData)
-                    .setHeader("X-Requested-With", "XMLHttpRequest"));
+            // 重要！必须是表单形式
+            FormData formData = FormData.create();
+            formData.set("j_username", CharacterConverter.toSBC(usrId));
+            // formData.put("j_authMethodID", "41");
+            APIResponse res = req.post(smsURL+ "?sf_request_type=ajax",
+                RequestOptions.create()
+                .setForm(formData)
+                .setHeader("X-Requested-With", "XMLHttpRequest")
+                .setHeader("Accept", "application/json, text/javascript, */*; q=0.01")
+                .setHeader("Referer", gatewayEndURL)
+                .setHeader("Origin", extractOrigin(smsURL))
+                .setHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0")
+            );
+
+            log.info("SMS请求URL: {}", smsURL);
+            log.info("SMS请求状态: {}", res.status());
+            log.info("SMS响应头: {}", res.headers());
+            log.info("SMS响应体: {}", res.text());
 
             // FIXME 如何确保 webvpn的cookie到账？
             authSessionCacheUtil.saveOrUpdateSession(unionID, context.cookies());
@@ -134,6 +145,17 @@ public class AuthServiceImpl implements AuthService {
             ret.setCookies(context.cookies());
             return ret;
         });
+    }
+
+    // 辅助方法：提取 Origin
+    private String extractOrigin(String url) {
+        try {
+            java.net.URL u = new java.net.URL(url);
+            return u.getProtocol() + "://" + u.getHost() +
+                    (u.getPort() != -1 ? ":" + u.getPort() : "");
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     public LoginResultsVo loginFrame(LoginRequestCommand cmd) {
