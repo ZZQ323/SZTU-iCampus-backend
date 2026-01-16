@@ -1,6 +1,5 @@
 package cn.edu.sztui.base.domain.sepecification;
 
-
 import cn.edu.sztui.base.domain.model.loginhandle.LoginType;
 import cn.edu.sztui.common.ddd.AbstractSpecification;
 

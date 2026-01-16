@@ -3,6 +3,7 @@ package cn.edu.sztui.base.application.service.impl;
 import cn.edu.sztui.base.application.dto.command.LoginRequestCommand;
 import cn.edu.sztui.base.application.service.AuthService;
 import cn.edu.sztui.base.application.vo.LoginResultsVo;
+import cn.edu.sztui.base.domain.model.loginhandle.LoginType;
 import cn.edu.sztui.base.infrastructure.convertor.CharacterConverter;
 import cn.edu.sztui.base.infrastructure.convertor.CookieConverter;
 import cn.edu.sztui.base.infrastructure.util.browserpool.PlaywrightBrowserPool;
@@ -27,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -95,9 +97,16 @@ public class AuthServiceImpl implements AuthService {
                 // page.navigate(gatewayStartURL);
                 // page.waitForURL(gatewayEndURL);
                 Response response = page.waitForResponse(
-                        resp -> resp.url().equals(gatewayEndURL),
+                        resp -> resp.url().equals(gatewayFirstEndURL) || resp.url().equals(gatewaySecondEndURL),
                         () -> page.navigate(gatewayStartURL)  // 这是在等待期间执行的动作
                 );
+                if( response.url().equals(gatewayFirstEndURL) ){
+                    ret.setLoginTypes(Collections.singletonList(LoginType.SMS));
+                }else{
+                    List<LoginType> typeLists = Collections.singletonList(LoginType.SMS);
+                    typeLists.add(LoginType.PASSWORD);
+                    ret.setLoginTypes(typeLists);
+                }
                 ret.setMessage(response.text());
                 // TODO 以后返回签发的token或者其他东西，返回cookie不安全
                 ret.setCookies(context.cookies());
@@ -134,7 +143,7 @@ public class AuthServiceImpl implements AuthService {
                 .setForm(formData)
                 .setHeader("X-Requested-With", "XMLHttpRequest")
                 .setHeader("Accept", "application/json, text/javascript, */*; q=0.01")
-                .setHeader("Referer", gatewayEndURL)
+                .setHeader("Referer", gatewayFirstEndURL)
                 .setHeader("Origin", extractOrigin(smsURL))
                 .setHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0")
             );
@@ -165,7 +174,6 @@ public class AuthServiceImpl implements AuthService {
     }
 
     public LoginResultsVo loginFrame(LoginRequestCommand cmd) {
-        // TODO 1111
         return browserPool.executeWithContext(context -> {
             // TODO wx换unicode模块暂未测试
 //            String unionID = wxMaUserService.login(cmd.getWxCode()).getUnionid();
@@ -186,20 +194,13 @@ public class AuthServiceImpl implements AuthService {
             ajaxData.set("j_checkcode","验证码");
             ajaxData.set("op","login");
             ajaxData.set("spAuthChainCode",spAuthChainCode);
-            // j_username=202200202104&sms_checkcode=017979&j_checkcode=%E9%AA%8C%E8%AF%81%E7%A0%81&op=login&spAuthChainCode=3c21e7d55f6449df85e8cebc30518464
-            // j_username=202200202104
-            // sms_checkcode=017979
-            // j_checkcode=%E9%AA%8C%E8%AF%81%E7%A0%81
-            // op=login
-            // spAuthChainCode=3c21e7d55f6449df85e8cebc30518464
-            // #authen4Form1
 
             APIRequestContext req = context.request();
             APIResponse ajaxRes = req.post(loginURL+ "?sf_request_type=ajax",
                 RequestOptions.create()
                     .setForm(ajaxData)
                     .setHeader("X-Requested-With", "XMLHttpRequest")
-                    .setHeader("Referer", gatewayEndURL)
+                    .setHeader("Referer", gatewayFirstEndURL)
                     .setHeader("Origin", extractOrigin(loginURL))  // 注意这里应该是loginURL的origin
                     .setHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0")
                     .setHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
@@ -221,7 +222,7 @@ public class AuthServiceImpl implements AuthService {
                 A4tLoginFormActionURL,
                 RequestOptions.create()
                     .setForm(ajaxData)
-                    .setHeader("Referer", gatewayEndURL)
+                    .setHeader("Referer", gatewayFirstEndURL)
                     .setHeader("X-Requested-With", "XMLHttpRequest")
                     .setHeader("Origin", extractOrigin(loginURL))
                     .setHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0")
@@ -233,7 +234,7 @@ public class AuthServiceImpl implements AuthService {
             // FIXME 等待登录的成功
 
             // ============ 更新cookie，完成登录  ============
-            authSessionCacheUtil.saveOrUpdateSession(unionID, context.cookies());
+            authSessionCacheUtil.sessionLoginBind(unionID, cmd.getUserId(), context.cookies());
             ret.setCookies(context.cookies());
             return ret;
         });
@@ -255,8 +256,8 @@ public class AuthServiceImpl implements AuthService {
             APIRequestContext req = context.request();
             APIResponse res = req.get(logoutURL);
             log.info("退出响应:{} {}", res.status(),res.text());
-
-            authSessionCacheUtil.saveOrUpdateSession(unionID, context.cookies());
+            
+            authSessionCacheUtil.sessionLogoutBind( unionID );
             LoginResultsVo ret = new LoginResultsVo();
             ret.setCookies(context.cookies());
             return ret;

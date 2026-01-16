@@ -77,7 +77,7 @@ public class AuthSessionCacheUtil {
      */
     public void sessionLoginBind(String unionID, String userId, List<Cookie> newCookies) {
         ProxySession session = getSession(unionID);
-        if (session == null) {
+        if ( Objects.isNull(session) ) {
             // 前端通过每次打开都进行初始化的方式进行检查，这里仅做意外的检测
             throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(), "无法获取初始化会话！！！！", ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
         }
@@ -112,25 +112,10 @@ public class AuthSessionCacheUtil {
     /**
      * 删除会话（登出）
      */
-    @Deprecated
     public void sessionLogoutBind(String unionID) {
         ProxySession session = getSession(unionID);
-        if (session != null && StringUtils.hasText(session.getUserId())) {
-            cacheUtil.del(UNIONID_SESSION_KEY + session.getUserId());
-        }
-        cacheUtil.del(UNIONID_SESSION_KEY + unionID);
-        log.info("删除机器会话: {}", unionID);
-    }
-
-    /**
-     * 通过用户ID删除会话
-     */
-    @Deprecated
-    public void removeSessionByUserId(String userId) {
-        Object machineIdObj = cacheUtil.hget (UNIONID_SESSION_KEY , userId);
-        if (machineIdObj != null) {
-            sessionLogoutBind(machineIdObj.toString());
-        }
-        cacheUtil.del(UNIONID_SESSION_KEY + userId);
+        session.setLastUpdateTime(System.currentTimeMillis());
+        session.setLoggedIn(true);
+        cacheUtil.hset(UNIONID_SESSION_KEY,unionID+":"+session.getUserId(), JSON.toJSONString(session));
     }
 }

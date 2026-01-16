@@ -1,6 +1,5 @@
 package cn.edu.sztui.base.domain.model.loginhandle;
 
-import cn.edu.sztui.base.application.vo.LoginResultsVo;
 import com.microsoft.playwright.Page;
 
 
