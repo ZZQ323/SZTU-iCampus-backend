@@ -1,14 +1,13 @@
 package cn.edu.sztui.base.application.vo;
 
+import com.microsoft.playwright.options.Cookie;
 import lombok.Data;
-import org.apache.hc.client5.http.cookie.Cookie;
 
 import java.util.List;
 
 @Data
 public class LoginResultsVo {
+    private String wxCode;
     private String userId;
-    private String passwd;
     List<Cookie> cookies;
-    String htmlDoc;
 }

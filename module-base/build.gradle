@@ -4,15 +4,14 @@ plugins {
 }
 
 dependencies {
-    // Apache HttpClient 4.5（更稳定，与Spring兼容性更好）
-    implementation 'org.apache.httpcomponents.client5:httpclient5'
+    // jsoup 解析文档
     implementation 'org.jsoup:jsoup:1.17.2'
 
     // 业务模块不需要 Spring Boot 插件，只需要基础依赖
     implementation 'org.springframework.boot:spring-boot-starter'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
-
+    // lombok 节省代码
     compileOnly 'org.projectlombok:lombok:1.18.32'
     annotationProcessor 'org.projectlombok:lombok:1.18.32'
 

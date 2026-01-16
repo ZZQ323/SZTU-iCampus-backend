@@ -3,27 +3,25 @@ package cn.edu.sztui.base.web;
 import cn.edu.sztui.base.application.dto.command.LoginRequestCommand;
 import cn.edu.sztui.base.application.service.AuthService;
 import cn.edu.sztui.base.application.vo.LoginResultsVo;
-import cn.edu.sztui.base.domain.model.loginhandle.LoginType;
 import cn.edu.sztui.common.util.result.Result;
 import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/usr")
+@RequestMapping("/auth")
 public class AuthController {
 
     @Resource
     private AuthService authService;
 
-    /**
-     * 检查登录方式
-     * @param
-     * @return
-     */
-    @GetMapping("/login")
-    public Result loginType() {
-        LoginType result = authService.loginCheck();
-        return Result.ok(result);
+    @GetMapping("/v1/status/session")
+    public Result getSessionStatus(@RequestParam String code) {
+        return Result.ok("ok");
+    }
+
+    @PostMapping("/cookie/refresh")
+    public Result refresh(@RequestBody String code){
+        return Result.ok(authService.init());
     }
 
     /**
@@ -31,14 +29,8 @@ public class AuthController {
      * @param request
      * @return
      */
-    @PostMapping("/login")
+    @PostMapping("/v1/login")
     public Result loginUsrPasswd(@RequestBody LoginRequestCommand request) {
-        LoginResultsVo result = authService.loginFrame(request);
-        return Result.ok(result);
-    }
-
-    @PostMapping("/freelogin")
-    public Result loginByCookies(@RequestBody LoginRequestCommand request) {
         LoginResultsVo result = authService.loginFrame(request);
         return Result.ok(result);
     }
@@ -47,13 +39,18 @@ public class AuthController {
      * 验证码过期，再次请求
      * @return
      */
-    @GetMapping("/sms")
+    @PostMapping("/v1/request/sms")
     public Result getSms(@RequestParam("id") String id) {
         LoginResultsVo result = authService.getSms(id);
         return Result.ok(result);
     }
 
-     @PostMapping("/logout")
+    @PostMapping("/v1/verify/sms")
+    public Result verify(){
+        return Result.ok("ok");
+    }
+
+     @PostMapping("/v1/logout")
      public Result logout(@RequestBody LoginRequestCommand request) {
          return Result.ok(authService.logout());
      }
