@@ -5,11 +5,15 @@ import cn.edu.sztui.base.application.vo.LoginResultsVo;
 
 public interface AuthService {
 
-    LoginResultsVo init(String code);
+    boolean getSessionStatus(String tempCode);
 
-    LoginResultsVo refresh(String code);
+    LoginResultsVo init(String tempCode);
 
-    LoginResultsVo getSms(String id);
+    LoginResultsVo refresh(String tempCode);
+
+    LoginResultsVo getSms(String tempCode, String usrId);
+
     LoginResultsVo loginFrame(LoginRequestCommand cmd);
 
+    LoginResultsVo logout(LoginRequestCommand cmd);
 }

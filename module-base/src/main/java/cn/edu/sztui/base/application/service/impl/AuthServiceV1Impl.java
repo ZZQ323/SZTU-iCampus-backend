@@ -22,8 +22,8 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import static cn.edu.sztui.base.domain.model.SchoolAPIs.gatewayURL;
-import static cn.edu.sztui.base.domain.model.SchoolAPIs.loginURL;
+
+import static cn.edu.sztui.base.domain.model.SchoolAPIs.*;
 
 @Service
 @Slf4j
@@ -93,12 +93,8 @@ public class AuthServiceV1Impl implements AuthServiceV1 {
     public LoginResultsVo getSms(String id) {
         return browserPool.executeWithContext(context -> {
             Page page = context.newPage();
-            if (loginSessionCacheUtil.hasValidSession(id)) {
-                List<Cookie> cookies = loginSessionCacheUtil.getCookies(id);
-                context.addCookies(cookies);
-            }
             // 访问登录页面
-            page.navigate(gatewayURL);
+            page.navigate(gatewayStartURL);
             // NETWORKIDLE 不等于 "JS 执行完"。需要等待目标元素可交互。
             page.waitForLoadState(LoadState.LOAD);
             page.waitForLoadState(LoadState.DOMCONTENTLOADED);
@@ -121,7 +117,7 @@ public class AuthServiceV1Impl implements AuthServiceV1 {
                 loginSessionCacheUtil.saveCookies(id, context.cookies());
                 // ret.setCookies(context.cookies(loginURL));
                 // String bodyText = page.textContent("body");
-                ret.setHtmlDoc("");
+                // ret.setHtmlDoc("");
                 return ret;
             } catch (Exception e) {
                 log.error(e.getMessage(), e);
@@ -146,7 +142,7 @@ public class AuthServiceV1Impl implements AuthServiceV1 {
                 context.addCookies(cookies);
             }
             // 访问登录页面
-            page.navigate(gatewayURL);
+            page.navigate(gatewayStartURL);
             // NETWORKIDLE 不等于 "JS 执行完"。需要等待目标元素可交互。
             page.waitForLoadState(LoadState.LOAD);
             page.waitForLoadState(LoadState.DOMCONTENTLOADED);
@@ -155,12 +151,12 @@ public class AuthServiceV1Impl implements AuthServiceV1 {
 
             // 可能直接就进去了，因为cookie 通过
             if ( page.content().contains("登录") ){
-                handleLoginByType(page, cmd.getLoginType(), cmd.getUserId(), cmd.getCode());
+//                handleLoginByType(page, cmd.getLoginType(), cmd.getUserId(), cmd.getCode());
                 // 等待登录响应，同时执行登录操作
-                Response loginResponse = page.waitForResponse(
-                        resp -> resp.url().contains("login") && resp.ok(),
-                        () -> handleLoginByType(page, cmd.getLoginType(), cmd.getUserId(), cmd.getCode())
-                );
+//                Response loginResponse = page.waitForResponse(
+//                        resp -> resp.url().contains("login") && resp.ok(),
+//                        () -> handleLoginByType(page, cmd.getLoginType(), cmd.getUserId(), cmd.getCode())
+//                );
             }
             // 等待登录后页面稳定
             page.waitForLoadState(LoadState.LOAD, new Page.WaitForLoadStateOptions().setTimeout(3000));
@@ -194,7 +190,7 @@ public class AuthServiceV1Impl implements AuthServiceV1 {
             // ret.setCookies(cc);
             // 获取整个页面的HTML内容
             String bodyText = page.textContent("body");
-            ret.setHtmlDoc(bodyText);
+            // ret.setHtmlDoc(bodyText);
             // 获取标题和URL
             log.info("Title: " + page.title());
             log.info("URL: " + page.url());
@@ -257,8 +253,8 @@ public class AuthServiceV1Impl implements AuthServiceV1 {
     public LoginResultsVo loginByCookie(LoginRequestCommand cmd) {
         return browserPool.executeWithContext(context -> {
             // 直接看看这个cookie好不好用
-            List<Cookie> cookies = cmd.getCookies();
-            context.addCookies(cookies);
+//            List<Cookie> cookies = cmd.getCookies();
+//            context.addCookies(cookies);
             Page page = context.newPage();
             // 访问登录页面
             page.navigate(loginURL);
@@ -272,7 +268,7 @@ public class AuthServiceV1Impl implements AuthServiceV1 {
 
             LoginResultsVo ret = new LoginResultsVo();
             // ret.setCookies(context.cookies(page.url()));
-            ret.setHtmlDoc(page.textContent("body"));
+            // ret.setHtmlDoc(page.textContent("body"));
             return ret;
         });
     }

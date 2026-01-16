@@ -17,6 +17,7 @@ public enum SysReturnCode {
     COOKIE_PARSING_EXCEPTION(10020, "Cookie错误"),
     BASE_USR(1001, "用户服务"),
     BASE_PROXY(1002, "代理服务"),
+    WECHAT_PROXY(2001, "微信API"),
     BASE_SYS(1003, "系统服务");
 
     private final Integer code;

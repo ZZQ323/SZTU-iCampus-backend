@@ -14,25 +14,14 @@ public class AuthController {
     @Resource
     private AuthService authService;
 
-    @GetMapping("/v1/status/session")
-    public Result getSessionStatus(@RequestParam String code) {
-        return Result.ok("ok");
-    }
-
-    @PostMapping("/cookie/refresh")
-    public Result refresh(@RequestBody String code){
-        return Result.ok(authService.init());
-    }
-
     /**
-     * 网关登录
-     * @param request
+     * 检测 unionID的 状态
+     * @param tempCode
      * @return
      */
-    @PostMapping("/v1/login")
-    public Result loginUsrPasswd(@RequestBody LoginRequestCommand request) {
-        LoginResultsVo result = authService.loginFrame(request);
-        return Result.ok(result);
+    @GetMapping("/v1/status/session")
+    public Result getSessionStatus(@RequestParam String tempCode) {
+        return Result.ok(authService.getSessionStatus(tempCode));
     }
 
     /**
@@ -40,18 +29,44 @@ public class AuthController {
      * @return
      */
     @PostMapping("/v1/request/sms")
-    public Result getSms(@RequestParam("id") String id) {
-        LoginResultsVo result = authService.getSms(id);
+    public Result getSms(@RequestBody LoginRequestCommand request) {
+        LoginResultsVo result = authService.getSms(request.getWxCode(),request.getUserId());
         return Result.ok(result);
     }
 
-    @PostMapping("/v1/verify/sms")
-    public Result verify(){
-        return Result.ok("ok");
+    /**
+     * 初始化新的cookie
+     * @param request
+     * @return
+     */
+    @PostMapping("/v1/cookie/refresh")
+    public Result refresh(@RequestBody LoginRequestCommand request){
+        return Result.ok(authService.init(request.getWxCode()));
+    }
+
+    /**
+     * 网关账密登录
+     * @param request
+     * @return
+     */
+    @PostMapping("/v1/login/passwd")
+    public Result loginUsrPasswd(@RequestBody LoginRequestCommand request) {
+        LoginResultsVo result = authService.loginFrame(request);
+        return Result.ok(result);
+    }
+
+    /**
+     * 网关验证码登录
+     * @param request
+     * @return
+     */
+    @PostMapping("/v1/login/sms")
+    public Result loginSms(@RequestBody LoginRequestCommand request) {
+        return Result.ok(authService.loginFrame(request));
     }
 
      @PostMapping("/v1/logout")
      public Result logout(@RequestBody LoginRequestCommand request) {
-         return Result.ok(authService.logout());
+         return Result.ok(authService.logout(request));
      }
 }

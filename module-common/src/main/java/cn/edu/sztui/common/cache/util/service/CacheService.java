@@ -1,22 +1,26 @@
 package cn.edu.sztui.common.cache.util.service;
 
 import jakarta.annotation.Resource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+
+/**
+ * redis 封装类
+ * expire, getExpire, hasKey, del：管理Key的过期时间和存在性。
+ * 可操作类型：字符串 (String)、 哈希表 (Hash)、集合 (Set) 与有序集合 (ZSet)、列表 (List)
+ */
+@Slf4j
 @Component
 public class CacheService {
-    private static final Logger log = LoggerFactory.getLogger(CacheService.class);
-
     @Resource
     private RedisTemplate<String, Object> redisTemplate;
 

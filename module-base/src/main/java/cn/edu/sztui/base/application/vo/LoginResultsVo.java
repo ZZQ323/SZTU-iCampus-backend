@@ -5,9 +5,10 @@ import lombok.Data;
 
 import java.util.List;
 
+/**
+ * FIXME 仅测试！
+ */
 @Data
 public class LoginResultsVo {
-    private String wxCode;
-    private String userId;
     List<Cookie> cookies;
 }
