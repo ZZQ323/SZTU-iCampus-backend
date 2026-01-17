@@ -1,6 +1,8 @@
 package cn.edu.sztui.base.application.service;
 
-public interface AcademicService {
+import cn.edu.sztui.base.application.vo.LoginResultsVo;
 
+public interface AcademicService {
+    LoginResultsVo init(String tempCode);
     String getCrouseTable();
 }

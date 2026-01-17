@@ -2,6 +2,7 @@ package cn.edu.sztui.base.application.service.impl;
 
 import cn.edu.sztui.base.application.dto.command.LoginRequestCommand;
 import cn.edu.sztui.base.application.service.AuthService;
+import cn.edu.sztui.base.application.vo.LoginBasicResultVO;
 import cn.edu.sztui.base.application.vo.LoginResultsVo;
 import cn.edu.sztui.base.domain.model.loginhandle.LoginType;
 import cn.edu.sztui.base.infrastructure.convertor.CharacterConverter;
@@ -11,6 +12,8 @@ import cn.edu.sztui.base.infrastructure.util.cache.AuthSessionCacheUtil;
 import cn.edu.sztui.base.infrastructure.util.cache.dto.ProxySession;
 import cn.edu.sztui.base.infrastructure.util.ocr.CaptchaOcrUtil;
 import cn.edu.sztui.base.infrastructure.wx.WxMaUserService;
+import cn.edu.sztui.common.util.auth.UserContext;
+import cn.edu.sztui.common.util.bean.TokenMessage;
 import cn.edu.sztui.common.util.enums.ResultCodeEnum;
 import cn.edu.sztui.common.util.enums.SysReturnCode;
 import cn.edu.sztui.common.util.exception.BusinessException;
@@ -57,34 +60,20 @@ public class AuthServiceImpl implements AuthService {
      */
     @Override
     public boolean getSessionStatus(String tempCode) {
-        //        String unionID = wxMaUserService.login(tempCode).getUnionid();
-        // TODO wx换unicode模块暂未测试
-        String unionID = tempCode;
+        TokenMessage tokenmesage = UserContext.getContext();
+        String unionID = tokenmesage.getUnionId();
         return authSessionCacheUtil.hasSession(unionID);
     }
 
     @Override
     public LoginResultsVo init(String tempCode) {
-//        String unionID = wxMaUserService.login(tempCode).getUnionid();
-        // TODO wx换unicode模块暂未测试
-        String unionID = tempCode;
-        return refreshingCookies(unionID, authSessionCacheUtil.getSession(unionID));
-    }
-
-    @Override
-    public LoginResultsVo refresh(String tempCode) {
-        // 用 tempCode 换到 unionID
-//        String unionID = wxMaUserService.login(tempCode).getUnionid();
-        // TODO wx换unicode模块暂未测试
-        String unionID = tempCode;
+        String unionID = wxMaUserService.login(tempCode).getUnionid();
         return refreshingCookies(unionID, authSessionCacheUtil.getSession(unionID));
     }
 
     private LoginResultsVo refreshingCookies(String tempCode, ProxySession session) {
         return browserPool.executeWithContext(context -> {
-//            String unionID = wxMaUserService.login(tempCode).getUnionid();
-            // TODO wx换unicode模块暂未测试
-            String unionID = tempCode;
+            String unionID = wxMaUserService.login(tempCode).getUnionid();
             boolean isUpdated = false;
             if (!Objects.isNull(session)) {
                 context.addCookies(CookieConverter.fromCookieDTOs(session.getCookiesJson()));
@@ -123,10 +112,8 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public LoginResultsVo getSms(String tempCode, String usrId) {
         return browserPool.executeWithContext(context -> {
+            String unionID = wxMaUserService.login(tempCode).getUnionid();
             // 缓存检测
-            // TODO wx换unicode模块暂未测试
-//            String unionID = wxMaUserService.login(tempCode).getUnionid();
-            String unionID = tempCode;
             if (authSessionCacheUtil.hasSession(unionID)) {
                 ProxySession session = authSessionCacheUtil.getSession(unionID);
                 List<Cookie> preCookies = CookieConverter.fromCookieDTOs(session.getCookiesJson());
@@ -173,12 +160,10 @@ public class AuthServiceImpl implements AuthService {
         }
     }
 
-    public LoginResultsVo loginFrame(LoginRequestCommand cmd) {
+    public LoginBasicResultVO loginFrame(LoginRequestCommand cmd) {
         return browserPool.executeWithContext(context -> {
-            // TODO wx换unicode模块暂未测试
-//            String unionID = wxMaUserService.login(cmd.getWxCode()).getUnionid();
-            String unionID = cmd.getWxCode();
-            LoginResultsVo ret = new LoginResultsVo();
+            String unionID = wxMaUserService.login(cmd.getWxCode()).getUnionid();
+            LoginBasicResultVO ret = new LoginBasicResultVO();
             if (authSessionCacheUtil.hasSession(unionID)) {
                 // 缓存检测
                 ProxySession session = authSessionCacheUtil.getSession(unionID);
@@ -227,12 +212,9 @@ public class AuthServiceImpl implements AuthService {
                     .setHeader("Origin", extractOrigin(loginURL))
                     .setHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0")
             );
-
             log.info("表单提交状态: {}", formRes.status());
             log.info("表单提交后 cookies: {}", context.cookies());
-
             // FIXME 等待登录的成功
-
             // ============ 更新cookie，完成登录  ============
             authSessionCacheUtil.sessionLoginBind(unionID, cmd.getUserId(), context.cookies());
             ret.setCookies(context.cookies());
@@ -243,10 +225,8 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public LoginResultsVo logout(LoginRequestCommand cmd) {
         return browserPool.executeWithContext(context -> {
+            String unionID = wxMaUserService.login(cmd.getWxCode()).getUnionid();
             // 缓存检测
-            // TODO wx换unicode模块暂未测试
-//            String unionID = wxMaUserService.login(cmd.getWxCode()).getUnionid();
-            String unionID = cmd.getWxCode();
             if (authSessionCacheUtil.hasSession(unionID)) {
                 ProxySession session = authSessionCacheUtil.getSession(unionID);
                 List<Cookie> preCookies = CookieConverter.fromCookieDTOs(session.getCookiesJson());

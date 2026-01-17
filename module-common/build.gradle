@@ -12,13 +12,13 @@ plugins {
 //}
 
 dependencies {
+
+    implementation("com.github.binarywang:weixin-java-miniapp:4.7.0")
+
     // 业务模块不需要 Spring Boot 插件，只需要基础依赖
     implementation 'org.springframework:spring-core'
     implementation 'org.springframework.boot:spring-boot-starter'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     // RedisTemplate 是 Spring Data Redis 框架的核心类
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-
-    compileOnly 'org.projectlombok:lombok:1.18.32'
-    annotationProcessor 'org.projectlombok:lombok:1.18.32'
 }

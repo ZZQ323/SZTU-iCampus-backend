@@ -21,13 +21,19 @@ public class WxMaUserServiceImpl implements WxMaUserService {
 
     @Value("${wx.miniapp.configs[0].appid}")
     private String appid;
-
+    @Value("${wx.miniapp.configs[0].aesKey}")
+    private String aesKey;
+    @Value("${wx.miniapp.configs[0].secret}")
+    private String secret;
+    @Value("${wx.miniapp.configs[0].msgDataFormat}")
+    private String msgDataFormat;
+    @Value("${wx.miniapp.configs[0].rsaKey}")
+    private String rsaKey;
 
     @Override
     public WxMaJscode2SessionResult login(String code) {
         if (StringUtils.isBlank(code))throw new BusinessException(SysReturnCode.WECHAT_PROXY.getCode(),  "empty jscode", ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
-        if (!wxMaService.switchover(appid))throw new BusinessException(SysReturnCode.WECHAT_PROXY.getCode(), String.format("未找到对应appid=[%s]的配置，请核实！", appid), ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
-
+        if ( !wxMaService.switchover(appid) )throw new BusinessException(SysReturnCode.WECHAT_PROXY.getCode(), String.format("未找到对应appid=[%s]的配置，请核实！", appid), ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
         try {
             WxMaJscode2SessionResult session = wxMaService.getUserService().getSessionInfo(code);
             log.info("临时登录码{} 已经获得 SessionKey：{}",code,session.getSessionKey());
