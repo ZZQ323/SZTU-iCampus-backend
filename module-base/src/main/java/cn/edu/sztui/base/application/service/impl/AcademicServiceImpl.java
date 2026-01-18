@@ -3,7 +3,7 @@ package cn.edu.sztui.base.application.service.impl;
 import cn.edu.sztui.base.application.service.AcademicService;
 import cn.edu.sztui.base.application.vo.LoginResultsVo;
 import cn.edu.sztui.base.infrastructure.convertor.CookieConverter;
-import cn.edu.sztui.base.infrastructure.util.URLPraser;
+import cn.edu.sztui.base.infrastructure.util.praser.URLPraser;
 import cn.edu.sztui.base.infrastructure.util.browserpool.PlaywrightBrowserPool;
 import cn.edu.sztui.base.infrastructure.util.cache.AuthSessionCacheUtil;
 import cn.edu.sztui.base.infrastructure.util.cache.dto.ProxySession;
@@ -63,11 +63,8 @@ public class AcademicServiceImpl implements AcademicService {
                 if( response.url().equals(AASysSwitchPort) ){
                     // TODO 正是选课期间，可以进行礼貌的提醒
                     // ret.setLoginTypes(Collections.singletonList(LoginType.SMS));
+                    ret.setComents("最近正在选课！");
                 }
-                // 然后其实就完成了
-                ret.setContent(response.text());
-                // TODO 以后返回签发的token或者其他东西，返回cookie不安全
-                ret.setCookies(context.cookies());
             } catch (Exception e) {
                 log.error("会话初始化出现错误：" + e.getMessage());
                 throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(), "会话初始化出现错误：" + e.getMessage(), ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());

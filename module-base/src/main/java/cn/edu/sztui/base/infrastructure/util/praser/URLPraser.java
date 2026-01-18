@@ -1,4 +1,4 @@
-package cn.edu.sztui.base.infrastructure.util;
+package cn.edu.sztui.base.infrastructure.util.praser;
 
 public class URLPraser {
 

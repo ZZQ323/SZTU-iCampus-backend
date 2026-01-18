@@ -2,7 +2,6 @@ package cn.edu.sztui.base.web;
 
 import cn.edu.sztui.base.application.dto.command.LoginRequestCommand;
 import cn.edu.sztui.base.application.service.AuthService;
-import cn.edu.sztui.base.application.vo.LoginBasicResultVO;
 import cn.edu.sztui.base.application.vo.LoginResultsVo;
 import cn.edu.sztui.common.util.result.Result;
 import jakarta.annotation.Resource;
@@ -35,8 +34,8 @@ public class AuthController {
      */
     @PostMapping("/v1/request/sms")
     public Result getSms(@RequestBody LoginRequestCommand request) {
-        LoginResultsVo result = authService.getSms(request.getUserId());
-        return Result.ok(result);
+        authService.getSms(request.getUserId());
+        return Result.ok("success");
     }
 
     /**
@@ -55,7 +54,7 @@ public class AuthController {
      */
     @PostMapping("/v1/login/passwd")
     public Result loginUsrPasswd(@RequestBody LoginRequestCommand request) {
-        LoginBasicResultVO result = authService.loginFrame(request);
+        LoginResultsVo result = authService.loginFrame(request);
         return Result.ok(result);
     }
 

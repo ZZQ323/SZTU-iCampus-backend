@@ -2,16 +2,16 @@ package cn.edu.sztui.base.application.service.impl;
 
 import cn.edu.sztui.base.application.dto.command.LoginRequestCommand;
 import cn.edu.sztui.base.application.service.AuthService;
-import cn.edu.sztui.base.application.vo.LoginBasicResultVO;
 import cn.edu.sztui.base.application.vo.LoginResultsVo;
 import cn.edu.sztui.base.domain.model.loginhandle.LoginType;
 import cn.edu.sztui.base.infrastructure.convertor.CharacterConverter;
 import cn.edu.sztui.base.infrastructure.convertor.CookieConverter;
-import cn.edu.sztui.base.infrastructure.util.URLPraser;
 import cn.edu.sztui.base.infrastructure.util.browserpool.PlaywrightBrowserPool;
 import cn.edu.sztui.base.infrastructure.util.cache.AuthSessionCacheUtil;
 import cn.edu.sztui.base.infrastructure.util.cache.dto.ProxySession;
 import cn.edu.sztui.base.infrastructure.util.ocr.CaptchaOcrUtil;
+import cn.edu.sztui.base.infrastructure.util.praser.HtmlPraser;
+import cn.edu.sztui.base.infrastructure.util.praser.URLPraser;
 import cn.edu.sztui.base.infrastructure.wx.WxMaUserService;
 import cn.edu.sztui.common.util.auth.UserContext;
 import cn.edu.sztui.common.util.bean.TokenMessage;
@@ -68,6 +68,9 @@ public class AuthServiceImpl implements AuthService {
         TokenMessage tokenmesage = UserContext.getContext();
         // FIXME 可能不是多个结果
         ProxySession session = authSessionCacheUtil.getSession(tokenmesage.getOpenId());
+        if(Objects.isNull(session)){
+            return Collections.emptyList();
+        }
         return session.getUserIds();
     }
 
@@ -93,19 +96,24 @@ public class AuthServiceImpl implements AuthService {
                 // page.navigate(gatewayStartURL);
                 // page.waitForURL(gatewayEndURL);
                 Response response = page.waitForResponse(
-                        resp -> resp.url().equals(gatewayFirstEndURL) || resp.url().equals(gatewaySecondEndURL),
+                        resp -> resp.url().equals(gatewayFirstEndURL)
+                                || resp.url().equals(gatewaySecondEndURL)
+                                || resp.url().equals(acdemAdminSysGatewayStartURL),
                         () -> page.navigate(gatewayStartURL)  // 这是在等待期间执行的动作
                 );
-                if( response.url().equals(gatewayFirstEndURL) ){
+                if( response.url().equals(acdemAdminSysGatewayStartURL)){
+                    ret.setLogined(true);
+                    // log.info("表单结束的文本内容{}", response.text());
+                    HtmlPraser.extractByRegex(ret,response.text());
+                }else if( response.url().equals(gatewayFirstEndURL) ){
                     ret.setLoginTypes(Collections.singletonList(LoginType.SMS));
-                }else{
+                }else if( response.url().equals(gatewaySecondEndURL) ){
                     List<LoginType> typeLists = Collections.singletonList(LoginType.SMS);
                     typeLists.add(LoginType.PASSWORD);
                     ret.setLoginTypes(typeLists);
+                }else{
+                    throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(), "未知的页面网络！！！" , ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
                 }
-                ret.setContent(response.text());
-                // TODO 以后返回签发的token或者其他东西，返回cookie不安全
-                ret.setCookies(context.cookies());
             } catch (Exception e) {
                 log.error("会话初始化出现错误：" + e.getMessage());
                 throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(), "会话初始化出现错误：" + e.getMessage(), ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
@@ -117,8 +125,8 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public LoginResultsVo getSms(String usrId) {
-        return browserPool.executeWithContext(context -> {
+    public void getSms(String usrId) {
+        browserPool.executeWithContext(context -> {
             TokenMessage tokenmesage = UserContext.getContext();
             String wxId = tokenmesage.getOpenId();
             // 缓存检测
@@ -149,20 +157,16 @@ public class AuthServiceImpl implements AuthService {
 
             // FIXME 如何确保 webvpn的cookie到账？
             authSessionCacheUtil.saveOrUpdateSession(wxId, context.cookies());
-            LoginResultsVo ret = new LoginResultsVo();
-            ret.setContent(res.text());
-            // TODO 以后返回签发的token或者其他东西，返回cookie不安全
-            ret.setCookies(context.cookies());
-            return ret;
+            return null;
         });
     }
 
-    public LoginBasicResultVO loginFrame(LoginRequestCommand cmd) {
+    public LoginResultsVo loginFrame(LoginRequestCommand cmd) {
         return browserPool.executeWithContext(context -> {
             TokenMessage tokenmesage = UserContext.getContext();
             String wxId = tokenmesage.getOpenId();
 
-            LoginBasicResultVO ret = new LoginBasicResultVO();
+            LoginResultsVo ret = new LoginResultsVo();
             if (authSessionCacheUtil.hasSession(wxId)) {
                 // 缓存检测
                 ProxySession session = authSessionCacheUtil.getSession(wxId);
@@ -213,11 +217,16 @@ public class AuthServiceImpl implements AuthService {
             );
             log.info("表单提交状态: {}", formRes.status());
             log.info("表单提交后 cookies: {}", context.cookies());
+            log.info("表单结束的文本内容{}", formRes.text());
+
             // FIXME 等待登录的成功
             // ============ 更新cookie，完成登录  ============
             authSessionCacheUtil.sessionLoginBind(wxId, cmd.getUserId(), context.cookies());
             // TODO 以后返回签发的token或者其他东西，返回cookie不安全
-            ret.setCookies(context.cookies());
+            ret.setWxId(wxId);
+            // ret.setUserId();
+            // ret.setSchool();
+            //ret.setCookies(context.cookies());
             return ret;
         });
     }
@@ -240,8 +249,6 @@ public class AuthServiceImpl implements AuthService {
             
             authSessionCacheUtil.sessionLogoutBind( wxId );
             LoginResultsVo ret = new LoginResultsVo();
-            // TODO 以后返回签发的token或者其他东西，返回cookie不安全
-            ret.setCookies(context.cookies());
             return ret;
         });
     }

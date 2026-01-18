@@ -1,7 +1,6 @@
 package cn.edu.sztui.base.application.service;
 
 import cn.edu.sztui.base.application.dto.command.LoginRequestCommand;
-import cn.edu.sztui.base.application.vo.LoginBasicResultVO;
 import cn.edu.sztui.base.application.vo.LoginResultsVo;
 
 import java.util.List;
@@ -14,9 +13,9 @@ public interface AuthService {
 
     LoginResultsVo init();
 
-    LoginResultsVo getSms(String usrId);
+    void getSms(String usrId);
 
-    LoginBasicResultVO loginFrame(LoginRequestCommand cmd);
+    LoginResultsVo loginFrame(LoginRequestCommand cmd);
 
     LoginResultsVo logout(LoginRequestCommand cmd);
 }

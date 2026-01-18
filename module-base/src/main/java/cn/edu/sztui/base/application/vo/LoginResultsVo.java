@@ -1,17 +1,22 @@
 package cn.edu.sztui.base.application.vo;
 
 import cn.edu.sztui.base.domain.model.loginhandle.LoginType;
-import com.microsoft.playwright.options.Cookie;
+import cn.edu.sztui.common.util.enums.SysChannelEnum;
 import lombok.Data;
 
 import java.util.List;
 
-
 @Data
 public class LoginResultsVo {
-    // FIXME 仅测试返回！
-    List<Cookie> cookies;
-    String content;
-    // 允许的登录方式
-    List<LoginType> loginTypes;
+    private boolean isLogined;
+    private String wxId;
+    private String userId;
+    private String realName;
+    private String gender;
+    private String coments;
+    // private String phone;
+    private String schoolName;
+    private String avatarURL;
+    private SysChannelEnum sysChannel;
+    private List<LoginType> loginTypes;
 }
