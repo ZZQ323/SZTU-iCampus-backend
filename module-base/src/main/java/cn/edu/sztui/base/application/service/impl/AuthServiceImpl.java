@@ -7,6 +7,7 @@ import cn.edu.sztui.base.application.vo.LoginResultsVo;
 import cn.edu.sztui.base.domain.model.loginhandle.LoginType;
 import cn.edu.sztui.base.infrastructure.convertor.CharacterConverter;
 import cn.edu.sztui.base.infrastructure.convertor.CookieConverter;
+import cn.edu.sztui.base.infrastructure.util.URLPraser;
 import cn.edu.sztui.base.infrastructure.util.browserpool.PlaywrightBrowserPool;
 import cn.edu.sztui.base.infrastructure.util.cache.AuthSessionCacheUtil;
 import cn.edu.sztui.base.infrastructure.util.cache.dto.ProxySession;
@@ -54,26 +55,32 @@ public class AuthServiceImpl implements AuthService {
 
     /**
      * 检测小程序账号的cookie活性
-     *
-     * @param tempCode
-     * @return
      */
     @Override
-    public boolean getSessionStatus(String tempCode) {
+    public boolean getSessionStatus() {
         TokenMessage tokenmesage = UserContext.getContext();
-        String unionID = tokenmesage.getUnionId();
-        return authSessionCacheUtil.hasSession(unionID);
+        String wxId = tokenmesage.getOpenId();
+        return authSessionCacheUtil.hasSession(wxId);
     }
 
     @Override
-    public LoginResultsVo init(String tempCode) {
-        String unionID = wxMaUserService.login(tempCode).getUnionid();
-        return refreshingCookies(unionID, authSessionCacheUtil.getSession(unionID));
+    public List<String> getPossibleUsrId() {
+        TokenMessage tokenmesage = UserContext.getContext();
+        // FIXME 可能不是多个结果
+        ProxySession session = authSessionCacheUtil.getSession(tokenmesage.getOpenId());
+        return session.getUserIds();
     }
 
-    private LoginResultsVo refreshingCookies(String tempCode, ProxySession session) {
+    @Override
+    public LoginResultsVo init() {
+        TokenMessage tokenmesage = UserContext.getContext();
+        log.info("用户{} 进行初始化",tokenmesage);
+        String wxId = tokenmesage.getOpenId();
+        return refreshingCookies(wxId, authSessionCacheUtil.getSession(wxId));
+    }
+
+    private LoginResultsVo refreshingCookies(String wxId, ProxySession session) {
         return browserPool.executeWithContext(context -> {
-            String unionID = wxMaUserService.login(tempCode).getUnionid();
             boolean isUpdated = false;
             if (!Objects.isNull(session)) {
                 context.addCookies(CookieConverter.fromCookieDTOs(session.getCookiesJson()));
@@ -96,26 +103,27 @@ public class AuthServiceImpl implements AuthService {
                     typeLists.add(LoginType.PASSWORD);
                     ret.setLoginTypes(typeLists);
                 }
-                ret.setMessage(response.text());
+                ret.setContent(response.text());
                 // TODO 以后返回签发的token或者其他东西，返回cookie不安全
                 ret.setCookies(context.cookies());
             } catch (Exception e) {
                 log.error("会话初始化出现错误：" + e.getMessage());
                 throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(), "会话初始化出现错误：" + e.getMessage(), ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
             }
-            if (isUpdated) authSessionCacheUtil.saveOrUpdateSession(unionID, context.cookies());
-            else authSessionCacheUtil.saveOrUpdateSession(unionID, context.cookies());
+            if (isUpdated) authSessionCacheUtil.saveOrUpdateSession(wxId, context.cookies());
+            else authSessionCacheUtil.saveOrUpdateSession(wxId, context.cookies());
             return ret;
         });
     }
 
     @Override
-    public LoginResultsVo getSms(String tempCode, String usrId) {
+    public LoginResultsVo getSms(String usrId) {
         return browserPool.executeWithContext(context -> {
-            String unionID = wxMaUserService.login(tempCode).getUnionid();
+            TokenMessage tokenmesage = UserContext.getContext();
+            String wxId = tokenmesage.getOpenId();
             // 缓存检测
-            if (authSessionCacheUtil.hasSession(unionID)) {
-                ProxySession session = authSessionCacheUtil.getSession(unionID);
+            if (authSessionCacheUtil.hasSession(wxId)) {
+                ProxySession session = authSessionCacheUtil.getSession(wxId);
                 List<Cookie> preCookies = CookieConverter.fromCookieDTOs(session.getCookiesJson());
                 context.addCookies(preCookies);
             }
@@ -131,42 +139,33 @@ public class AuthServiceImpl implements AuthService {
                 .setHeader("X-Requested-With", "XMLHttpRequest")
                 .setHeader("Accept", "application/json, text/javascript, */*; q=0.01")
                 .setHeader("Referer", gatewayFirstEndURL)
-                .setHeader("Origin", extractOrigin(smsURL))
+                .setHeader("Origin", URLPraser.extractOrigin(smsURL))
                 .setHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0")
             );
-
             // log.info("SMS请求URL: {}", smsURL);
             // log.info("SMS请求状态: {}", res.status());
             // log.info("SMS响应头: {}", res.headers());
             // log.info("SMS响应体: {}", res.text());
 
             // FIXME 如何确保 webvpn的cookie到账？
-            authSessionCacheUtil.saveOrUpdateSession(unionID, context.cookies());
+            authSessionCacheUtil.saveOrUpdateSession(wxId, context.cookies());
             LoginResultsVo ret = new LoginResultsVo();
-            ret.setMessage(res.text());
+            ret.setContent(res.text());
+            // TODO 以后返回签发的token或者其他东西，返回cookie不安全
             ret.setCookies(context.cookies());
             return ret;
         });
     }
 
-    // 辅助方法：提取 Origin
-    private String extractOrigin(String url) {
-        try {
-            java.net.URL u = new java.net.URL(url);
-            return u.getProtocol() + "://" + u.getHost() +
-                    (u.getPort() != -1 ? ":" + u.getPort() : "");
-        } catch (Exception e) {
-            return "";
-        }
-    }
-
     public LoginBasicResultVO loginFrame(LoginRequestCommand cmd) {
         return browserPool.executeWithContext(context -> {
-            String unionID = wxMaUserService.login(cmd.getWxCode()).getUnionid();
+            TokenMessage tokenmesage = UserContext.getContext();
+            String wxId = tokenmesage.getOpenId();
+
             LoginBasicResultVO ret = new LoginBasicResultVO();
-            if (authSessionCacheUtil.hasSession(unionID)) {
+            if (authSessionCacheUtil.hasSession(wxId)) {
                 // 缓存检测
-                ProxySession session = authSessionCacheUtil.getSession(unionID);
+                ProxySession session = authSessionCacheUtil.getSession(wxId);
                 List<Cookie> preCookies = CookieConverter.fromCookieDTOs(session.getCookiesJson());
                 context.addCookies(preCookies);
             }
@@ -186,7 +185,7 @@ public class AuthServiceImpl implements AuthService {
                     .setForm(ajaxData)
                     .setHeader("X-Requested-With", "XMLHttpRequest")
                     .setHeader("Referer", gatewayFirstEndURL)
-                    .setHeader("Origin", extractOrigin(loginURL))  // 注意这里应该是loginURL的origin
+                    .setHeader("Origin", URLPraser.extractOrigin(loginURL))  // 注意这里应该是loginURL的origin
                     .setHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0")
                     .setHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
                     .setHeader("Accept", "*/*")
@@ -209,14 +208,15 @@ public class AuthServiceImpl implements AuthService {
                     .setForm(ajaxData)
                     .setHeader("Referer", gatewayFirstEndURL)
                     .setHeader("X-Requested-With", "XMLHttpRequest")
-                    .setHeader("Origin", extractOrigin(loginURL))
+                    .setHeader("Origin", URLPraser.extractOrigin(loginURL))
                     .setHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0")
             );
             log.info("表单提交状态: {}", formRes.status());
             log.info("表单提交后 cookies: {}", context.cookies());
             // FIXME 等待登录的成功
             // ============ 更新cookie，完成登录  ============
-            authSessionCacheUtil.sessionLoginBind(unionID, cmd.getUserId(), context.cookies());
+            authSessionCacheUtil.sessionLoginBind(wxId, cmd.getUserId(), context.cookies());
+            // TODO 以后返回签发的token或者其他东西，返回cookie不安全
             ret.setCookies(context.cookies());
             return ret;
         });
@@ -225,10 +225,11 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public LoginResultsVo logout(LoginRequestCommand cmd) {
         return browserPool.executeWithContext(context -> {
-            String unionID = wxMaUserService.login(cmd.getWxCode()).getUnionid();
+            TokenMessage tokenmesage = UserContext.getContext();
+            String wxId = tokenmesage.getOpenId();
             // 缓存检测
-            if (authSessionCacheUtil.hasSession(unionID)) {
-                ProxySession session = authSessionCacheUtil.getSession(unionID);
+            if (authSessionCacheUtil.hasSession(wxId)) {
+                ProxySession session = authSessionCacheUtil.getSession(wxId);
                 List<Cookie> preCookies = CookieConverter.fromCookieDTOs(session.getCookiesJson());
                 context.addCookies(preCookies);
             }
@@ -237,8 +238,9 @@ public class AuthServiceImpl implements AuthService {
             APIResponse res = req.get(logoutURL);
             log.info("退出响应:{} {}", res.status(),res.text());
             
-            authSessionCacheUtil.sessionLogoutBind( unionID );
+            authSessionCacheUtil.sessionLogoutBind( wxId );
             LoginResultsVo ret = new LoginResultsVo();
+            // TODO 以后返回签发的token或者其他东西，返回cookie不安全
             ret.setCookies(context.cookies());
             return ret;
         });

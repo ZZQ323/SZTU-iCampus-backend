@@ -9,7 +9,7 @@ import java.util.List;
 @Data
 public class LoginBasicResultVO {
     private Integer userId;
-    private String unionId;
+    private String wxId;
     private String phone;
     private String school;
     private String avatar;

@@ -15,19 +15,11 @@ public class AcademicController {
     private AcademicService academicService;
 
     /**
-     * 检验token是否过期
-     */
-    @GetMapping("/active")
-    public Result isActive() {
-        return Result.ok("success");
-    }
-
-    /**
      * 获取课表
      * @param
      * @return
      */
-    @GetMapping("/schedule")
+    @GetMapping("/v1/schedule")
     public Result getCrousetable() {
         return Result.ok(academicService.getCrouseTable());
     }

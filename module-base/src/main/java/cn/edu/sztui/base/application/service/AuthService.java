@@ -4,13 +4,17 @@ import cn.edu.sztui.base.application.dto.command.LoginRequestCommand;
 import cn.edu.sztui.base.application.vo.LoginBasicResultVO;
 import cn.edu.sztui.base.application.vo.LoginResultsVo;
 
+import java.util.List;
+
 public interface AuthService {
 
-    boolean getSessionStatus(String tempCode);
+    boolean getSessionStatus();
 
-    LoginResultsVo init(String tempCode);
+    List<String> getPossibleUsrId();
 
-    LoginResultsVo getSms(String tempCode, String usrId);
+    LoginResultsVo init();
+
+    LoginResultsVo getSms(String usrId);
 
     LoginBasicResultVO loginFrame(LoginRequestCommand cmd);
 

@@ -5,7 +5,6 @@ import lombok.Data;
 
 @Data
 public class LoginRequestCommand {
-    private String wxCode;
     private String userId;
     private String password;
     private String smsCode;

@@ -5,6 +5,7 @@ import cn.binarywang.wx.miniapp.bean.WxMaJscode2SessionResult;
 import cn.binarywang.wx.miniapp.util.WxMaConfigHolder;
 import cn.edu.sztui.base.application.dto.command.WXLoginDTO;
 import cn.edu.sztui.base.application.vo.TokenAuthVo;
+import cn.edu.sztui.common.util.auth.UserContext;
 import cn.edu.sztui.common.util.enums.ResultCodeEnum;
 import cn.edu.sztui.common.util.enums.SysReturnCode;
 import cn.edu.sztui.common.util.exception.BusinessException;
@@ -16,10 +17,9 @@ import me.chanjar.weixin.common.error.WxErrorException;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Objects;
 
 @Slf4j
 @RestController
@@ -42,10 +42,19 @@ public class WxAuthController {
     private String rsaKey;
 
     /**
+     * 检验token是否过期
+     */
+    @GetMapping("/v1/active")
+    public Result isActive() {
+        log.info("用户 {} 进行验证", UserContext.getContext());
+        return Result.ok(Objects.isNull(UserContext.getContext())?false:true);
+    }
+
+    /**
      * <p>小程序登录 - 首次需要调用</p>
      * <p>刷新 token - 快过期时调用</p>
      */
-    @PostMapping("/get-token")
+    @PostMapping("/v1/get-token")
     public Result getToken(@RequestBody WXLoginDTO dto) {
         if (StringUtils.isBlank(dto.getWxCode()))throw new BusinessException(SysReturnCode.WECHAT_PROXY.getCode(),  "empty jscode", ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
         if ( !wxMaService.switchover(appid) )throw new BusinessException(SysReturnCode.WECHAT_PROXY.getCode(), String.format("未找到对应appid=[%s]的配置，请核实！", appid), ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());

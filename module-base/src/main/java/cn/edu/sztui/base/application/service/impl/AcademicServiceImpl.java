@@ -3,6 +3,7 @@ package cn.edu.sztui.base.application.service.impl;
 import cn.edu.sztui.base.application.service.AcademicService;
 import cn.edu.sztui.base.application.vo.LoginResultsVo;
 import cn.edu.sztui.base.infrastructure.convertor.CookieConverter;
+import cn.edu.sztui.base.infrastructure.util.URLPraser;
 import cn.edu.sztui.base.infrastructure.util.browserpool.PlaywrightBrowserPool;
 import cn.edu.sztui.base.infrastructure.util.cache.AuthSessionCacheUtil;
 import cn.edu.sztui.base.infrastructure.util.cache.dto.ProxySession;
@@ -64,7 +65,7 @@ public class AcademicServiceImpl implements AcademicService {
                     // ret.setLoginTypes(Collections.singletonList(LoginType.SMS));
                 }
                 // 然后其实就完成了
-                ret.setMessage(response.text());
+                ret.setContent(response.text());
                 // TODO 以后返回签发的token或者其他东西，返回cookie不安全
                 ret.setCookies(context.cookies());
             } catch (Exception e) {
@@ -114,7 +115,7 @@ public class AcademicServiceImpl implements AcademicService {
                         .setHeader("X-Requested-With", "XMLHttpRequest")
                         .setHeader("Accept", "application/json, text/javascript, */*; q=0.01")
                         .setHeader("Referer", gatewayFirstEndURL)
-                        // .setHeader("Origin", extractOrigin(smsURL))
+                        .setHeader("Origin", URLPraser.extractOrigin(smsURL))
                         .setHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0")
             );
             authSessionCacheUtil.saveOrUpdateSession(unionID, context.cookies());

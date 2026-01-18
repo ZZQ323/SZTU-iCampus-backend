@@ -103,6 +103,7 @@ public class JwtConfig {
      */
     public Claims parseToken(String token) {
         // 移除 Bearer 前缀
+//        log.info("parseToken 收到{}", token);
         if (token != null && token.startsWith(tokenPrefix)) {
             token = token.substring(tokenPrefix.length()).trim();
         }

@@ -70,7 +70,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             Claims claims = result.getClaims();
             TokenMessage context = new TokenMessage();
             context.setUnionId(claims.getSubject());
-            context.setLoginTime((Long) claims.get("createTime"));
+            context.setOpenId((String) claims.get("openid"));           // 添加
+            context.setUnionId((String) claims.get("unionid"));           // 添加
+            context.setSessionKey((String) claims.get("sessionkey"));   // 添加
+            context.setLoginTime(claims.getIssuedAt().getTime());       // 使用 iat 字段
             context.setExpireTime(claims.getExpiration().getTime());
             // 5. 存入 ThreadLocal
             UserContext.setContext(context);

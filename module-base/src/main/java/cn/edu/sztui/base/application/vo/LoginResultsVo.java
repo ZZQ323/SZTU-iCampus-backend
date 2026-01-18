@@ -11,7 +11,7 @@ import java.util.List;
 public class LoginResultsVo {
     // FIXME 仅测试返回！
     List<Cookie> cookies;
-    String message;
+    String content;
     // 允许的登录方式
     List<LoginType> loginTypes;
 }

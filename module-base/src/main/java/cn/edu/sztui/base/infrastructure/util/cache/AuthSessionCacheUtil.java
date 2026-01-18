@@ -14,108 +14,112 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
 /**
  * 代理会话缓存工具
  * 存储结构：
- * - auth:init:{unionID} -> seesion ，所有的信息，状态全部储存在 proxy
+ * - auth:init:{wxId} -> seesion ，所有的信息，状态全部储存在 proxy
  */
 @Slf4j
 @Component
 public class AuthSessionCacheUtil {
     private static final String UNIONID_SESSION_KEY = "auth:miniapp:";
-
     // 机器会话过期时间：30分钟
-    private static final long MACHINE_SESSION_EXPIRE = 1800;
+    private static final long MACHINE_SESSION_EXPIRE = 3600;
     // 登录会话过期时间：1小时
-    private static final long LOGIN_SESSION_EXPIRE = 3600;
+    private static final long LOGIN_SESSION_EXPIRE = 7200;
+
     @Resource
     private CacheUtil cacheUtil;
 
     /**
      * 获取会话
-     * @param unionID
+     * @param wxId
      * @return
      */
-    public ProxySession getSession(String unionID) {
-        if ( !StringUtils.hasText(unionID) ) return null;
-        Object obj = cacheUtil.hget(UNIONID_SESSION_KEY, unionID);
+    public ProxySession getSession(String wxId) {
+        if ( !StringUtils.hasText(wxId) ) return null;
+        Object obj = cacheUtil.hget(UNIONID_SESSION_KEY, wxId);
         if (obj == null) return null;
         return JSON.parseObject(obj.toString(), ProxySession.class);
     }
 
     /**
      * <p>只更新基础信息</p>
-     * <p>登录前，无账号，只有账号在小程序中的 unionID</p>
+     * <p>登录前，无账号，只有账号在小程序中的 wxId</p>
      *
-     * @param unionID
+     * @param wxId
      * @param cookies
      */
-    public void saveOrUpdateSession(String unionID, List<Cookie> cookies) {
-        ProxySession session = getSession(unionID);
-        if (StringUtils.hasText(unionID) && !CollectionUtils.isEmpty(cookies)) {
+    public boolean saveOrUpdateSession(String wxId, List<Cookie> cookies) {
+        ProxySession session = getSession(wxId);
+        if (StringUtils.hasText(wxId) && !CollectionUtils.isEmpty(cookies)) {
             if(Objects.isNull(session)){
+                // 新创建seesion
                 session = new ProxySession();
-                // 获取的系统时间？
-                session.setWxCode(unionID);
-                session.setCreateTime(System.currentTimeMillis());
+                session.setWxCode(wxId);
+                session.setCreateTime(System.currentTimeMillis());  // 获取的系统时间就足够了吗？
+                session.setUserIds(Collections.emptyList());        // 方便执行添加操作
             }
             session.setCookiesJson(CookieConverter.toCookieStrings(cookies));
-            session.setLastUpdateTime(System.currentTimeMillis());// 自动覆盖，管理expire
-            cacheUtil.hset(UNIONID_SESSION_KEY,unionID, JSON.toJSONString(session), MACHINE_SESSION_EXPIRE);
-            log.info("保存小程序unionID: {}，session：{}", unionID, session);
-        }
+            session.setLastUpdateTime(System.currentTimeMillis());  // 自动覆盖，管理expire
+            cacheUtil.hset(UNIONID_SESSION_KEY,wxId, JSON.toJSONString(session), MACHINE_SESSION_EXPIRE);
+            log.info("保存小程序wxId: {}，session：{}", wxId, session);
+            return true;
+        }return false;
     }
 
     /**
      * 登录更新登录状态
-     * @param unionID
+     * @param wxId
      * @param userId
      * @param newCookies
      */
-    public void sessionLoginBind(String unionID, String userId, List<Cookie> newCookies) {
-        ProxySession session = getSession(unionID);
+    public boolean sessionLoginBind(String wxId, String userId, List<Cookie> newCookies) {
+        ProxySession session = getSession(wxId);
         if ( Objects.isNull(session) ) {
             // 前端通过每次打开都进行初始化的方式进行检查，这里仅做意外的检测
             throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(), "无法获取初始化会话！！！！", ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
         }
-        session.setUserId(userId);
+        session.getUserIds().add(userId);
         session.setCookiesJson(CookieConverter.toCookieStrings(newCookies));
         session.setLastUpdateTime(System.currentTimeMillis());
         session.setLoggedIn(true);
         // 更新机器会话（延长过期时间）
-        cacheUtil.hset(UNIONID_SESSION_KEY,unionID+":"+userId, JSON.toJSONString(session), LOGIN_SESSION_EXPIRE);
-        log.info("用户 {} 绑定到小程序unionID {}", userId, unionID);
+        cacheUtil.hset(UNIONID_SESSION_KEY,wxId, JSON.toJSONString(session), LOGIN_SESSION_EXPIRE);
+        log.info("用户 {} 绑定到小程序wxId {}", userId, wxId);
+        return true;
     }
 
     /**
      * 检查机器会话是否有效
-     * @param unionID
+     * @param wxId
      * @return
      */
-    public boolean hasSession(String unionID) {
-        return cacheUtil.hHasKey(UNIONID_SESSION_KEY, unionID);
+    public boolean hasSession(String wxId) {
+        return cacheUtil.hHasKey(UNIONID_SESSION_KEY, wxId);
     }
 
     /**
      * 检查是否已登录
-     * @param unionID
+     * @param wxId
      * @return
      */
-    public boolean isLoggedIn(String unionID) {
-        ProxySession session = getSession(unionID);
+    public boolean isLoggedIn(String wxId) {
+        ProxySession session = getSession(wxId);
         return !Objects.isNull(session) && session.isLoggedIn();
     }
 
     /**
      * 删除会话（登出）
      */
-    public void sessionLogoutBind(String unionID) {
-        ProxySession session = getSession(unionID);
+    public void sessionLogoutBind(String wxId) {
+        ProxySession session = getSession(wxId);
         session.setLastUpdateTime(System.currentTimeMillis());
         session.setLoggedIn(true);
-        cacheUtil.hset(UNIONID_SESSION_KEY,unionID+":"+session.getUserId(), JSON.toJSONString(session));
+        cacheUtil.hset(UNIONID_SESSION_KEY,wxId, JSON.toJSONString(session));
     }
 }

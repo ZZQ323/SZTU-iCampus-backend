@@ -17,12 +17,16 @@ public class AuthController {
 
     /**
      * 检测 unionID的 状态
-     * @param tempCode
      * @return
      */
     @GetMapping("/v1/status/session")
-    public Result getSessionStatus(@RequestParam String tempCode) {
-        return Result.ok(authService.getSessionStatus(tempCode));
+    public Result getSessionStatus() {
+        return Result.ok(authService.getSessionStatus());
+    }
+
+    @GetMapping("/v1/history")
+    public Result getPossibleUsrId() {
+        return Result.ok(authService.getPossibleUsrId());
     }
 
     /**
@@ -31,18 +35,17 @@ public class AuthController {
      */
     @PostMapping("/v1/request/sms")
     public Result getSms(@RequestBody LoginRequestCommand request) {
-        LoginResultsVo result = authService.getSms(request.getWxCode(),request.getUserId());
+        LoginResultsVo result = authService.getSms(request.getUserId());
         return Result.ok(result);
     }
 
     /**
      * 初始化新的cookie
-     * @param request
      * @return
      */
     @PostMapping("/v1/cookie/refresh")
-    public Result refresh(@RequestBody LoginRequestCommand request){
-        return Result.ok(authService.init(request.getWxCode()));
+    public Result refresh(){
+        return Result.ok(authService.init());
     }
 
     /**
