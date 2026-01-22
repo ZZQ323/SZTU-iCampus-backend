@@ -3,6 +3,8 @@ package cn.edu.sztui.base.application.service.impl;
 import cn.edu.sztui.base.application.dto.command.LoginRequestCommand;
 import cn.edu.sztui.base.application.service.AuthService;
 import cn.edu.sztui.base.application.vo.LoginResultsVo;
+import cn.edu.sztui.base.domain.model.loginhandle.HandleCluster;
+import cn.edu.sztui.base.domain.model.loginhandle.LoginHandle;
 import cn.edu.sztui.base.domain.model.loginhandle.LoginType;
 import cn.edu.sztui.base.infrastructure.convertor.CharacterConverter;
 import cn.edu.sztui.base.infrastructure.convertor.CookieConverter;
@@ -32,6 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -52,6 +55,8 @@ public class AuthServiceImpl implements AuthService {
     private WxMaUserService wxMaUserService;
     @Autowired
     private ObjectMapper  objectMapper;
+    @Autowired
+    private HandleCluster handleCluster;
 
     /**
      * 检测小程序账号的cookie活性
@@ -66,7 +71,6 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public List<String> getPossibleUsrId() {
         TokenMessage tokenmesage = UserContext.getContext();
-        // FIXME 可能不是多个结果
         ProxySession session = authSessionCacheUtil.getSession(tokenmesage.getOpenId());
         if(Objects.isNull(session)){
             return Collections.emptyList();
@@ -91,6 +95,7 @@ public class AuthServiceImpl implements AuthService {
             }
             // 访问登录页面
             LoginResultsVo ret = new LoginResultsVo();
+            ret.setLogined(false);
             try {
                 Page page = context.newPage();
                 // page.navigate(gatewayStartURL);
@@ -108,7 +113,9 @@ public class AuthServiceImpl implements AuthService {
                 }else if( response.url().equals(gatewayFirstEndURL) ){
                     ret.setLoginTypes(Collections.singletonList(LoginType.SMS));
                 }else if( response.url().equals(gatewaySecondEndURL) ){
-                    List<LoginType> typeLists = Collections.singletonList(LoginType.SMS);
+                    // Collections.singletonList返回的是一个不可变的列表，只包含一个元素
+                    List<LoginType> typeLists = new ArrayList<>();
+                    typeLists.add(LoginType.SMS);
                     typeLists.add(LoginType.PASSWORD);
                     ret.setLoginTypes(typeLists);
                 }else{
@@ -176,24 +183,9 @@ public class AuthServiceImpl implements AuthService {
 
             // ============ 第一步：AJAX 验证 ============
             // 访问登录页面
-            FormData ajaxData = FormData.create();
-            ajaxData.set("j_username", CharacterConverter.toSBC(cmd.getUserId()));
-            ajaxData.set("sms_checkcode",cmd.getSmsCode());
-            ajaxData.set("j_checkcode","验证码");
-            ajaxData.set("op","login");
-            ajaxData.set("spAuthChainCode",spAuthChainCode);
-
-            APIRequestContext req = context.request();
-            APIResponse ajaxRes = req.post(loginURL+ "?sf_request_type=ajax",
-                RequestOptions.create()
-                    .setForm(ajaxData)
-                    .setHeader("X-Requested-With", "XMLHttpRequest")
-                    .setHeader("Referer", gatewayFirstEndURL)
-                    .setHeader("Origin", URLPraser.extractOrigin(loginURL))  // 注意这里应该是loginURL的origin
-                    .setHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0")
-                    .setHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
-                    .setHeader("Accept", "*/*")
-            );
+            LoginHandle loginHandle = handleCluster.getSpringLoginHandle(cmd.getLoginType());
+            APIResponse ajaxRes = loginHandle.loginVerification(context, cmd);
+            // 获取类重构
             String ajaxBody = ajaxRes.text();
             log.info("AJAX验证响应: {}", ajaxBody); // 一般是响应 {"loginFailed":"false"}
             // jackson 库中的核心类
@@ -204,29 +196,16 @@ public class AuthServiceImpl implements AuthService {
                 throw new BusinessException(SysReturnCode.BASE_PROXY.getCode(), "登录验证失败: " + ajaxBody, ResultCodeEnum.INTERNAL_SERVER_ERROR.getCode());
 
             // ============ 第二步：模拟表单提交（处理重定向链） ============
+            // 获取类重构
+            APIResponse formRes = loginHandle.loginRedirect(context, cmd);
 
-            // 如果重定向都是 HTTP 302，只用 API？
-            APIResponse formRes = req.post(
-                A4tLoginFormActionURL,
-                RequestOptions.create()
-                    .setForm(ajaxData)
-                    .setHeader("Referer", gatewayFirstEndURL)
-                    .setHeader("X-Requested-With", "XMLHttpRequest")
-                    .setHeader("Origin", URLPraser.extractOrigin(loginURL))
-                    .setHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0")
-            );
             log.info("表单提交状态: {}", formRes.status());
             log.info("表单提交后 cookies: {}", context.cookies());
-            log.info("表单结束的文本内容{}", formRes.text());
-
-            // FIXME 等待登录的成功
+            // log.info("表单结束的文本内容{}", formRes.text());
             // ============ 更新cookie，完成登录  ============
             authSessionCacheUtil.sessionLoginBind(wxId, cmd.getUserId(), context.cookies());
-            // TODO 以后返回签发的token或者其他东西，返回cookie不安全
             ret.setWxId(wxId);
-            // ret.setUserId();
-            // ret.setSchool();
-            //ret.setCookies(context.cookies());
+            ret.setLogined(true);
             return ret;
         });
     }
@@ -245,7 +224,7 @@ public class AuthServiceImpl implements AuthService {
             // 访问登录页面
             APIRequestContext req = context.request();
             APIResponse res = req.get(logoutURL);
-            log.info("退出响应:{} {}", res.status(),res.text());
+//            log.info("退出响应:{} {}", res.status(),res.text());
             
             authSessionCacheUtil.sessionLogoutBind( wxId );
             LoginResultsVo ret = new LoginResultsVo();

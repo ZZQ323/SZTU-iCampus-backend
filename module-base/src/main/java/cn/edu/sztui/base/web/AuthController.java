@@ -2,7 +2,6 @@ package cn.edu.sztui.base.web;
 
 import cn.edu.sztui.base.application.dto.command.LoginRequestCommand;
 import cn.edu.sztui.base.application.service.AuthService;
-import cn.edu.sztui.base.application.vo.LoginResultsVo;
 import cn.edu.sztui.common.util.result.Result;
 import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.*;
@@ -48,22 +47,11 @@ public class AuthController {
     }
 
     /**
-     * 网关账密登录
-     * @param request
-     * @return
-     */
-    @PostMapping("/v1/login/passwd")
-    public Result loginUsrPasswd(@RequestBody LoginRequestCommand request) {
-        LoginResultsVo result = authService.loginFrame(request);
-        return Result.ok(result);
-    }
-
-    /**
      * 网关验证码登录
      * @param request
      * @return
      */
-    @PostMapping("/v1/login/sms")
+    @PostMapping("/v1/login")
     public Result loginSms(@RequestBody LoginRequestCommand request) {
         return Result.ok(authService.loginFrame(request));
     }

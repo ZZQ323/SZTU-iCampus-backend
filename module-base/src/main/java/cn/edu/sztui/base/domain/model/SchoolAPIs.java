@@ -6,8 +6,10 @@ public interface SchoolAPIs {
     final String gatewaySecondEndURL ="https://auth-sztu-edu-cn-s.webvpn.sztu.edu.cn:8118/idp/authcenter/ActionAuthChain?entityId=home";
     final String smsURL ="https://auth-sztu-edu-cn-s.webvpn.sztu.edu.cn:8118/idp/sendSMSCheckCode.do";
     final String loginURL ="https://auth-sztu-edu-cn-s.webvpn.sztu.edu.cn:8118/idp/authcenter/ActionAuthChain";
-    final String A4tLoginFormActionURL ="https://auth-sztu-edu-cn-s.webvpn.sztu.edu.cn:8118/idp/AuthnEngine?currentAuth=urn_oasis_names_tc_SAML_2.0_ac_classes_SMSUsernamePassword";
-    final String spAuthChainCode ="3c21e7d55f6449df85e8cebc30518464";
+    final String A4tLoginSMSFormActionURL ="https://auth-sztu-edu-cn-s.webvpn.sztu.edu.cn:8118/idp/AuthnEngine?currentAuth=urn_oasis_names_tc_SAML_2.0_ac_classes_SMSUsernamePassword";
+    final String A4tLoginPASSWORDFormActionURL ="https://auth-sztu-edu-cn-s.webvpn.sztu.edu.cn:8118/idp/AuthnEngine?currentAuth=urn_oasis_names_tc_SAML_2.0_ac_classes_BAMUsernamePassword";
+    final String spAuthChainCodeSMS ="3c21e7d55f6449df85e8cebc30518464";
+    final String spAuthChainCodePASSWORD ="cc2fdbc3599b48a69d5c82a665256b6b";
     final String logoutURL ="https://home-sztu-edu-cn-s.webvpn.sztu.edu.cn:8118/bmportal/logout.portal";
 
     // academic administration system

@@ -33,7 +33,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
      * 公开接口，无需登录
      */
     private static final List<String> PUBLIC_PATHS = Arrays.asList(
-            "/wx-auth/get-token",
+            "/wx-auth/v1/get-token",
             "/notice/list",      // 公告列表
             "/calendar/**"      // 活动日历
     );

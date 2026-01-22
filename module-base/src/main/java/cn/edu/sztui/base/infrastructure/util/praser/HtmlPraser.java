@@ -22,6 +22,8 @@ public class HtmlPraser {
         if (idMatcher.find()) {
             String userId = idMatcher.group(1).trim();
             ret.setUserId(userId);
+            // https://home-sztu-edu-cn-s.webvpn.sztu.edu.cn:8118/opt/bmportal/attachments/photo/202200202104.png
+            ret.setAvatarURL("https://home-sztu-edu-cn-s.webvpn.sztu.edu.cn:8118/opt/bmportal/attachments/photo/"+userId+".png");
         }
 
         // 提取部门

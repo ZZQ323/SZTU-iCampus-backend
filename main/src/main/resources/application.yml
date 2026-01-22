@@ -12,9 +12,8 @@ management:
     web:
       exposure:
         include: 'loggers,health,prometheus'
-
 middleware:
-  redis: "localhost"
+  redis: "192.168.3.35"
 #  rocketmq: "192.168.18.79"
 #  kafka: "192.168.1.132"
 #  nacos: "192.168.18.79"
@@ -27,12 +26,18 @@ spring:
       max-request-size: 1024MB
   profiles:
     active: dev
-  ##redis
-  redis:
-    host: ${middleware.redis}
-    port: 6379
-    password:
-    database: 0
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+  data:
+    ##redis
+    redis:
+      host: ${middleware.redis}
+      port: 6379
+      password: ${passwd.redis}
+      database: 0
+
 
 school:
   url:
